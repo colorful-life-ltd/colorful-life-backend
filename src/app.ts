@@ -6,6 +6,7 @@ import productsRouter from "./routes/products.js";
 import purchasesRouter from "./routes/purchases.js";
 import purchaseAnalyticsRouter from "./routes/purchaseAnalytics.js";
 import purchaseItemsRouter from "./routes/purchaseItems.js";
+import adminOrdersRouter from "./routes/adminOrders.js";
 import ordersRouter from "./routes/orders.js";
 import businessExpensesRouter from "./routes/businessExpenses.js";
 import inventoryRouter from "./routes/inventory.js";
@@ -42,6 +43,7 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/purchases", purchasesRouter);
   app.use("/purchase-analytics", purchaseAnalyticsRouter);
   app.use("/purchase-items", purchaseItemsRouter);
+  app.use("/admin/orders", adminOrdersRouter);
   app.use("/orders", ordersRouter);
   app.use("/cart", cartRouter);
   app.use("/business-expenses", businessExpensesRouter);

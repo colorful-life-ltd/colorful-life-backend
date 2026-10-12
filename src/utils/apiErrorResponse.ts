@@ -1,6 +1,8 @@
 import type { Response } from "express";
 
 export type ApiErrorCode =
+  | "ORDER_ALREADY_PAID"
+  | "ORDER_PAYMENT_UNRESOLVED"
   | "CART_QUANTITY_UNAVAILABLE"
   | "STRIPE_RECOVERY_UNAVAILABLE"
   | "STRIPE_RECOVERY_MISMATCH"

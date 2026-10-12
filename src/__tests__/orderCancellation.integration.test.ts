@@ -9,6 +9,17 @@ import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { InventoryMovementType } from "../generated/prisma-client/enums.js";
 
+import type Stripe from "stripe";
+import { cancelOrderByAdmin } from "../domain/orders/orderCancellationService.js";
+import { OrderCancellationPaymentError } from "../domain/orders/orderCancellationErrors.js";
+import { createOrReuseStripePaymentIntent, StripePaymentNotPayableError } from "../domain/payments/stripePaymentService.js";
+import { reconcileStripePaymentEvent } from "../domain/payments/stripeReconciliationService.js";
+import { recoverStripePayment } from "../domain/payments/stripePaymentRecoveryService.js";
+import { createPayment } from "../domain/payments/paymentService.js";
+import { PaymentOrderCancelledError } from "../domain/payments/paymentErrors.js";
+import { createOrReusePayPalOrder, PayPalOrderAlreadyCompletedError } from "../domain/payments/paypalOrderService.js";
+
+const receiptIds: string[] = [];
 const userIds: number[] = [];
 const productIds: number[] = [];
 const listingIds: number[] = [];
@@ -25,6 +36,7 @@ before(async () => {
 });
 
 afterEach(async () => {
+  await prisma.paymentWebhookEvent.deleteMany({ where: { providerEventId: { in: receiptIds.splice(0) } } });
   if (orderIds.length) await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
   if (listingIds.length) await prisma.inventoryMovement.deleteMany({ where: { listingId: { in: listingIds } } });
   if (listingIds.length) await prisma.productListing.deleteMany({ where: { id: { in: listingIds } } });
@@ -150,5 +162,153 @@ describe("customer order cancellation HTTP integration", () => {
     });
     assert.strictEqual(response.status, 200);
     assert.strictEqual((await response.json()).cancelledBy, "SELLER");
+  });
+});
+
+
+function gate() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => { resolve = r; });
+  return { promise, resolve };
+}
+async function makeAdmin() {
+  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.com`, passwordHash: "test", role: "ADMIN" } });
+  userIds.push(user.id);
+  return { id: user.id, token: jwt.sign({ id: user.id }, config.JWT_SECRET) };
+}
+async function sellerCancel(orderId: number, token?: string, reason = "OUT_OF_STOCK") {
+  return fetch(`${url}/orders/${orderId}/seller-cancel`, { method: "POST", headers: {
+    "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }, body: JSON.stringify({ reason }) });
+}
+async function stock(orderId: number) {
+  const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId } });
+  return prisma.productListing.findUniqueOrThrow({ where: { id: item.productListingId } });
+}
+function outcome(orderId: number, intentId: string, type: "payment_intent.succeeded" | "payment_intent.payment_failed" | "payment_intent.canceled" = "payment_intent.succeeded") {
+  const id = `evt_${randomUUID()}`; receiptIds.push(id);
+  return { id, type, paymentIntentId: intentId, amount: 2000, currency: "gbp", metadata: { orderId: String(orderId) } };
+}
+
+describe("payment-safe seller cancellation", () => {
+  it("rejects all existing payment states, including retryable failures and unresolved placeholders", async () => {
+    const admin = await makeAdmin(); const owner = await makeCustomer();
+    for (const status of ["SUCCEEDED", "PENDING", "PROCESSING", "FAILED", "CANCELED"] as const) {
+      const order = await makeOrder(owner.id);
+      await prisma.payment.create({ data: { orderId: order.id, amount: 20, status, provider: "STRIPE", providerReference: status === "PROCESSING" ? `pending:order-${order.id}-stripe` : `pi_${randomUUID()}`, paidAt: status === "SUCCEEDED" ? new Date() : null } });
+      const response = await sellerCancel(order.id, admin.token);
+      assert.equal(response.status, 409);
+      assert.equal((await response.json()).error.code, status === "SUCCEEDED" ? "ORDER_ALREADY_PAID" : "ORDER_PAYMENT_UNRESOLVED");
+      assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status, "PENDING");
+      assert.equal((await stock(order.id)).reservedStock, 1);
+      if (status === "SUCCEEDED") {
+        await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED" } });
+        assert.equal((await sellerCancel(order.id, admin.token)).status, 409);
+      }
+    }
+  });
+
+  it("validates authorization, reasons, missing orders and repeated cancellations", async () => {
+    const admin = await makeAdmin(); const owner = await makeCustomer(); const order = await makeOrder(owner.id);
+    assert.equal((await sellerCancel(order.id)).status, 401);
+    assert.equal((await sellerCancel(order.id, owner.token)).status, 403);
+    assert.equal((await sellerCancel(order.id, admin.token, "CHANGED_MIND")).status, 400);
+    assert.equal((await sellerCancel(2147483647, admin.token)).status, 404);
+    assert.equal((await sellerCancel(order.id, admin.token)).status, 200);
+    assert.equal((await sellerCancel(order.id, admin.token)).status, 400);
+    assert.equal((await stock(order.id)).reservedStock, 0); assert.equal((await stock(order.id)).currentStock, 4);
+  });
+
+  it("blocks cancellation while Stripe initiation is paused at the provider boundary", async () => {
+    const owner = await makeCustomer(); const admin = await makeAdmin(); const order = await makeOrder(owner.id);
+    const entered = gate(); const release = gate(); const intentId = `pi_${randomUUID()}`;
+    const client = { paymentIntents: { create: async () => { entered.resolve(); await release.promise; return { id: intentId, status: "requires_payment_method", client_secret: "test-secret" }; } } } as unknown as Pick<Stripe, "paymentIntents">;
+    const initiation = createOrReuseStripePaymentIntent(order.id, owner.id, client);
+    try {
+      await entered.promise;
+      assert.equal((await sellerCancel(order.id, admin.token)).status, 409);
+      assert.equal((await stock(order.id)).reservedStock, 1);
+    } finally { release.resolve(); await initiation; }
+    const event = outcome(order.id, intentId);
+    await reconcileStripePaymentEvent(event); await reconcileStripePaymentEvent(event);
+    await reconcileStripePaymentEvent(outcome(order.id, intentId, "payment_intent.payment_failed"));
+    assert.equal((await sellerCancel(order.id, admin.token)).status, 409);
+    assert.equal((await prisma.payment.findUniqueOrThrow({ where: { orderId: order.id } })).status, "SUCCEEDED");
+    assert.equal((await stock(order.id)).reservedStock, 0); assert.equal((await stock(order.id)).currentStock, 3);
+  });
+
+  it("serializes competing cancellation and Stripe initiation under the order lock", async () => {
+    const owner = await makeCustomer(); const admin = await makeAdmin(); const order = await makeOrder(owner.id);
+    const locked = gate(); const release = gate(); let calls = 0;
+    const blocker = prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${order.id} FOR UPDATE`;
+      locked.resolve(); await release.promise;
+    });
+    await locked.promise;
+    const client = { paymentIntents: { create: async () => { calls++; return { id: `pi_${randomUUID()}`, status: "requires_payment_method", client_secret: "test" }; } } } as unknown as Pick<Stripe, "paymentIntents">;
+    const resultsPromise = Promise.allSettled([
+      cancelOrderByAdmin(order.id, "OUT_OF_STOCK", admin.id),
+      createOrReuseStripePaymentIntent(order.id, owner.id, client),
+    ]);
+    release.resolve(); await blocker;
+    const results = await resultsPromise;
+    assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+    const final = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    if (final.status === "CANCELLED") {
+      assert.equal(calls, 0); assert.equal(await prisma.payment.count({ where: { orderId: order.id } }), 0);
+      assert.equal((await stock(order.id)).reservedStock, 0);
+    } else {
+      assert.equal(final.status, "PENDING"); assert.equal(calls, 1); assert.equal((await stock(order.id)).reservedStock, 1);
+    }
+  });
+
+  it("prevents every supported initiation path after cancellation wins", async () => {
+    const owner = await makeCustomer(); const admin = await makeAdmin(); const order = await makeOrder(owner.id);
+    await cancelOrderByAdmin(order.id, "OUT_OF_STOCK", admin.id);
+    await assert.rejects(createOrReuseStripePaymentIntent(order.id, owner.id), StripePaymentNotPayableError);
+    await assert.rejects(createPayment(order.id, { providerReference: randomUUID() }), PaymentOrderCancelledError);
+    await assert.rejects(createOrReusePayPalOrder(order.id, owner.id), PayPalOrderAlreadyCompletedError);
+    const result = await reconcileStripePaymentEvent(outcome(order.id, "pi_unknown"));
+    assert.equal(result.handled, false);
+    assert.equal(await prisma.payment.count({ where: { orderId: order.id } }), 0);
+    assert.equal((await stock(order.id)).reservedStock, 0);
+  });
+
+  it("rejects cancellation during recovery and concurrent verified webhook processing", async () => {
+    const owner = await makeCustomer(); const admin = await makeAdmin(); const order = await makeOrder(owner.id);
+    const intentId = `pi_${randomUUID()}`;
+    await prisma.payment.create({ data: { orderId: order.id, amount: 20, provider: "STRIPE", providerReference: intentId, status: "FAILED" } });
+    const entered = gate(); const release = gate();
+    const recovery = recoverStripePayment(order.id, owner.id, { paymentIntents: { retrieve: async () => {
+      entered.resolve(); await release.promise;
+      return { id: intentId, amount: 2000, amount_received: 2000, currency: "gbp", status: "succeeded", metadata: { orderId: String(order.id) } };
+    } } } as unknown as Parameters<typeof recoverStripePayment>[2]);
+    receiptIds.push(`recovery:${(await prisma.payment.findUniqueOrThrow({ where: { orderId: order.id } })).id}:${intentId}:succeeded`);
+    try {
+      await entered.promise;
+      await assert.rejects(cancelOrderByAdmin(order.id, "OUT_OF_STOCK", admin.id), OrderCancellationPaymentError);
+      const results = await Promise.allSettled([
+        reconcileStripePaymentEvent(outcome(order.id, intentId)),
+        cancelOrderByAdmin(order.id, "OUT_OF_STOCK", admin.id),
+      ]);
+      assert.equal(results[0].status, "fulfilled"); assert.equal(results[1].status, "rejected");
+    } finally { release.resolve(); await recovery; }
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status, "CONFIRMED");
+    assert.equal((await stock(order.id)).currentStock, 3); assert.equal((await stock(order.id)).reservedStock, 0);
+  });
+
+  it("restores unpaid confirmed inventory once and rolls back missing reservations", async () => {
+    const owner = await makeCustomer(); const admin = await makeAdmin(); const order = await makeOrder(owner.id);
+    const listing = await stock(order.id);
+    await prisma.productListing.update({ where: { id: listing.id }, data: { reservedStock: 0, currentStock: 3 } });
+    await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED" } });
+    const results = await Promise.allSettled([cancelOrderByAdmin(order.id, "OUT_OF_STOCK", admin.id), cancelOrderByAdmin(order.id, "OUT_OF_STOCK", admin.id)]);
+    assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+    assert.equal((await stock(order.id)).currentStock, 4);
+    assert.equal(await prisma.inventoryMovement.count({ where: { listingId: listing.id, type: "ORDER_CANCELLATION_RETURN" } }), 1);
+    const pending = await makeOrder(owner.id); const pendingListing = await stock(pending.id);
+    await prisma.productListing.update({ where: { id: pendingListing.id }, data: { reservedStock: 0 } });
+    await assert.rejects(cancelOrderByAdmin(pending.id, "OUT_OF_STOCK", admin.id));
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: pending.id } })).status, "PENDING");
   });
 });

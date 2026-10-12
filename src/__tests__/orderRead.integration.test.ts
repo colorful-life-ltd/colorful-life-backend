@@ -39,18 +39,18 @@ afterEach(async () => {
   orderIds.length = listingIds.length = productIds.length = userIds.length = 0;
 });
 
-async function makeUser() {
+async function makeUser(role: "CUSTOMER" | "ADMIN" = "CUSTOMER") {
   const user = await prisma.user.create({
     data: {
       email: `${randomUUID()}@example.com`,
       passwordHash: "secret-hash",
       emailVerified: true,
-      role: "CUSTOMER",
+      role,
       addresses: { create: { recipientName: "Customer", line1: "1 Test Street", city: "Testville", postcode: "T1", countryCode: "GB", isDefaultBilling: true } },
     },
   });
   userIds.push(user.id);
-  return { ...user, token: jwt.sign({ id: user.id, role: "CUSTOMER" }, config.JWT_SECRET, { expiresIn: "1h" }) };
+  return { ...user, token: jwt.sign({ id: user.id, role }, config.JWT_SECRET, { expiresIn: "1h" }) };
 }
 
 async function makeListing() {
@@ -164,4 +164,61 @@ describe("customer order reads", () => {
     assert.strictEqual((await get(customer.token, "/orders/not-an-id")).status, 400);
   });
 
+});
+
+
+describe("admin order reads", () => {
+  it("lists across customers with deterministic pagination, safe payment projection and fulfilment details", async () => {
+    const admin = await makeUser("ADMIN");
+    const first = await makeUser(); const second = await makeUser();
+    const a = await makeOrder(first.id, (await makeListing()).id);
+    const b = await makeOrder(second.id, (await makeListing()).id);
+    // Future identical timestamps make these fixtures the first two store-wide rows.
+    await prisma.order.updateMany({ where: { id: { in: [a.id, b.id] } }, data: { createdAt: new Date("2100-01-01") } });
+    await prisma.payment.create({ data: { orderId: b.id, amount: b.totalAmount, currency: "GBP", status: "PROCESSING", provider: "STRIPE", providerReference: `pi_${randomUUID()}` } });
+    const page = await (await get(admin.token, "/admin/orders?pageSize=1")).json();
+    assert.equal(page.items.length, 1); assert.equal(page.items[0].id, b.id);
+    assert.equal(page.items[0].user.id, second.id); assert.equal(page.items[0].user.email, second.email);
+    assert.equal(page.items[0].paymentStatus, "PROCESSING"); assert.equal(page.items[0].currency, "GBP");
+    assert.equal(page.pagination.page, 1); assert.equal(page.pagination.pageSize, 1);
+    assert.ok(page.pagination.totalItems >= 2);
+    const next = await (await get(admin.token, "/admin/orders?page=2&pageSize=1")).json();
+    assert.equal(next.items[0].id, a.id); assert.equal(next.items[0].paymentStatus, null); assert.equal(next.items[0].currency, "GBP");
+    const detail = await (await get(admin.token, `/admin/orders/${b.id}`)).json();
+    assert.equal(detail.deliveryLine1, "1 Test Street"); assert.equal(detail.deliveryRecipientName, "Customer");
+    assert.equal(detail.orderItems[0].quantity, 2); assert.equal(detail.orderItems[0].unitPrice, "15");
+    assert.equal(detail.orderItems[0].lineTotal, "30"); assert.equal(detail.totalAmount, "30");
+    assert.equal(detail.actualShippingCost, null);
+    assert.deepEqual(detail.payment, { status: "PROCESSING", currency: "GBP", paidAt: null });
+    const serialized = JSON.stringify(detail);
+    for (const key of ["passwordHash", "providerReference", "idempotencyKey", "clientSecret", "billingLine1", "refunds"]) assert.ok(!serialized.includes(key));
+    const paidAt = new Date("2026-10-01T12:00:00Z");
+    await prisma.payment.update({ where: { orderId: b.id }, data: { status: "SUCCEEDED", currency: "EUR", paidAt } });
+    await prisma.order.update({ where: { id: b.id }, data: { status: "DISPATCHED", actualShippingCost: 5, shippingCarrier: "UPS", trackingNumber: "TRACK", dispatchedAt: paidAt } });
+    const shipped = await (await get(admin.token, `/admin/orders/${b.id}`)).json();
+    assert.equal(shipped.currency, "EUR"); assert.equal(shipped.paymentStatus, "SUCCEEDED");
+    assert.equal(shipped.payment.paidAt, paidAt.toISOString()); assert.equal(shipped.actualShippingCost, "5");
+    assert.equal(shipped.shippingCarrier, "UPS"); assert.equal(shipped.trackingNumber, "TRACK");
+    assert.equal(shipped.dispatchedAt, paidAt.toISOString());
+    const updatedList = await (await get(admin.token, "/admin/orders?pageSize=1")).json();
+    assert.equal(updatedList.items[0].currency, "EUR"); assert.equal(updatedList.items[0].paymentStatus, "SUCCEEDED");
+    assert.equal((await get(admin.token, `/orders/${b.id}`)).status, 404);
+    assert.deepEqual(await (await get(admin.token, "/orders")).json(), []);
+  });
+
+  it("enforces database ADMIN authorization and validates bounds and unknown parameters", async () => {
+    const customer = await makeUser(); const admin = await makeUser("ADMIN");
+    for (const path of ["/admin/orders", "/admin/orders/1"]) {
+      assert.equal((await get(undefined, path)).status, 401);
+      assert.equal((await get(customer.token, path)).status, 403);
+    }
+    for (const query of ["page=0", "page=10001", "pageSize=51", "pageSize=-1", "page=1.5", "page=abc", "page=1&page=2", "unknown=1"]) {
+      assert.equal((await get(admin.token, `/admin/orders?${query}`)).status, 400, query);
+    }
+    for (const id of ["abc", "0", "2147483648", "1e2"]) assert.equal((await get(admin.token, `/admin/orders/${id}`)).status, 400);
+    assert.equal((await get(admin.token, "/admin/orders/2147483647")).status, 404);
+    const empty = await (await get(admin.token, "/admin/orders?page=10000")).json(); assert.deepEqual(empty.items, []);
+    await prisma.user.update({ where: { id: admin.id }, data: { role: "CUSTOMER" } });
+    assert.equal((await get(admin.token, "/admin/orders")).status, 403);
+  });
 });

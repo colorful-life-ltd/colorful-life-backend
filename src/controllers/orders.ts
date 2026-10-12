@@ -51,6 +51,7 @@ import { OrderReturnInspectionSchema } from "../domain/orders/orderReturnInspect
 import {
   OrderNotFoundError as OrderNotFoundErrorCancel,
   OrderNotCancellableError,
+  OrderCancellationPaymentError,
   InsufficientReservedStockError,
 } from "../domain/orders/orderCancellationErrors.js";
 import {
@@ -145,6 +146,9 @@ export const cancelOrderBySellerHandler = async (req: Request, res: Response) =>
     const order = await cancelOrderByAdmin(orderId, parseResult.data.reason, (req.user as { id: number }).id);
     return res.status(200).json(order);
   } catch (err: unknown) {
+    if (err instanceof OrderCancellationPaymentError) {
+      return sendApiError(res, 409, err.paid ? "ORDER_ALREADY_PAID" : "ORDER_PAYMENT_UNRESOLVED", err.message);
+    }
     if (err instanceof OrderNotFoundErrorCancel) {
       return res.status(404).json({ error: err.message });
     }

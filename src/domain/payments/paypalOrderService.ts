@@ -50,6 +50,7 @@ export async function createOrReusePayPalOrder(orderId: number, userId: number, 
     if (!order) throw new PayPalOrderNotFoundError();
     if (order.userId !== userId) throw new PayPalOrderOwnershipError();
     if (order.status === OrderStatus.EXPIRED || (order.reservationExpiresAt && order.reservationExpiresAt <= new Date())) throw new PayPalOrderExpiredError();
+    if (order.status === OrderStatus.CANCELLED) throw new PayPalOrderAlreadyCompletedError();
     const value = amountString(order.totalAmount);
     const existing = await tx.payment.findUnique({ where: { orderId } });
     if (existing) {
