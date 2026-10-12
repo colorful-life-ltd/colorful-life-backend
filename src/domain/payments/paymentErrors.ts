@@ -27,3 +27,9 @@ export class PaymentConflictError extends Error {
     this.name = "PaymentConflictError"
   }
 }
+
+export class PaymentOrderCancelledError extends Error {
+  constructor(orderId: number) {
+    super(`Payment for cancelled order ${orderId} cannot be created`);
+  }
+}

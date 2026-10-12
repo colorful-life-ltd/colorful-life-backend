@@ -4,9 +4,11 @@ import {
   OrderStatus,
   CancellationInitiator,
   CancellationReason,
+  PaymentStatus,
 } from "../../generated/prisma-client/enums.js";
 import {
   OrderNotFoundError,
+  OrderCancellationPaymentError,
   OrderNotCancellableError,
   InsufficientReservedStockError,
 } from "./orderCancellationErrors.js";
@@ -122,6 +124,15 @@ export async function cancelOrderByAdmin(
     if (!order) {
       throw new OrderNotFoundError(orderId);
     }
+
+    if (!cancellableStatuses.includes(order.status as "PENDING" | "CONFIRMED") || order.cancelledAt) {
+      throw new OrderNotCancellableError(orderId, order.status);
+    }
+    // The order lock is shared with payment initiation and authoritative outcomes.
+    // FAILED is retryable; placeholders and CANCELED attempts cannot be safely
+    // cleared while initiation/retrieval or delayed notifications may be in flight.
+    const payment = await tx.payment.findUnique({ where: { orderId } });
+    if (payment) throw new OrderCancellationPaymentError(payment.status === PaymentStatus.SUCCEEDED || payment.paidAt !== null);
 
     const updateResult = await tx.order.updateMany({
       where: {

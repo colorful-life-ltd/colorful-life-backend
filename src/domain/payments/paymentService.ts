@@ -8,6 +8,7 @@ import {
   PaymentAlreadySucceededError,
   PaymentNotFoundError,
   PaymentExpiredError,
+  PaymentOrderCancelledError,
 } from "./paymentErrors.js"
 import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js"
 
@@ -76,6 +77,8 @@ export async function createPayment(
       if (order.reservationExpiresAt !== null && order.reservationExpiresAt <= new Date()) {
         throw new PaymentExpiredError(orderId)
       }
+
+      if (order.status === OrderStatus.CANCELLED) throw new PaymentOrderCancelledError(orderId)
 
       // 3️⃣ Create the new payment – let any P2002 bubble up to the outer catch
       return await tx.payment.create({
