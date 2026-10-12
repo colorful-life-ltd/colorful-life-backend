@@ -7,6 +7,7 @@ import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { createOrder } from "../domain/orders/orderService.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
+import { OrderCancellationPaymentError } from "../domain/orders/orderCancellationErrors.js";
 import { cancelOrder } from "../domain/orders/orderCancellationService.js";
 import { expireOrderReservation } from "../domain/orders/orderExpiryService.js";
 import { reconcileStripePaymentEvent, type StripePaymentIntentEvent } from "../domain/payments/stripeReconciliationService.js";
@@ -94,11 +95,14 @@ describe("checkout payment hardening", () => {
     await reconcileStripePaymentEvent(e); await assertConfirmed(f);
   });
 
-  it("preserves expiry and cancellation winners and records late-payment exceptions", async () => {
+  it("records late-payment exceptions for historical expired and cancelled orders", async () => {
     for (const terminal of ["EXPIRED", "CANCELLED"] as const) {
       const f = await fixture();
-      if (terminal === "EXPIRED") { await prisma.order.update({ where: { id: f.order.id }, data: { reservationExpiresAt: new Date(0) } }); await expireOrderReservation(f.order.id); }
-      else await cancelOrder(f.user.id, f.order.id, "CHANGED_MIND");
+      // Historical state from before #154; ordinary transitions now reject an existing payment.
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({ where: { id: f.order.id }, data: { status: terminal, reservationExpiresAt: null } });
+        await tx.productListing.update({ where: { id: f.listing.id }, data: { reservedStock: 0 } });
+      });
       const e = event(f); await reconcileStripePaymentEvent(e); const s = await state(f);
       assert.equal(s.order.status, terminal); assert.equal(s.payment.status, "SUCCEEDED"); assert.ok(s.payment.paidAt);
       assert.equal(s.listing.currentStock, 10); assert.equal(s.listing.reservedStock, 0); assert.equal(s.movements, 0);
@@ -121,19 +125,19 @@ describe("checkout payment hardening", () => {
     const f = await fixture(); await prisma.order.update({ where: { id: f.order.id }, data: { reservationExpiresAt: new Date(0) } });
     await Promise.all([expireOrderReservation(f.order.id), reconcileStripePaymentEvent(event(f))]);
     const s = await state(f); assert.equal(s.payment.status, "SUCCEEDED"); assert.equal(s.listing.reservedStock, 0);
-    assert.ok(s.order.status === "EXPIRED" || s.order.status === "CONFIRMED");
-    assert.equal(s.listing.currentStock, s.order.status === "EXPIRED" ? 10 : 8); assert.equal(s.movements, s.order.status === "EXPIRED" ? 0 : 1);
+    assert.equal(s.order.status, "CONFIRMED");
+    assert.equal(s.listing.currentStock, 8); assert.equal(s.movements, 1);
     assert.equal(await expireOrderReservation(f.order.id, new Date(Date.now() + 3600000)), null);
   });
 
   it("serializes cancellation against success using current inventory state", async () => {
     const f = await fixture();
-    await Promise.all([cancelOrder(f.user.id, f.order.id, "CHANGED_MIND"), reconcileStripePaymentEvent(event(f))]);
-    const s = await state(f); assert.equal(s.order.status, "CANCELLED"); assert.equal(s.payment.status, "SUCCEEDED");
-    assert.equal(s.listing.currentStock, 10); assert.equal(s.listing.reservedStock, 0);
-    assert.ok(s.movements === 0 || s.movements === 1);
-    const returns = await prisma.inventoryMovement.count({ where: { listingId: f.listing.id, type: "ORDER_CANCELLATION_RETURN" } });
-    assert.equal(returns, s.movements);
+    const results = await Promise.allSettled([cancelOrder(f.user.id, f.order.id, "CHANGED_MIND"), reconcileStripePaymentEvent(event(f))]);
+    assert.equal(results[0].status, "rejected");
+    if (results[0].status === "rejected") assert.ok(results[0].reason instanceof OrderCancellationPaymentError);
+    assert.equal(results[1].status, "fulfilled");
+    await assertConfirmed(f);
+    assert.equal(await prisma.inventoryMovement.count({ where: { listingId: f.listing.id, type: "ORDER_CANCELLATION_RETURN" } }), 0);
   });
 
   it("success winning before expiry prevents subsequent expiry", async () => {

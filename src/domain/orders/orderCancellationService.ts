@@ -37,6 +37,14 @@ export async function cancelOrder(
       throw new OrderNotFoundError(orderId);
     }
 
+    if ((order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CONFIRMED) || order.cancelledAt) {
+      throw new OrderNotCancellableError(orderId, order.status);
+    }
+    // Payment existence is checked under the same order lock as initiation.
+    // Even FAILED/CANCELED attempts may be reused or have delayed provider I/O.
+    const payment = await tx.payment.findUnique({ where: { orderId } });
+    if (payment) throw new OrderCancellationPaymentError(payment.status === PaymentStatus.SUCCEEDED || payment.paidAt !== null, "customer");
+
     const updateResult = await tx.order.updateMany({
       where: {
         id: orderId,

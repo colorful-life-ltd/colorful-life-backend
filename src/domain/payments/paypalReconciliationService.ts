@@ -40,7 +40,7 @@ export async function reconcilePayPalWebhookEvent(event: PayPalWebhookEvent): Pr
         const now = new Date();
         await tx.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.SUCCEEDED, paidAt: payment.paidAt ?? now, providerCaptureReference: event.captureId } });
         const expired = payment.order.status === OrderStatus.EXPIRED || (payment.order.reservationExpiresAt && payment.order.reservationExpiresAt <= now);
-        await tx.paymentWebhookEvent.update({ where: { id: receipt.id }, data: { processedAt: now, processingError: expired ? "Captured payment for expired order requires refund/reconciliation" : null } });
+        await tx.paymentWebhookEvent.update({ where: { id: receipt.id }, data: { processedAt: now, processingError: payment.order.status === OrderStatus.CANCELLED ? "Captured payment for cancelled order requires refund/reconciliation" : expired ? "Captured payment for expired order requires refund/reconciliation" : null } });
         return { duplicate: false, handled: true };
       }
       if (payment.status !== PaymentStatus.SUCCEEDED) await tx.payment.update({ where: { id: payment.id }, data: { status: event.eventType === "PAYMENT.CAPTURE.DENIED" ? PaymentStatus.FAILED : PaymentStatus.PROCESSING } });

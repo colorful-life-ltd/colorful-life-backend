@@ -230,6 +230,9 @@ export const cancelOrderHandler = async (req: Request, res: Response) => {
     const order = await cancelOrder(userId, orderId, parseResult.data.reason);
     return res.status(200).json(order);
   } catch (err: unknown) {
+    if (err instanceof OrderCancellationPaymentError) {
+      return sendApiError(res, 409, err.paid ? "ORDER_ALREADY_PAID" : "ORDER_PAYMENT_UNRESOLVED", err.message);
+    }
     if (err instanceof OrderNotFoundErrorCancel) {
       return res.status(404).json({ error: err.message });
     }

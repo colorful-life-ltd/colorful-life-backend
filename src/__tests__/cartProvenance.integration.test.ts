@@ -10,6 +10,7 @@ import { addCartItem, updateCartItem, removeCartItem, clearCart, getCart } from 
 import { lockCustomerCart, reconcilePendingCarts, startCartReconciliationWorker, CartQuantityAllocatedError } from "../domain/cart/cartProvenanceService.js";
 import { createOrder, OrderIdempotencyMismatchError } from "../domain/orders/orderService.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
+import { OrderCancellationPaymentError } from "../domain/orders/orderCancellationErrors.js";
 import { cancelOrder, cancelOrderByAdmin } from "../domain/orders/orderCancellationService.js";
 import { expireOrderReservation } from "../domain/orders/orderExpiryService.js";
 import { getCustomerOrder } from "../domain/orders/orderReadService.js";
@@ -217,12 +218,17 @@ describe("durable order cart provenance", { concurrency: 1 }, () => {
     await success(two.id); await reconcilePendingCarts(); assert.deepEqual(await quantities(f), { a: 1, b: 0 });
   });
   for (const terminal of ["cancel", "expire"] as const) {
-    it(`late successful recovery after ${terminal} records payment without resurrecting or consuming released intent`, async () => {
-      const f = await fixture(); await addCartItem(f.userId, f.a, 1); const o = await order(f), p = await payment(o.id);
+    it(`historical late recovery after ${terminal} records payment without resurrecting or consuming released intent`, async () => {
+      const f = await fixture(); await addCartItem(f.userId, f.a, 1); const o = await order(f);
       if (terminal === "cancel") await cancelOrder(f.userId, o.id, "CHANGED_MIND"); else await expireOrderReservation(o.id, new Date(Date.now() + 3_600_000));
+      // Inject a historical correlated attempt directly; supported initiation now rejects terminal orders.
+      const p = await payment(o.id);
       await recoverStripePayment(o.id, f.userId, provider(p)); await reconcilePendingCarts();
       assert.equal((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).status, "SUCCEEDED");
       assert.equal((await provenance(o.id)).state, "RELEASED"); assert.deepEqual(await quantities(f), { a: 1, b: 0 });
+      assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: o.id } })).status, terminal === "cancel" ? "CANCELLED" : "EXPIRED");
+      const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: "STRIPE", providerEventId: `recovery:${p.id}:${p.providerReference}:succeeded` } } });
+      assert.match(receipt.processingError!, /refund\/reconciliation/);
     });
   }
   it("legacy/no-provenance order success and recovery never subtract today's cart", async () => {
@@ -268,10 +274,13 @@ describe("durable order cart provenance", { concurrency: 1 }, () => {
     await cancelOrder(f.userId, one.id, "CHANGED_MIND"); const two = await order(f);
     assert.equal((await provenance(one.id)).state, "RELEASED"); assert.equal((await provenance(two.id)).state, "ACTIVE");
   });
-  it("cancellation after successful confirmation still consumes purchased provenance", async () => {
+  it("rejects paid cancellation while still consuming purchased provenance", async () => {
     const f = await fixture(); await addCartItem(f.userId, f.a, 1); const o = await order(f); await success(o.id);
-    await cancelOrder(f.userId, o.id, "CHANGED_MIND"); await reconcilePendingCarts();
+    await assert.rejects(cancelOrder(f.userId, o.id, "CHANGED_MIND"), OrderCancellationPaymentError); await reconcilePendingCarts();
     assert.equal((await provenance(o.id)).state, "CONSUMED"); assert.deepEqual(await quantities(f), { a: 0, b: 0 });
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: o.id } })).status, "CONFIRMED");
+    const listing = await prisma.productListing.findUniqueOrThrow({ where: { id: f.a } });
+    assert.equal(listing.currentStock, 49); assert.equal(listing.reservedStock, 0);
   });
 
   it("cart projection exposes allocated and unallocated quantities without raw provenance", async () => {

@@ -95,8 +95,8 @@ async function execute(orderId: number, userId: number, client?: PayPalCaptureCl
     const expired = order.status === OrderStatus.EXPIRED || (order.reservationExpiresAt && order.reservationExpiresAt <= new Date());
     const now = new Date();
     const updated = await tx.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.SUCCEEDED, paidAt: now, providerCaptureReference: capture.id } });
-    if (expired) {
-      await tx.paymentWebhookEvent.create({ data: { provider: PaymentProvider.PAYPAL, providerEventId: `capture:${capture.id}`, eventType: "PAYMENT.CAPTURE.COMPLETED", processedAt: now, processingError: "Captured payment for expired order requires refund/reconciliation" } });
+    if (expired || order.status === OrderStatus.CANCELLED) {
+      await tx.paymentWebhookEvent.create({ data: { provider: PaymentProvider.PAYPAL, providerEventId: `capture:${capture.id}`, eventType: "PAYMENT.CAPTURE.COMPLETED", processedAt: now, processingError: order.status === OrderStatus.CANCELLED ? "Captured payment for cancelled order requires refund/reconciliation" : "Captured payment for expired order requires refund/reconciliation" } });
     }
     return { paymentId: updated.id, paypalOrderId: updated.providerReference, captureId: updated.providerCaptureReference };
   });

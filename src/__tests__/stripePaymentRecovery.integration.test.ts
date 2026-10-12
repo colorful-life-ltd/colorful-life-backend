@@ -8,7 +8,6 @@ import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { createOrder } from "../domain/orders/orderService.js";
 import { expireOrderReservation } from "../domain/orders/orderExpiryService.js";
-import { cancelOrder } from "../domain/orders/orderCancellationService.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import { reconcileStripePaymentEvent } from "../domain/payments/stripeReconciliationService.js";
 import { recoverStripePayment, setStripeRecoveryClientForTests, StripeRecoveryMismatchError, StripeRecoveryOrderNotFoundError, StripeRecoveryUnavailableError } from "../domain/payments/stripePaymentRecoveryService.js";
@@ -161,8 +160,11 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
   it("records late success for EXPIRED/CANCELLED orders without resurrecting inventory", async () => {
     for (const status of ["EXPIRED", "CANCELLED"] as const) {
       const f = await fixture();
-      if (status === "EXPIRED") { await prisma.order.update({ where: { id: f.order.id }, data: { reservationExpiresAt: new Date(0) } }); await expireOrderReservation(f.order.id); }
-      else await cancelOrder(f.user.id, f.order.id, "CHANGED_MIND");
+      // Seed a historical pre-#154 terminal order; current cancellation/expiry retain active payments.
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({ where: { id: f.order.id }, data: { status, reservationExpiresAt: null } });
+        await tx.productListing.update({ where: { id: f.listing.id }, data: { reservedStock: 0 } });
+      });
       const stripe = provider(f); await recoverStripePayment(f.order.id, f.user.id, stripe.client);
       await recoverStripePayment(f.order.id, f.user.id, stripe.client);
       const s = await state(f);
@@ -183,12 +185,11 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     }
   });
 
-  it("lets expiry win during retrieval, then records late success safely", async () => {
+  it("retains an active payment reservation during recovery, then confirms late success", async () => {
     const f = await fixture(); await prisma.order.update({ where: { id: f.order.id }, data: { reservationExpiresAt: new Date(0) } });
-    const stripe = provider(f, {}, async () => { await expireOrderReservation(f.order.id); });
+    const stripe = provider(f, {}, async () => { assert.equal(await expireOrderReservation(f.order.id), null); });
     await recoverStripePayment(f.order.id, f.user.id, stripe.client);
-    const s = await state(f); assert.equal(s.order.status, "EXPIRED"); assert.equal(s.payment.status, "SUCCEEDED");
-    assert.equal(s.listing.currentStock, 10); assert.equal(s.listing.reservedStock, 0); assert.equal(s.movements, 0);
+    await assertConfirmed(f);
   });
 
   it("can confirm an elapsed but still-reserved PENDING order before expiry wins", async () => {
