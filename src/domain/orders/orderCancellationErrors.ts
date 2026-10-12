@@ -23,8 +23,8 @@ export class InsufficientReservedStockError extends Error {
 }
 
 export class OrderCancellationPaymentError extends Error {
-  constructor(public readonly paid: boolean) {
-    super(paid ? "Paid orders cannot be seller-cancelled" : "Orders with an existing payment attempt cannot be seller-cancelled");
+  constructor(public readonly paid: boolean, initiator: "customer" | "seller" = "seller") {
+    super(paid ? `Paid orders cannot be ${initiator}-cancelled` : `Orders with an existing payment attempt cannot be ${initiator}-cancelled`);
     this.name = "OrderCancellationPaymentError";
   }
 }

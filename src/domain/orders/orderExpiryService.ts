@@ -1,10 +1,10 @@
 import { queueCartReconciliation } from "../cart/cartProvenanceService.js";
 import { prisma } from "../../prisma/runtime.js";
-import { OrderStatus, PaymentStatus } from "../../generated/prisma-client/enums.js";
+import { OrderStatus } from "../../generated/prisma-client/enums.js";
 import { InsufficientReservedStockError } from "./orderCancellationErrors.js";
 
 /**
- * Expire one unpaid PENDING order and release its reservation. This operation
+ * Expire one PENDING order with no payment attempt and release its reservation. This operation
  * is intentionally trigger-agnostic; scheduling is handled separately.
  */
 export async function expireOrderReservation(orderId: number, asOf = new Date()) {
@@ -23,7 +23,9 @@ export async function expireOrderReservation(orderId: number, asOf = new Date())
         id: orderId,
         status: OrderStatus.PENDING,
         reservationExpiresAt: { not: null, lte: asOf },
-        payments: { none: { status: PaymentStatus.SUCCEEDED } },
+        // No local status alone proves the provider attempt is resolved.
+        // Retain reservations through failures, timeouts and delayed outcomes.
+        payments: { none: {} },
       },
       data: {
         status: OrderStatus.EXPIRED,
