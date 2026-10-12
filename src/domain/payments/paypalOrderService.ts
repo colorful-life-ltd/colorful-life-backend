@@ -1,8 +1,8 @@
 import { Decimal } from "@prisma/client/runtime/client";
-import { randomUUID } from "node:crypto";
 import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
 import { prisma } from "../../prisma/runtime.js";
 import { config } from "../../config/index.js";
+import { replayPendingPayPalWebhooks } from "./paypalWebhookReplayService.js";
 
 export class PayPalOrderNotFoundError extends Error {}
 export class PayPalOrderOwnershipError extends Error {}
@@ -43,7 +43,7 @@ function createPayPalClient(): PayPalOrderClient {
   };
 }
 
-export async function createOrReusePayPalOrder(orderId: number, userId: number, client?: PayPalOrderClient) {
+export async function createOrReusePayPalOrder(orderId: number, userId: number, client?: PayPalOrderClient): Promise<{ paymentId: number; paypalOrderId: string; approvalUrl?: string }> {
   const local = await prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: number; userId: number; status: OrderStatus; totalAmount: Decimal; reservationExpiresAt: Date | null }>>`SELECT "id", "userId", "status", "totalAmount", "reservationExpiresAt" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
     const order = locked[0];
@@ -54,7 +54,7 @@ export async function createOrReusePayPalOrder(orderId: number, userId: number, 
     const value = amountString(order.totalAmount);
     const existing = await tx.payment.findUnique({ where: { orderId } });
     if (existing) {
-      if (existing.provider !== PaymentProvider.PAYPAL || existing.status === PaymentStatus.SUCCEEDED) throw new PayPalOrderAlreadyCompletedError();
+      if (existing.provider !== PaymentProvider.PAYPAL || existing.status === PaymentStatus.SUCCEEDED || existing.paidAt) throw new PayPalOrderAlreadyCompletedError();
       if (!existing.providerReference.startsWith("pending:")) return { payment: existing, value, requestId: existing.idempotencyKey ?? `order-${orderId}-paypal` };
       return { payment: existing, value, requestId: existing.idempotencyKey ?? `order-${orderId}-paypal` };
     }
@@ -68,6 +68,22 @@ export async function createOrReusePayPalOrder(orderId: number, userId: number, 
     const provider = client ?? testClient ?? createPayPalClient();
     created = await provider.createOrder({ intent: "CAPTURE", purchase_units: [{ reference_id: String(orderId), custom_id: String(orderId), amount: { currency_code: "GBP", value: local.value } }] }, local.requestId);
   } catch { throw new PayPalProviderError("PayPal order operation failed"); }
-  await prisma.payment.update({ where: { id: local.payment.id }, data: { providerReference: created.id, status: PaymentStatus.PENDING, paidAt: null } });
-  return { paymentId: local.payment.id, paypalOrderId: created.id, approvalUrl: created.links?.find((link) => link.rel === "approve")?.href };
+  if (!created.id || created.id.startsWith("pending:")) throw new PayPalProviderError("Invalid PayPal order identity");
+  const bound = await prisma.$transaction(async (tx) => {
+    const [order] = await tx.$queryRaw<Array<{ userId: number }>>`SELECT "userId" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+    if (!order) throw new PayPalOrderNotFoundError();
+    if (order.userId !== userId) throw new PayPalOrderOwnershipError();
+    const payment = await tx.payment.findUnique({ where: { id: local.payment.id } });
+    if (!payment || payment.orderId !== orderId || payment.provider !== PaymentProvider.PAYPAL) throw new PayPalProviderError("PayPal payment identity changed");
+    if (!payment.providerReference.startsWith("pending:") && payment.providerReference !== created.id) throw new PayPalProviderError("PayPal order identity mismatch");
+    // A delayed create response binds identity only. It is never payment-state evidence.
+    if (payment.providerReference.startsWith("pending:")) await tx.payment.update({ where: { id: payment.id }, data: { providerReference: created.id } });
+    if (payment.status === PaymentStatus.SUCCEEDED || payment.paidAt) throw new PayPalOrderAlreadyCompletedError();
+    return { paymentId: payment.id, paypalOrderId: created.id, approvalUrl: created.links?.find((link) => link.rel === "approve")?.href };
+  });
+  // Binding has committed. Recovery uses verified durable evidence, never an
+  // external provider call. The periodic worker remains authoritative on a crash.
+  try { await replayPendingPayPalWebhooks({ paypalOrderId: bound.paypalOrderId }); }
+  catch { console.error("Immediate PayPal webhook replay unavailable; durable worker will retry"); }
+  return bound;
 }

@@ -2708,7 +2708,8 @@ export const PaymentWebhookEventScalarFieldEnum = {
   eventType: 'eventType',
   receivedAt: 'receivedAt',
   processedAt: 'processedAt',
-  processingError: 'processingError'
+  processingError: 'processingError',
+  evidence: 'evidence'
 } as const
 
 export type PaymentWebhookEventScalarFieldEnum = (typeof PaymentWebhookEventScalarFieldEnum)[keyof typeof PaymentWebhookEventScalarFieldEnum]
@@ -3143,6 +3144,20 @@ export type ListEnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType
 
 
 /**
+ * Reference to a field of type 'Json'
+ */
+export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+
+
+
+/**
+ * Reference to a field of type 'QueryMode'
+ */
+export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+
+
+
+/**
  * Reference to a field of type 'RefundStatus'
  */
 export type EnumRefundStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RefundStatus'>
@@ -3167,20 +3182,6 @@ export type EnumRefundProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$P
  * Reference to a field of type 'RefundProvider[]'
  */
 export type ListEnumRefundProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RefundProvider[]'>
-
-
-
-/**
- * Reference to a field of type 'Json'
- */
-export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-
-
-
-/**
- * Reference to a field of type 'QueryMode'
- */
-export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
 
 
 

@@ -534,9 +534,11 @@ model PaymentWebhookEvent {
   receivedAt      DateTime        @default(now())
   processedAt     DateTime?
   processingError String?
+  evidence        Json?
 
   @@unique([provider, providerEventId])
   @@index([receivedAt])
+  @@index([provider, processedAt, id])
 }
 
 model Refund {
