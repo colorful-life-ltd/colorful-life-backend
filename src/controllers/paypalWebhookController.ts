@@ -56,6 +56,12 @@ export async function paypalWebhookHandler(req: Request, res: Response) {
     if (diagnostic) console.info("PayPal refund webhook diagnostic", diagnostic);
   }
   const resource = event.resource ?? {};
-  const result = await reconcilePayPalWebhookEvent({ id: event.id, eventType: event.event_type, captureId: resource.id, paypalOrderId: resource.supplementary_data?.related_ids?.order_id, amount: resource.amount?.value, currency: resource.amount?.currency_code });
-  return res.status(200).json(result);
+  try {
+    const result = await reconcilePayPalWebhookEvent({ id: event.id, eventType: event.event_type, captureId: resource.id, paypalOrderId: resource.supplementary_data?.related_ids?.order_id, amount: resource.amount?.value, currency: resource.amount?.currency_code });
+    return res.status(200).json(result);
+  } catch {
+    // Never acknowledge persistence failures. Processing rollback leaves the
+    // committed evidence pending for durable replay, including unique conflicts.
+    return res.status(500).json({ error: "Webhook processing failed" });
+  }
 }

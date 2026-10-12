@@ -1,4 +1,5 @@
 import { startCartReconciliationWorker } from "./domain/cart/cartProvenanceService.js";
+import { startPayPalWebhookReplayWorker } from "./domain/payments/paypalWebhookReplayService.js";
 import app from "./app.js";
 import { config } from "./config/index.js";
 
@@ -8,3 +9,4 @@ app.listen(PORT, () => {
 });
 
 startCartReconciliationWorker();
+startPayPalWebhookReplayWorker();
