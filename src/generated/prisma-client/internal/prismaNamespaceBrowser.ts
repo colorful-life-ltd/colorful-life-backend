@@ -82,7 +82,9 @@ export const ModelName = {
   FinancialEvidence: 'FinancialEvidence',
   ReservationReleaseProof: 'ReservationReleaseProof',
   PaymentResolution: 'PaymentResolution',
-  PasswordRecoveryLimit: 'PasswordRecoveryLimit'
+  PasswordRecoveryLimit: 'PasswordRecoveryLimit',
+  Shipment: 'Shipment',
+  OrderFulfilmentEvent: 'OrderFulfilmentEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -343,6 +345,7 @@ export const OrderScalarFieldEnum = {
   shippingCarrier: 'shippingCarrier',
   trackingNumber: 'trackingNumber',
   dispatchedAt: 'dispatchedAt',
+  preparingAt: 'preparingAt',
   reservationExpiresAt: 'reservationExpiresAt',
   createdAt: 'createdAt',
   cancelledAt: 'cancelledAt',
@@ -637,6 +640,36 @@ export const PasswordRecoveryLimitScalarFieldEnum = {
 } as const
 
 export type PasswordRecoveryLimitScalarFieldEnum = (typeof PasswordRecoveryLimitScalarFieldEnum)[keyof typeof PasswordRecoveryLimitScalarFieldEnum]
+
+
+export const ShipmentScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  sequence: 'sequence',
+  carrier: 'carrier',
+  carrierName: 'carrierName',
+  trackingNumber: 'trackingNumber',
+  dispatchedAt: 'dispatchedAt',
+  createdByUserId: 'createdByUserId',
+  createdAt: 'createdAt'
+} as const
+
+export type ShipmentScalarFieldEnum = (typeof ShipmentScalarFieldEnum)[keyof typeof ShipmentScalarFieldEnum]
+
+
+export const OrderFulfilmentEventScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  action: 'action',
+  fromStage: 'fromStage',
+  toStage: 'toStage',
+  shipmentId: 'shipmentId',
+  performedByUserId: 'performedByUserId',
+  source: 'source',
+  createdAt: 'createdAt'
+} as const
+
+export type OrderFulfilmentEventScalarFieldEnum = (typeof OrderFulfilmentEventScalarFieldEnum)[keyof typeof OrderFulfilmentEventScalarFieldEnum]
 
 
 export const SortOrder = {

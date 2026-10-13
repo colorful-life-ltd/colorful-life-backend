@@ -177,3 +177,13 @@ export type PaymentResolution = Prisma.PaymentResolutionModel
  *
  */
 export type PasswordRecoveryLimit = Prisma.PasswordRecoveryLimitModel
+/**
+ * Model Shipment
+ *
+ */
+export type Shipment = Prisma.ShipmentModel
+/**
+ * Model OrderFulfilmentEvent
+ *
+ */
+export type OrderFulfilmentEvent = Prisma.OrderFulfilmentEventModel

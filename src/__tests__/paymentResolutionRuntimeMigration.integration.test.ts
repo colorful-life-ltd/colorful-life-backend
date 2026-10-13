@@ -38,7 +38,9 @@ it("runtime upgrade preserves historical financial rows and quarantine without i
   const orderBefore=(await s.c.query('SELECT row_to_json(o) AS data FROM "Order" o')).rows;
   for(const name of names.filter(n=>n>=first))await s.c.query(sql(name));
   assert.deepEqual((await s.c.query('SELECT row_to_json(p) AS data FROM "Payment" p')).rows,rowsBefore);
-  assert.deepEqual((await s.c.query('SELECT row_to_json(o) AS data FROM "Order" o')).rows,orderBefore);
+  // Later migrations may add Order columns; every pre-existing value must be unchanged.
+  const orderAfter=(await s.c.query('SELECT row_to_json(o) AS data FROM "Order" o')).rows;
+  assert.deepEqual(orderAfter.map((row,i)=>({data:Object.fromEntries(Object.keys(orderBefore[i].data).map(k=>[k,row.data[k]]))})),orderBefore);
   const r=(await s.c.query('SELECT * FROM "PaymentResolution" WHERE "orderId"=$1',[order])).rows[0];
   assert.equal(r.state,'REVIEW_REQUIRED');assert.equal(r.historical,true);assert.equal(r.reservationDisposition,null);assert.equal(r.retryDeadline,null);
   assert.equal((await s.c.query(`SELECT count(*)::int AS n FROM "FinancialEvidence" WHERE kind<>'HISTORICAL_UNVERIFIED'`)).rows[0].n,0);

@@ -2,6 +2,7 @@ import assert from "node:assert";
 import type { Server } from "node:http";
 import { describe, it, before, after, afterEach } from "node:test";
 import { prisma } from "../prisma/runtime.js";
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { createOrder } from "../domain/orders/orderService.js";
 import { OrderStatus } from "../generated/prisma-client/enums.js";
@@ -196,6 +197,7 @@ describe("Order Dispatch HTTP Integration", () => {
       method: "POST",
       headers: { Authorization: `Bearer ${adminToken}` },
     });
+    await recordVerifiedPayment(order.id);
     const dispatchBody = {
       actualShippingCost: 5.99,
       shippingCarrier: "UPS",
@@ -237,6 +239,7 @@ describe("Order Dispatch HTTP Integration", () => {
       method: "POST",
       headers: { Authorization: `Bearer ${adminToken}` },
     });
+    await recordVerifiedPayment(order.id);
     const res = await fetch(`${url}/orders/${order.id}/dispatch`, {
       method: "POST",
       headers: {
@@ -382,6 +385,7 @@ describe("Order Dispatch HTTP Integration", () => {
       method: "POST",
       headers: { Authorization: `Bearer ${adminToken}` },
     });
+    await recordVerifiedPayment(order.id);
     const stockBefore = (await prisma.productListing.findUnique({ where: { id: listingId } }))?.currentStock;
     const dispatchBody = {
       actualShippingCost: 5,
@@ -411,6 +415,7 @@ describe("Order Dispatch HTTP Integration", () => {
       method: "POST",
       headers: { Authorization: `Bearer ${adminToken}` },
     });
+    await recordVerifiedPayment(order.id);
     const movementCountBefore = await prisma.inventoryMovement.count({ where: { listingId, type: "WEBSITE_SALE" } });
     const dispatchBody = {
       actualShippingCost: 5,

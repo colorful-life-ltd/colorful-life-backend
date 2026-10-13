@@ -22,6 +22,9 @@ export type ApiErrorCode =
   | "INVALID_SUPPLIER_KEY"
   | "PURCHASE_ANALYTICS_SUPPLIER_NOT_FOUND"
   | "SITEMAP_UNAVAILABLE"
+  | "ORDER_PAYMENT_NOT_VERIFIED"
+  | "FULFILMENT_TRANSITION_INVALID"
+  | "ORDER_ALREADY_DISPATCHED"
   | "NOT_FOUND";
 
 /** Sends a stable machine-readable API error envelope. */

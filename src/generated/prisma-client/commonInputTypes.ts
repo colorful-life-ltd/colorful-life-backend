@@ -834,6 +834,57 @@ export type EnumReservationDispositionNullableWithAggregatesFilter<$PrismaModel 
   _max?: Prisma.NestedEnumReservationDispositionNullableFilter<$PrismaModel>
 }
 
+export type EnumShippingCarrierNullableFilter<$PrismaModel = never> = {
+  equals?: $Enums.ShippingCarrier | Prisma.EnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumShippingCarrierNullableFilter<$PrismaModel> | $Enums.ShippingCarrier | null
+}
+
+export type EnumShippingCarrierNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ShippingCarrier | Prisma.EnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumShippingCarrierNullableWithAggregatesFilter<$PrismaModel> | $Enums.ShippingCarrier | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumShippingCarrierNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumShippingCarrierNullableFilter<$PrismaModel>
+}
+
+export type EnumFulfilmentEventActionFilter<$PrismaModel = never> = {
+  equals?: $Enums.FulfilmentEventAction | Prisma.EnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  in?: $Enums.FulfilmentEventAction[] | Prisma.ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.FulfilmentEventAction[] | Prisma.ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumFulfilmentEventActionFilter<$PrismaModel> | $Enums.FulfilmentEventAction
+}
+
+export type EnumFulfilmentStageFilter<$PrismaModel = never> = {
+  equals?: $Enums.FulfilmentStage | Prisma.EnumFulfilmentStageFieldRefInput<$PrismaModel>
+  in?: $Enums.FulfilmentStage[] | Prisma.ListEnumFulfilmentStageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.FulfilmentStage[] | Prisma.ListEnumFulfilmentStageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel> | $Enums.FulfilmentStage
+}
+
+export type EnumFulfilmentEventActionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.FulfilmentEventAction | Prisma.EnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  in?: $Enums.FulfilmentEventAction[] | Prisma.ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.FulfilmentEventAction[] | Prisma.ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumFulfilmentEventActionWithAggregatesFilter<$PrismaModel> | $Enums.FulfilmentEventAction
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumFulfilmentEventActionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumFulfilmentEventActionFilter<$PrismaModel>
+}
+
+export type EnumFulfilmentStageWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.FulfilmentStage | Prisma.EnumFulfilmentStageFieldRefInput<$PrismaModel>
+  in?: $Enums.FulfilmentStage[] | Prisma.ListEnumFulfilmentStageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.FulfilmentStage[] | Prisma.ListEnumFulfilmentStageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumFulfilmentStageWithAggregatesFilter<$PrismaModel> | $Enums.FulfilmentStage
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel>
+}
+
 export type NestedIntFilter<$PrismaModel = never> = {
   equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
   in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
@@ -1611,6 +1662,57 @@ export type NestedEnumReservationDispositionNullableWithAggregatesFilter<$Prisma
   _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedEnumReservationDispositionNullableFilter<$PrismaModel>
   _max?: Prisma.NestedEnumReservationDispositionNullableFilter<$PrismaModel>
+}
+
+export type NestedEnumShippingCarrierNullableFilter<$PrismaModel = never> = {
+  equals?: $Enums.ShippingCarrier | Prisma.EnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumShippingCarrierNullableFilter<$PrismaModel> | $Enums.ShippingCarrier | null
+}
+
+export type NestedEnumShippingCarrierNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ShippingCarrier | Prisma.EnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumShippingCarrierNullableWithAggregatesFilter<$PrismaModel> | $Enums.ShippingCarrier | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumShippingCarrierNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumShippingCarrierNullableFilter<$PrismaModel>
+}
+
+export type NestedEnumFulfilmentEventActionFilter<$PrismaModel = never> = {
+  equals?: $Enums.FulfilmentEventAction | Prisma.EnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  in?: $Enums.FulfilmentEventAction[] | Prisma.ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.FulfilmentEventAction[] | Prisma.ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumFulfilmentEventActionFilter<$PrismaModel> | $Enums.FulfilmentEventAction
+}
+
+export type NestedEnumFulfilmentStageFilter<$PrismaModel = never> = {
+  equals?: $Enums.FulfilmentStage | Prisma.EnumFulfilmentStageFieldRefInput<$PrismaModel>
+  in?: $Enums.FulfilmentStage[] | Prisma.ListEnumFulfilmentStageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.FulfilmentStage[] | Prisma.ListEnumFulfilmentStageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel> | $Enums.FulfilmentStage
+}
+
+export type NestedEnumFulfilmentEventActionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.FulfilmentEventAction | Prisma.EnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  in?: $Enums.FulfilmentEventAction[] | Prisma.ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.FulfilmentEventAction[] | Prisma.ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumFulfilmentEventActionWithAggregatesFilter<$PrismaModel> | $Enums.FulfilmentEventAction
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumFulfilmentEventActionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumFulfilmentEventActionFilter<$PrismaModel>
+}
+
+export type NestedEnumFulfilmentStageWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.FulfilmentStage | Prisma.EnumFulfilmentStageFieldRefInput<$PrismaModel>
+  in?: $Enums.FulfilmentStage[] | Prisma.ListEnumFulfilmentStageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.FulfilmentStage[] | Prisma.ListEnumFulfilmentStageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumFulfilmentStageWithAggregatesFilter<$PrismaModel> | $Enums.FulfilmentStage
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel>
 }
 
 

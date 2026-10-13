@@ -288,3 +288,30 @@ export const ReservationReleaseProofType = {
 } as const
 
 export type ReservationReleaseProofType = (typeof ReservationReleaseProofType)[keyof typeof ReservationReleaseProofType]
+
+
+export const ShippingCarrier = {
+  ROYAL_MAIL: 'ROYAL_MAIL',
+  EVRI: 'EVRI',
+  DPD: 'DPD',
+  OTHER: 'OTHER'
+} as const
+
+export type ShippingCarrier = (typeof ShippingCarrier)[keyof typeof ShippingCarrier]
+
+
+export const FulfilmentStage = {
+  CONFIRMED: 'CONFIRMED',
+  PREPARING: 'PREPARING',
+  DISPATCHED: 'DISPATCHED'
+} as const
+
+export type FulfilmentStage = (typeof FulfilmentStage)[keyof typeof FulfilmentStage]
+
+
+export const FulfilmentEventAction = {
+  PREPARING_STARTED: 'PREPARING_STARTED',
+  DISPATCHED: 'DISPATCHED'
+} as const
+
+export type FulfilmentEventAction = (typeof FulfilmentEventAction)[keyof typeof FulfilmentEventAction]
