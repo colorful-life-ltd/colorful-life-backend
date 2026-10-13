@@ -23,6 +23,7 @@ export function createAdminProductListingService(db = defaultPrisma) {
                   setNumber: true,
                   title: true,
                   isFeatureProduct: true,
+                  isPublished: true,
                   catalogueArtworkUrl: true,
                   catalogueArtworkPublicId: true,
                   productImages: {

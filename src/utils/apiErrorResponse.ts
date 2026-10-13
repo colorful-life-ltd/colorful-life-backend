@@ -20,7 +20,9 @@ export type ApiErrorCode =
   | "INVALID_CREDENTIALS"
   | "INTERNAL_SERVER_ERROR"
   | "INVALID_SUPPLIER_KEY"
-  | "PURCHASE_ANALYTICS_SUPPLIER_NOT_FOUND";
+  | "PURCHASE_ANALYTICS_SUPPLIER_NOT_FOUND"
+  | "SITEMAP_UNAVAILABLE"
+  | "NOT_FOUND";
 
 /** Sends a stable machine-readable API error envelope. */
 export function sendApiError(res: Response, status: number, code: ApiErrorCode, message: string) {

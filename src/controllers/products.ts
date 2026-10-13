@@ -60,6 +60,7 @@ export const getCatalogueProduct = async (req: Request, res: Response) => {
  *   - ageRecommendation: string
  *   - pieceCount: number
  *   - isRetired?: boolean (manually managed shared product metadata)
+ *   - isPublished?: boolean (public catalogue visibility; defaults to true)
  *   - condition: "NEW" | "USED_LIKE_NEW"
  *   - originalPrice: number
  *   - salePrice?: number
@@ -75,6 +76,7 @@ export const createProduct = async (req: Request, res: Response) => {
     ageRecommendation: z.string().nonempty({ message: "ageRecommendation is required" }),
     pieceCount: z.number().int().positive({ message: "pieceCount must be a positive integer" }),
     isRetired: z.boolean().optional(),
+    isPublished: z.boolean().optional(),
     condition: z.nativeEnum(ListingCondition),
     originalPrice: z.number().positive({ message: "originalPrice must be positive" }),
     salePrice: z.number().nonnegative().optional(),
@@ -97,6 +99,7 @@ export const createProduct = async (req: Request, res: Response) => {
     ageRecommendation,
     pieceCount,
     isRetired,
+    isPublished,
     condition,
     originalPrice,
     salePrice,
@@ -125,6 +128,7 @@ export const createProduct = async (req: Request, res: Response) => {
               ageRecommendation,
               pieceCount,
               isRetired,
+              isPublished,
               isFeatureProduct,
             },
           },
@@ -189,7 +193,8 @@ export const updateProduct = async (req: Request, res: Response) => {
       originalPrice: z.number().positive({ message: "originalPrice must be positive" }),
       salePrice: z.number().nonnegative().optional(),
     })
-    .omit({ categoryId: true })
+    // Category and publication are product-level: PATCH /admin/products/:productId.
+    .omit({ categoryId: true, isPublished: true })
     .partial();
 
   const parseResult = updateSchema.safeParse(req.body);
@@ -277,7 +282,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 /**
  * GET /products/:id
  * Returns a single active product listing by numeric listing ID.
- * Returns 404 if not found or inactive.
+ * Returns 404 if not found, inactive, or its product is unpublished.
  */
 export const getProductById = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
@@ -286,7 +291,7 @@ export const getProductById = async (req: Request, res: Response) => {
   }
   try {
     const listing = await prisma.productListing.findUnique({
-      where: { id, active: true },
+      where: { id, active: true, legoProduct: { isPublished: true } },
       select: {
         id: true,
         legoProductId: true,

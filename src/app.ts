@@ -22,6 +22,7 @@ import { createCategoryManagementRouter } from "./routes/categoryManagement.js";
 import { createUsedOffersRouter, createConditionConversionRouter } from "./routes/usedOffers.js";
 import adminProductsRouter from "./routes/adminProducts.js";
 import adminProductListingsRouter from "./routes/adminProductListings.js";
+import { createSitemapRouter } from "./routes/sitemap.js";
 import type { ImageStorage } from "./infrastructure/imageStorage/imageStorage.js";
 
 export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?: ImageStorage, categoryArtworkStorage?: ImageStorage) {
@@ -51,6 +52,7 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/business-expenses", businessExpensesRouter);
   app.use("/inventory", inventoryRouter);
   app.use("/inventory", createConditionConversionRouter(imageStorage));
+  app.use(createSitemapRouter());
   app.get("/health", (_req, res) => { res.json({ status: "ok" }); });
   return app;
 }

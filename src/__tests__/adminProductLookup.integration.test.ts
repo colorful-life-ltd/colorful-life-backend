@@ -125,6 +125,7 @@ describe("Admin LegoProduct lookup", () => {
       pieceCount: 100,
       category: { id: product.categoryId, name: "Others" },
       isRetired: false,
+      isPublished: true,
       usedOfferStatus: "NONE",
     });
     assert.equal(bySetNumber.pagination.totalItems, 1);
@@ -133,7 +134,7 @@ describe("Admin LegoProduct lookup", () => {
     assert.deepEqual(byTitle.items.map((item: any) => item.id), [product.id]);
   });
 
-  it("returns zero-stock products and products with no listing while public catalogue omits them", async () => {
+  it("returns zero-stock products and products with no listing, which the public catalogue shows as sold out", async () => {
     const zeroStock = await makeProduct({ setNumber: `112-ZERO-${randomUUID()}`, currentStock: 0 });
     const noListing = await makeProduct({ setNumber: `112-NONE-${randomUUID()}` });
 
@@ -142,8 +143,8 @@ describe("Admin LegoProduct lookup", () => {
       assert.equal(response.status, 200);
       assert.deepEqual((await response.json()).items.map((item: any) => item.id), [product.id]);
       const publicCatalogue = await (await request(`/products?q=${encodeURIComponent(product.setNumber)}`)).json();
-      assert.deepEqual(publicCatalogue.items, []);
-      assert.equal(publicCatalogue.pagination.totalItems, 0);
+      assert.deepEqual(publicCatalogue.items.map((item: any) => [item.id, item.availability, item.offers]), [[product.id, "OUT_OF_STOCK", []]]);
+      assert.equal(publicCatalogue.pagination.totalItems, 1);
     }
   });
 
@@ -177,7 +178,7 @@ describe("Admin LegoProduct lookup", () => {
 
     for (const product of [soldProduct, retiredProduct]) {
       const publicCatalogue = await (await request(`/products?q=${encodeURIComponent(product.setNumber)}`)).json();
-      assert.deepEqual(publicCatalogue.items, []);
+      assert.deepEqual(publicCatalogue.items.map((item: any) => [item.id, item.availability, item.offers]), [[product.id, "OUT_OF_STOCK", []]]);
     }
     assert.equal(available.usedLifecycle, "AVAILABLE");
   });

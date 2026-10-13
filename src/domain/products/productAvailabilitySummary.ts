@@ -12,8 +12,8 @@ type AvailabilitySummary = {
 
 /**
  * Create the shared product availability summary used by category and global
- * Admin endpoints. Products are counted from LegoProduct, while the existing
- * storefront predicate determines whether each product has any sellable offer.
+ * Admin endpoints. Products are counted from LegoProduct; a product is active
+ * only when it is published and the storefront predicate finds a sellable offer.
  */
 export function createProductAvailabilitySummaryService(db: PrismaClient = defaultPrisma) {
   async function summarize(categoryId?: number): Promise<AvailabilitySummary | null> {
@@ -37,7 +37,7 @@ export function createProductAvailabilitySummaryService(db: PrismaClient = defau
     const rows = await db.$queryRaw<Array<{ totalProducts: bigint; totalInventory: bigint; activeProducts: bigint }>>(Prisma.sql`
       SELECT COUNT(lp."id") AS "totalProducts",
              COALESCE(SUM(listing_inventory."totalInventory"), 0)::bigint AS "totalInventory",
-             COUNT(lp."id") FILTER (WHERE ${storefrontSellableListingExistsPredicate()}) AS "activeProducts"
+             COUNT(lp."id") FILTER (WHERE lp."isPublished" = TRUE AND ${storefrontSellableListingExistsPredicate()}) AS "activeProducts"
       ${productScope}
     `);
     const row = rows[0];

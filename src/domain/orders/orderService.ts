@@ -170,7 +170,7 @@ export async function createOrder(
     const distinctIds = Array.from(listingIdsSet);
     const listings = await tx.productListing.findMany({
       where: { id: { in: distinctIds } },
-      include: { usedConditionPhotos: { orderBy: { sortOrder: "asc" } } },
+      include: { usedConditionPhotos: { orderBy: { sortOrder: "asc" } }, legoProduct: { select: { isPublished: true } } },
     });
 
     // Validate existence
@@ -179,9 +179,9 @@ export async function createOrder(
       const missingId = distinctIds.find((id) => !foundIds.has(id));
       throw new ProductListingNotFoundError(missingId!);
     }
-    // Validate active status
+    // Validate active status; offers of unpublished products are not purchasable.
     for (const l of listings) {
-      if (!l.active) {
+      if (!l.active || !l.legoProduct.isPublished) {
         throw new ProductListingInactiveError(l.id);
       }
       if (l.condition === "USED_LIKE_NEW" && l.usedLifecycle !== "AVAILABLE") {

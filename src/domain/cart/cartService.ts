@@ -38,7 +38,8 @@ export async function getCart(userId: number) {
 async function validateListing(productListingId: number, quantity: number, db: typeof prisma | Prisma.TransactionClient = prisma) {
   const listing = await db.productListing.findUnique({ where: { id: productListingId }, select: listingSelect });
   if (!listing) throw new ProductListingNotFoundError(productListingId);
-  if (!listing.active) throw new ProductListingInactiveError(productListingId);
+  // An unpublished product is private, so none of its offers can be bought.
+  if (!listing.active || !listing.legoProduct.isPublished) throw new ProductListingInactiveError(productListingId);
   if (listing.condition === "USED_LIKE_NEW" && listing.usedLifecycle !== "AVAILABLE") {
     throw new InsufficientAvailableStockError(productListingId, 0, quantity);
   }

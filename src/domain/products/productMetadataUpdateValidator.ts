@@ -8,6 +8,7 @@ export const productMetadataUpdateFields = {
   ageRecommendation: z.string().nonempty({ message: "ageRecommendation cannot be empty" }),
   pieceCount: z.number().int().positive({ message: "pieceCount must be a positive integer" }),
   isRetired: z.boolean(),
+  isPublished: z.boolean(),
   categoryId: z.number().int().positive(),
 };
 
