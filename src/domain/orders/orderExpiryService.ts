@@ -1,3 +1,5 @@
+import { config } from "../../config/index.js";
+import { attemptManagedRelease } from "../payments/paymentResolutionService.js";
 import { queueCartReconciliation } from "../cart/cartProvenanceService.js";
 import { prisma } from "../../prisma/runtime.js";
 import { OrderStatus } from "../../generated/prisma-client/enums.js";
@@ -18,6 +20,13 @@ export async function expireOrderReservation(orderId: number, asOf = new Date())
       FOR UPDATE
     `;
 
+    const resolution = await tx.paymentResolution.findUnique({ where: { orderId } });
+    if (resolution) {
+      if (resolution.historical || resolution.quarantineReason) return null;
+      const released = await attemptManagedRelease(tx, orderId);
+      return released ? tx.order.findUnique({ where: { id: orderId } }) : null;
+    }
+    if (config.PAYMENT_RESOLUTION_ENABLED) return null; // Missing ledger coverage is not reconstructed automatically.
     const claim = await tx.order.updateMany({
       where: {
         id: orderId,

@@ -1,3 +1,4 @@
+import { finalizeManagedStripeRetrieval, journalManagedRetrieval, managedResolution, recordManagedFailure } from "./paymentResolutionService.js";
 import type Stripe from "stripe";
 import { Decimal } from "@prisma/client/runtime/client";
 import { PaymentProvider } from "../../generated/prisma-client/enums.js";
@@ -30,6 +31,12 @@ export async function recoverStripePayment(orderId: number, userId: number, clie
     throw new StripeRecoveryUnavailableError();
   }
 
+  const retrieval = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${orderId} FOR UPDATE`;
+    const current = await tx.payment.findUniqueOrThrow({ where: { id: local.id }, include: { order: true } });
+    if (current.order.userId !== userId || current.providerReference !== local.providerReference) throw new StripeRecoveryMismatchError();
+    return journalManagedRetrieval(tx, current);
+  });
   let intent: Stripe.PaymentIntent;
   try {
     const providerClient = client ?? testClient ?? createStripePaymentClient();
@@ -59,9 +66,15 @@ export async function recoverStripePayment(orderId: number, userId: number, clie
         (intent.status === "succeeded" && intent.amount_received !== intent.amount)) {
       throw new StripeRecoveryMismatchError();
     }
-    // Non-success states are observations, not success/failure webhook events.
-    // They cannot change the local payment or regress an already recorded success.
-    if (intent.status !== "succeeded") return;
+    await finalizeManagedStripeRetrieval(tx, payment, retrieval?.id, intent);
+    // Non-success observations never regress success. Managed canceled observations
+    // complete terminal-unpaid journals above; legacy behavior remains unchanged.
+    if (intent.status !== "succeeded") {
+      if (intent.status === "requires_payment_method" && intent.last_payment_error && await managedResolution(tx, orderId)) {
+        await recordManagedFailure(tx, payment, intent.id, `recovery-failure:${payment.id}:${intent.id}`);
+      }
+      return;
+    }
 
     const reconciliation = await applyStripePaymentOutcome(tx, payment, outcome);
     // Durable recovery evidence uses a namespaced identity and distinct type;

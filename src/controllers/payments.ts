@@ -1,3 +1,4 @@
+import { PaymentAdmissionClosedError, PaymentResolutionUnavailableError } from "../domain/payments/paymentResolutionService.js";
 // Controller for payment HTTP endpoints.
 // Implements the following routes:
 //   POST   /orders/:orderId/payments  – create a new payment for an order
@@ -45,6 +46,9 @@ export const createPaymentHandler = async (req: Request, res: Response) => {
     const payment = await createPayment(orderId, parseResult.data);
     return res.status(201).json(payment);
   } catch (err: unknown) {
+    if (err instanceof PaymentAdmissionClosedError || err instanceof PaymentResolutionUnavailableError) {
+      return res.status(409).json({ error: "Payment admission is closed or a prior operation requires resolution" });
+    }
     if (err instanceof PaymentNotFoundError) {
       return res.status(404).json({ error: err.message });
     }

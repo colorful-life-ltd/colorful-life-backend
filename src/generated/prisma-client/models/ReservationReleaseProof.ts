@@ -43,6 +43,7 @@ export type ReservationReleaseProofSumAggregateOutputType = {
 export type ReservationReleaseProofMinAggregateOutputType = {
   id: number | null
   orderId: number | null
+  type: $Enums.ReservationReleaseProofType | null
   evidenceId: number | null
   decisionVersion: number | null
   createdAt: Date | null
@@ -51,6 +52,7 @@ export type ReservationReleaseProofMinAggregateOutputType = {
 export type ReservationReleaseProofMaxAggregateOutputType = {
   id: number | null
   orderId: number | null
+  type: $Enums.ReservationReleaseProofType | null
   evidenceId: number | null
   decisionVersion: number | null
   createdAt: Date | null
@@ -59,6 +61,7 @@ export type ReservationReleaseProofMaxAggregateOutputType = {
 export type ReservationReleaseProofCountAggregateOutputType = {
   id: number
   orderId: number
+  type: number
   evidenceId: number
   decisionVersion: number
   coverage: number
@@ -84,6 +87,7 @@ export type ReservationReleaseProofSumAggregateInputType = {
 export type ReservationReleaseProofMinAggregateInputType = {
   id?: true
   orderId?: true
+  type?: true
   evidenceId?: true
   decisionVersion?: true
   createdAt?: true
@@ -92,6 +96,7 @@ export type ReservationReleaseProofMinAggregateInputType = {
 export type ReservationReleaseProofMaxAggregateInputType = {
   id?: true
   orderId?: true
+  type?: true
   evidenceId?: true
   decisionVersion?: true
   createdAt?: true
@@ -100,6 +105,7 @@ export type ReservationReleaseProofMaxAggregateInputType = {
 export type ReservationReleaseProofCountAggregateInputType = {
   id?: true
   orderId?: true
+  type?: true
   evidenceId?: true
   decisionVersion?: true
   coverage?: true
@@ -196,7 +202,8 @@ export type ReservationReleaseProofGroupByArgs<ExtArgs extends runtime.Types.Ext
 export type ReservationReleaseProofGroupByOutputType = {
   id: number
   orderId: number
-  evidenceId: number
+  type: $Enums.ReservationReleaseProofType
+  evidenceId: number | null
   decisionVersion: number
   coverage: runtime.JsonValue
   createdAt: Date
@@ -228,19 +235,21 @@ export type ReservationReleaseProofWhereInput = {
   NOT?: Prisma.ReservationReleaseProofWhereInput | Prisma.ReservationReleaseProofWhereInput[]
   id?: Prisma.IntFilter<"ReservationReleaseProof"> | number
   orderId?: Prisma.IntFilter<"ReservationReleaseProof"> | number
-  evidenceId?: Prisma.IntFilter<"ReservationReleaseProof"> | number
+  type?: Prisma.EnumReservationReleaseProofTypeFilter<"ReservationReleaseProof"> | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.IntNullableFilter<"ReservationReleaseProof"> | number | null
   decisionVersion?: Prisma.IntFilter<"ReservationReleaseProof"> | number
   coverage?: Prisma.JsonFilter<"ReservationReleaseProof">
   createdAt?: Prisma.DateTimeFilter<"ReservationReleaseProof"> | Date | string
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
-  evidence?: Prisma.XOR<Prisma.FinancialEvidenceScalarRelationFilter, Prisma.FinancialEvidenceWhereInput>
+  evidence?: Prisma.XOR<Prisma.FinancialEvidenceNullableScalarRelationFilter, Prisma.FinancialEvidenceWhereInput> | null
   resolution?: Prisma.XOR<Prisma.PaymentResolutionNullableScalarRelationFilter, Prisma.PaymentResolutionWhereInput> | null
 }
 
 export type ReservationReleaseProofOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
-  evidenceId?: Prisma.SortOrder
+  type?: Prisma.SortOrder
+  evidenceId?: Prisma.SortOrderInput | Prisma.SortOrder
   decisionVersion?: Prisma.SortOrder
   coverage?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -255,19 +264,21 @@ export type ReservationReleaseProofWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.ReservationReleaseProofWhereInput[]
   NOT?: Prisma.ReservationReleaseProofWhereInput | Prisma.ReservationReleaseProofWhereInput[]
   orderId?: Prisma.IntFilter<"ReservationReleaseProof"> | number
-  evidenceId?: Prisma.IntFilter<"ReservationReleaseProof"> | number
+  type?: Prisma.EnumReservationReleaseProofTypeFilter<"ReservationReleaseProof"> | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.IntNullableFilter<"ReservationReleaseProof"> | number | null
   decisionVersion?: Prisma.IntFilter<"ReservationReleaseProof"> | number
   coverage?: Prisma.JsonFilter<"ReservationReleaseProof">
   createdAt?: Prisma.DateTimeFilter<"ReservationReleaseProof"> | Date | string
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
-  evidence?: Prisma.XOR<Prisma.FinancialEvidenceScalarRelationFilter, Prisma.FinancialEvidenceWhereInput>
+  evidence?: Prisma.XOR<Prisma.FinancialEvidenceNullableScalarRelationFilter, Prisma.FinancialEvidenceWhereInput> | null
   resolution?: Prisma.XOR<Prisma.PaymentResolutionNullableScalarRelationFilter, Prisma.PaymentResolutionWhereInput> | null
 }, "id">
 
 export type ReservationReleaseProofOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
-  evidenceId?: Prisma.SortOrder
+  type?: Prisma.SortOrder
+  evidenceId?: Prisma.SortOrderInput | Prisma.SortOrder
   decisionVersion?: Prisma.SortOrder
   coverage?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -284,25 +295,28 @@ export type ReservationReleaseProofScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ReservationReleaseProofScalarWhereWithAggregatesInput | Prisma.ReservationReleaseProofScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"ReservationReleaseProof"> | number
   orderId?: Prisma.IntWithAggregatesFilter<"ReservationReleaseProof"> | number
-  evidenceId?: Prisma.IntWithAggregatesFilter<"ReservationReleaseProof"> | number
+  type?: Prisma.EnumReservationReleaseProofTypeWithAggregatesFilter<"ReservationReleaseProof"> | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.IntNullableWithAggregatesFilter<"ReservationReleaseProof"> | number | null
   decisionVersion?: Prisma.IntWithAggregatesFilter<"ReservationReleaseProof"> | number
   coverage?: Prisma.JsonWithAggregatesFilter<"ReservationReleaseProof">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ReservationReleaseProof"> | Date | string
 }
 
 export type ReservationReleaseProofCreateInput = {
+  type?: $Enums.ReservationReleaseProofType
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   order: Prisma.OrderCreateNestedOneWithoutReservationReleaseProofsInput
-  evidence: Prisma.FinancialEvidenceCreateNestedOneWithoutReleaseProofsInput
+  evidence?: Prisma.FinancialEvidenceCreateNestedOneWithoutReleaseProofsInput
   resolution?: Prisma.PaymentResolutionCreateNestedOneWithoutReleaseProofInput
 }
 
 export type ReservationReleaseProofUncheckedCreateInput = {
   id?: number
   orderId: number
-  evidenceId: number
+  type?: $Enums.ReservationReleaseProofType
+  evidenceId?: number | null
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -310,18 +324,20 @@ export type ReservationReleaseProofUncheckedCreateInput = {
 }
 
 export type ReservationReleaseProofUpdateInput = {
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   order?: Prisma.OrderUpdateOneRequiredWithoutReservationReleaseProofsNestedInput
-  evidence?: Prisma.FinancialEvidenceUpdateOneRequiredWithoutReleaseProofsNestedInput
+  evidence?: Prisma.FinancialEvidenceUpdateOneWithoutReleaseProofsNestedInput
   resolution?: Prisma.PaymentResolutionUpdateOneWithoutReleaseProofNestedInput
 }
 
 export type ReservationReleaseProofUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   orderId?: Prisma.IntFieldUpdateOperationsInput | number
-  evidenceId?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -331,13 +347,15 @@ export type ReservationReleaseProofUncheckedUpdateInput = {
 export type ReservationReleaseProofCreateManyInput = {
   id?: number
   orderId: number
-  evidenceId: number
+  type?: $Enums.ReservationReleaseProofType
+  evidenceId?: number | null
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type ReservationReleaseProofUpdateManyMutationInput = {
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -346,7 +364,8 @@ export type ReservationReleaseProofUpdateManyMutationInput = {
 export type ReservationReleaseProofUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   orderId?: Prisma.IntFieldUpdateOperationsInput | number
-  evidenceId?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -365,6 +384,7 @@ export type ReservationReleaseProofOrderByRelationAggregateInput = {
 export type ReservationReleaseProofCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
+  type?: Prisma.SortOrder
   evidenceId?: Prisma.SortOrder
   decisionVersion?: Prisma.SortOrder
   coverage?: Prisma.SortOrder
@@ -381,6 +401,7 @@ export type ReservationReleaseProofAvgOrderByAggregateInput = {
 export type ReservationReleaseProofMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
+  type?: Prisma.SortOrder
   evidenceId?: Prisma.SortOrder
   decisionVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -389,6 +410,7 @@ export type ReservationReleaseProofMaxOrderByAggregateInput = {
 export type ReservationReleaseProofMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
+  type?: Prisma.SortOrder
   evidenceId?: Prisma.SortOrder
   decisionVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -490,6 +512,10 @@ export type ReservationReleaseProofUncheckedUpdateManyWithoutEvidenceNestedInput
   deleteMany?: Prisma.ReservationReleaseProofScalarWhereInput | Prisma.ReservationReleaseProofScalarWhereInput[]
 }
 
+export type EnumReservationReleaseProofTypeFieldUpdateOperationsInput = {
+  set?: $Enums.ReservationReleaseProofType
+}
+
 export type ReservationReleaseProofCreateNestedOneWithoutResolutionInput = {
   create?: Prisma.XOR<Prisma.ReservationReleaseProofCreateWithoutResolutionInput, Prisma.ReservationReleaseProofUncheckedCreateWithoutResolutionInput>
   connectOrCreate?: Prisma.ReservationReleaseProofCreateOrConnectWithoutResolutionInput
@@ -507,16 +533,18 @@ export type ReservationReleaseProofUpdateOneWithoutResolutionNestedInput = {
 }
 
 export type ReservationReleaseProofCreateWithoutOrderInput = {
+  type?: $Enums.ReservationReleaseProofType
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
-  evidence: Prisma.FinancialEvidenceCreateNestedOneWithoutReleaseProofsInput
+  evidence?: Prisma.FinancialEvidenceCreateNestedOneWithoutReleaseProofsInput
   resolution?: Prisma.PaymentResolutionCreateNestedOneWithoutReleaseProofInput
 }
 
 export type ReservationReleaseProofUncheckedCreateWithoutOrderInput = {
   id?: number
-  evidenceId: number
+  type?: $Enums.ReservationReleaseProofType
+  evidenceId?: number | null
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -555,13 +583,15 @@ export type ReservationReleaseProofScalarWhereInput = {
   NOT?: Prisma.ReservationReleaseProofScalarWhereInput | Prisma.ReservationReleaseProofScalarWhereInput[]
   id?: Prisma.IntFilter<"ReservationReleaseProof"> | number
   orderId?: Prisma.IntFilter<"ReservationReleaseProof"> | number
-  evidenceId?: Prisma.IntFilter<"ReservationReleaseProof"> | number
+  type?: Prisma.EnumReservationReleaseProofTypeFilter<"ReservationReleaseProof"> | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.IntNullableFilter<"ReservationReleaseProof"> | number | null
   decisionVersion?: Prisma.IntFilter<"ReservationReleaseProof"> | number
   coverage?: Prisma.JsonFilter<"ReservationReleaseProof">
   createdAt?: Prisma.DateTimeFilter<"ReservationReleaseProof"> | Date | string
 }
 
 export type ReservationReleaseProofCreateWithoutEvidenceInput = {
+  type?: $Enums.ReservationReleaseProofType
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -572,6 +602,7 @@ export type ReservationReleaseProofCreateWithoutEvidenceInput = {
 export type ReservationReleaseProofUncheckedCreateWithoutEvidenceInput = {
   id?: number
   orderId: number
+  type?: $Enums.ReservationReleaseProofType
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -605,17 +636,19 @@ export type ReservationReleaseProofUpdateManyWithWhereWithoutEvidenceInput = {
 }
 
 export type ReservationReleaseProofCreateWithoutResolutionInput = {
+  type?: $Enums.ReservationReleaseProofType
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   order: Prisma.OrderCreateNestedOneWithoutReservationReleaseProofsInput
-  evidence: Prisma.FinancialEvidenceCreateNestedOneWithoutReleaseProofsInput
+  evidence?: Prisma.FinancialEvidenceCreateNestedOneWithoutReleaseProofsInput
 }
 
 export type ReservationReleaseProofUncheckedCreateWithoutResolutionInput = {
   id?: number
   orderId: number
-  evidenceId: number
+  type?: $Enums.ReservationReleaseProofType
+  evidenceId?: number | null
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
@@ -638,17 +671,19 @@ export type ReservationReleaseProofUpdateToOneWithWhereWithoutResolutionInput = 
 }
 
 export type ReservationReleaseProofUpdateWithoutResolutionInput = {
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   order?: Prisma.OrderUpdateOneRequiredWithoutReservationReleaseProofsNestedInput
-  evidence?: Prisma.FinancialEvidenceUpdateOneRequiredWithoutReleaseProofsNestedInput
+  evidence?: Prisma.FinancialEvidenceUpdateOneWithoutReleaseProofsNestedInput
 }
 
 export type ReservationReleaseProofUncheckedUpdateWithoutResolutionInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   orderId?: Prisma.IntFieldUpdateOperationsInput | number
-  evidenceId?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -656,23 +691,26 @@ export type ReservationReleaseProofUncheckedUpdateWithoutResolutionInput = {
 
 export type ReservationReleaseProofCreateManyOrderInput = {
   id?: number
-  evidenceId: number
+  type?: $Enums.ReservationReleaseProofType
+  evidenceId?: number | null
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type ReservationReleaseProofUpdateWithoutOrderInput = {
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  evidence?: Prisma.FinancialEvidenceUpdateOneRequiredWithoutReleaseProofsNestedInput
+  evidence?: Prisma.FinancialEvidenceUpdateOneWithoutReleaseProofsNestedInput
   resolution?: Prisma.PaymentResolutionUpdateOneWithoutReleaseProofNestedInput
 }
 
 export type ReservationReleaseProofUncheckedUpdateWithoutOrderInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  evidenceId?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -681,7 +719,8 @@ export type ReservationReleaseProofUncheckedUpdateWithoutOrderInput = {
 
 export type ReservationReleaseProofUncheckedUpdateManyWithoutOrderInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  evidenceId?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
+  evidenceId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -690,12 +729,14 @@ export type ReservationReleaseProofUncheckedUpdateManyWithoutOrderInput = {
 export type ReservationReleaseProofCreateManyEvidenceInput = {
   id?: number
   orderId: number
+  type?: $Enums.ReservationReleaseProofType
   decisionVersion: number
   coverage: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type ReservationReleaseProofUpdateWithoutEvidenceInput = {
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -706,6 +747,7 @@ export type ReservationReleaseProofUpdateWithoutEvidenceInput = {
 export type ReservationReleaseProofUncheckedUpdateWithoutEvidenceInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   orderId?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -715,6 +757,7 @@ export type ReservationReleaseProofUncheckedUpdateWithoutEvidenceInput = {
 export type ReservationReleaseProofUncheckedUpdateManyWithoutEvidenceInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   orderId?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumReservationReleaseProofTypeFieldUpdateOperationsInput | $Enums.ReservationReleaseProofType
   decisionVersion?: Prisma.IntFieldUpdateOperationsInput | number
   coverage?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -725,72 +768,77 @@ export type ReservationReleaseProofUncheckedUpdateManyWithoutEvidenceInput = {
 export type ReservationReleaseProofSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   orderId?: boolean
+  type?: boolean
   evidenceId?: boolean
   decisionVersion?: boolean
   coverage?: boolean
   createdAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
-  evidence?: boolean | Prisma.FinancialEvidenceDefaultArgs<ExtArgs>
+  evidence?: boolean | Prisma.ReservationReleaseProof$evidenceArgs<ExtArgs>
   resolution?: boolean | Prisma.ReservationReleaseProof$resolutionArgs<ExtArgs>
 }, ExtArgs["result"]["reservationReleaseProof"]>
 
 export type ReservationReleaseProofSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   orderId?: boolean
+  type?: boolean
   evidenceId?: boolean
   decisionVersion?: boolean
   coverage?: boolean
   createdAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
-  evidence?: boolean | Prisma.FinancialEvidenceDefaultArgs<ExtArgs>
+  evidence?: boolean | Prisma.ReservationReleaseProof$evidenceArgs<ExtArgs>
 }, ExtArgs["result"]["reservationReleaseProof"]>
 
 export type ReservationReleaseProofSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   orderId?: boolean
+  type?: boolean
   evidenceId?: boolean
   decisionVersion?: boolean
   coverage?: boolean
   createdAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
-  evidence?: boolean | Prisma.FinancialEvidenceDefaultArgs<ExtArgs>
+  evidence?: boolean | Prisma.ReservationReleaseProof$evidenceArgs<ExtArgs>
 }, ExtArgs["result"]["reservationReleaseProof"]>
 
 export type ReservationReleaseProofSelectScalar = {
   id?: boolean
   orderId?: boolean
+  type?: boolean
   evidenceId?: boolean
   decisionVersion?: boolean
   coverage?: boolean
   createdAt?: boolean
 }
 
-export type ReservationReleaseProofOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orderId" | "evidenceId" | "decisionVersion" | "coverage" | "createdAt", ExtArgs["result"]["reservationReleaseProof"]>
+export type ReservationReleaseProofOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orderId" | "type" | "evidenceId" | "decisionVersion" | "coverage" | "createdAt", ExtArgs["result"]["reservationReleaseProof"]>
 export type ReservationReleaseProofInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
-  evidence?: boolean | Prisma.FinancialEvidenceDefaultArgs<ExtArgs>
+  evidence?: boolean | Prisma.ReservationReleaseProof$evidenceArgs<ExtArgs>
   resolution?: boolean | Prisma.ReservationReleaseProof$resolutionArgs<ExtArgs>
 }
 export type ReservationReleaseProofIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
-  evidence?: boolean | Prisma.FinancialEvidenceDefaultArgs<ExtArgs>
+  evidence?: boolean | Prisma.ReservationReleaseProof$evidenceArgs<ExtArgs>
 }
 export type ReservationReleaseProofIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
-  evidence?: boolean | Prisma.FinancialEvidenceDefaultArgs<ExtArgs>
+  evidence?: boolean | Prisma.ReservationReleaseProof$evidenceArgs<ExtArgs>
 }
 
 export type $ReservationReleaseProofPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "ReservationReleaseProof"
   objects: {
     order: Prisma.$OrderPayload<ExtArgs>
-    evidence: Prisma.$FinancialEvidencePayload<ExtArgs>
+    evidence: Prisma.$FinancialEvidencePayload<ExtArgs> | null
     resolution: Prisma.$PaymentResolutionPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     orderId: number
-    evidenceId: number
+    type: $Enums.ReservationReleaseProofType
+    evidenceId: number | null
     decisionVersion: number
     coverage: runtime.JsonValue
     createdAt: Date
@@ -1189,7 +1237,7 @@ readonly fields: ReservationReleaseProofFieldRefs;
 export interface Prisma__ReservationReleaseProofClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   order<T extends Prisma.OrderDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrderDefaultArgs<ExtArgs>>): Prisma.Prisma__OrderClient<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  evidence<T extends Prisma.FinancialEvidenceDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.FinancialEvidenceDefaultArgs<ExtArgs>>): Prisma.Prisma__FinancialEvidenceClient<runtime.Types.Result.GetResult<Prisma.$FinancialEvidencePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  evidence<T extends Prisma.ReservationReleaseProof$evidenceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ReservationReleaseProof$evidenceArgs<ExtArgs>>): Prisma.Prisma__FinancialEvidenceClient<runtime.Types.Result.GetResult<Prisma.$FinancialEvidencePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   resolution<T extends Prisma.ReservationReleaseProof$resolutionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ReservationReleaseProof$resolutionArgs<ExtArgs>>): Prisma.Prisma__PaymentResolutionClient<runtime.Types.Result.GetResult<Prisma.$PaymentResolutionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1222,6 +1270,7 @@ export interface Prisma__ReservationReleaseProofClient<T, Null = never, ExtArgs 
 export interface ReservationReleaseProofFieldRefs {
   readonly id: Prisma.FieldRef<"ReservationReleaseProof", 'Int'>
   readonly orderId: Prisma.FieldRef<"ReservationReleaseProof", 'Int'>
+  readonly type: Prisma.FieldRef<"ReservationReleaseProof", 'ReservationReleaseProofType'>
   readonly evidenceId: Prisma.FieldRef<"ReservationReleaseProof", 'Int'>
   readonly decisionVersion: Prisma.FieldRef<"ReservationReleaseProof", 'Int'>
   readonly coverage: Prisma.FieldRef<"ReservationReleaseProof", 'Json'>
@@ -1624,6 +1673,25 @@ export type ReservationReleaseProofDeleteManyArgs<ExtArgs extends runtime.Types.
    * Limit how many ReservationReleaseProofs to delete.
    */
   limit?: number
+}
+
+/**
+ * ReservationReleaseProof.evidence
+ */
+export type ReservationReleaseProof$evidenceArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the FinancialEvidence
+   */
+  select?: Prisma.FinancialEvidenceSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the FinancialEvidence
+   */
+  omit?: Prisma.FinancialEvidenceOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.FinancialEvidenceInclude<ExtArgs> | null
+  where?: Prisma.FinancialEvidenceWhereInput
 }
 
 /**

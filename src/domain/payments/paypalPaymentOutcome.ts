@@ -1,8 +1,10 @@
+import { recordManagedSuccess } from "./paymentResolutionService.js";
 import type { Order, Payment, Prisma } from "../../generated/prisma-client/client.js";
 import { OrderStatus, PaymentStatus } from "../../generated/prisma-client/enums.js";
 
 /** Caller holds the Order row lock and has reread and validated the Payment. */
 export async function recordPayPalSuccess(tx: Prisma.TransactionClient, payment: Payment, captureId: string, now: Date) {
+  await recordManagedSuccess(tx, payment, payment.providerReference, captureId);
   return tx.payment.update({ where: { id: payment.id }, data: {
     status: PaymentStatus.SUCCEEDED, paidAt: payment.paidAt ?? now, providerCaptureReference: captureId,
   } });

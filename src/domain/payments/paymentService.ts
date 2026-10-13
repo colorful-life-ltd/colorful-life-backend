@@ -1,3 +1,4 @@
+import { checkPaymentAdmission, journalNewPayment, recordManagedSuccess } from "./paymentResolutionService.js";
 // src/domain/payments/paymentService.ts
 
 import { prisma } from "../../prisma/runtime.js"
@@ -70,18 +71,19 @@ export async function createPayment(
         return existing
       }
 
+      const managed = await checkPaymentAdmission(tx, orderId)
       if (order.status === OrderStatus.EXPIRED) {
         throw new PaymentExpiredError(orderId)
       }
 
-      if (order.reservationExpiresAt !== null && order.reservationExpiresAt <= new Date()) {
+      if (!managed && order.reservationExpiresAt !== null && order.reservationExpiresAt <= new Date()) {
         throw new PaymentExpiredError(orderId)
       }
 
       if (order.status === OrderStatus.CANCELLED) throw new PaymentOrderCancelledError(orderId)
 
       // 3️⃣ Create the new payment – let any P2002 bubble up to the outer catch
-      return await tx.payment.create({
+      const created = await tx.payment.create({
         data: {
           orderId,
           amount,
@@ -92,6 +94,9 @@ export async function createPayment(
           paidAt: new Date(),
         },
       })
+      await journalNewPayment(tx, created, "CONFIRM")
+      await recordManagedSuccess(tx, created, created.providerReference)
+      return created
     })
   } catch (err: unknown) {
     // Handle unique‑constraint violation that happened inside the transaction

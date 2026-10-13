@@ -596,6 +596,7 @@ export type FinancialEvidenceScalarFieldEnum = (typeof FinancialEvidenceScalarFi
 export const ReservationReleaseProofScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
+  type: 'type',
   evidenceId: 'evidenceId',
   decisionVersion: 'decisionVersion',
   coverage: 'coverage',

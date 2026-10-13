@@ -1,3 +1,5 @@
+import { config } from "../../config/index.js";
+import { initializePaymentResolution, databaseNow } from "../payments/paymentResolutionService.js";
 import { lockCustomerCart, settleCartReconciliation, prepareOrderCartAllocation, allocateOrderCart } from "../cart/cartProvenanceService.js";
 import { createHash } from "node:crypto";
 // Order creation service. Implements the domain rules for creating a
@@ -210,7 +212,7 @@ export async function createOrder(
     // Give already-owned cart quantity its stable conflict before attempting a
     // second stock reservation. The customer lock protects the plan until commit.
     const cartAllocation = await prepareOrderCartAllocation(tx, userId, input.items);
-    const createdAt = now;
+    const createdAt = config.PAYMENT_RESOLUTION_ENABLED ? await databaseNow(tx) : now;
     for (const item of orderItemCreateData) {
       const reservationResult = await tx.$executeRaw`
         UPDATE "ProductListing"
@@ -218,6 +220,11 @@ export async function createOrder(
         WHERE id = ${item.productListingId}
           AND ("condition" = 'NEW' OR ("condition" = 'USED_LIKE_NEW' AND "usedLifecycle" = 'AVAILABLE'))
           AND "reservedStock" <= "currentStock" - ${item.quantity}
+          AND (${!config.PAYMENT_RESOLUTION_ENABLED} OR "reservedStock" >= (
+            SELECT COALESCE(SUM(oi.quantity), 0) FROM "OrderItem" oi
+            JOIN "PaymentResolution" r ON r."orderId" = oi."orderId"
+            WHERE oi."productListingId" = ${item.productListingId} AND r."reservationDisposition" = 'HELD'
+          ))
       `;
       if (reservationResult === 0) {
         throw new InsufficientAvailableStockError(item.productListingId, item.quantity);
@@ -255,6 +262,7 @@ export async function createOrder(
       },
       include: { orderItems: true },
     });
+    await initializePaymentResolution(tx, order);
     await allocateOrderCart(tx, order.id, cartAllocation);
     return order;
   });

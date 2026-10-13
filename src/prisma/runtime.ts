@@ -6,5 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 // suffix ensures compatibility when the project is executed with `node`.
 import { config } from "../config/index.js";
 
-const adapter = new PrismaPg({ connectionString: config.DATABASE_URL });
+// The pg adapter datetime codec requires UTC sessions for exact TIMESTAMPTZ round trips.
+// This also keeps immutable payment verification/deadline timestamps independent of host/server DST.
+const adapter = new PrismaPg({ connectionString: config.DATABASE_URL, options: "-c timezone=UTC" });
 export const prisma = new PrismaClient({ adapter });

@@ -280,3 +280,11 @@ export const FinancialEvidenceKind = {
 } as const
 
 export type FinancialEvidenceKind = (typeof FinancialEvidenceKind)[keyof typeof FinancialEvidenceKind]
+
+
+export const ReservationReleaseProofType = {
+  NO_PAYMENT: 'NO_PAYMENT',
+  PROVIDER_FINALITY: 'PROVIDER_FINALITY'
+} as const
+
+export type ReservationReleaseProofType = (typeof ReservationReleaseProofType)[keyof typeof ReservationReleaseProofType]

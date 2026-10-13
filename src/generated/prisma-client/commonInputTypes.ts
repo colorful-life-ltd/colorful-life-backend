@@ -783,6 +783,23 @@ export type JsonWithAggregatesFilterBase<$PrismaModel = never> = {
   _max?: Prisma.NestedJsonFilter<$PrismaModel>
 }
 
+export type EnumReservationReleaseProofTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReservationReleaseProofType | Prisma.EnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.ReservationReleaseProofType[] | Prisma.ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ReservationReleaseProofType[] | Prisma.ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumReservationReleaseProofTypeFilter<$PrismaModel> | $Enums.ReservationReleaseProofType
+}
+
+export type EnumReservationReleaseProofTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReservationReleaseProofType | Prisma.EnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.ReservationReleaseProofType[] | Prisma.ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ReservationReleaseProofType[] | Prisma.ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumReservationReleaseProofTypeWithAggregatesFilter<$PrismaModel> | $Enums.ReservationReleaseProofType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumReservationReleaseProofTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumReservationReleaseProofTypeFilter<$PrismaModel>
+}
+
 export type EnumPaymentResolutionStateFilter<$PrismaModel = never> = {
   equals?: $Enums.PaymentResolutionState | Prisma.EnumPaymentResolutionStateFieldRefInput<$PrismaModel>
   in?: $Enums.PaymentResolutionState[] | Prisma.ListEnumPaymentResolutionStateFieldRefInput<$PrismaModel>
@@ -1543,6 +1560,23 @@ export type NestedJsonFilterBase<$PrismaModel = never> = {
   gt?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   gte?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
+}
+
+export type NestedEnumReservationReleaseProofTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReservationReleaseProofType | Prisma.EnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.ReservationReleaseProofType[] | Prisma.ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ReservationReleaseProofType[] | Prisma.ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumReservationReleaseProofTypeFilter<$PrismaModel> | $Enums.ReservationReleaseProofType
+}
+
+export type NestedEnumReservationReleaseProofTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReservationReleaseProofType | Prisma.EnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.ReservationReleaseProofType[] | Prisma.ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ReservationReleaseProofType[] | Prisma.ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumReservationReleaseProofTypeWithAggregatesFilter<$PrismaModel> | $Enums.ReservationReleaseProofType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumReservationReleaseProofTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumReservationReleaseProofTypeFilter<$PrismaModel>
 }
 
 export type NestedEnumPaymentResolutionStateFilter<$PrismaModel = never> = {

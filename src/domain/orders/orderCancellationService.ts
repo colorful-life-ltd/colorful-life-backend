@@ -1,3 +1,4 @@
+import { managedResolution, attemptManagedRelease } from "../payments/paymentResolutionService.js";
 import { queueCartReconciliation } from "../cart/cartProvenanceService.js";
 import { prisma } from "../../prisma/runtime.js";
 import {
@@ -45,6 +46,10 @@ export async function cancelOrder(
     const payment = await tx.payment.findUnique({ where: { orderId } });
     if (payment) throw new OrderCancellationPaymentError(payment.status === PaymentStatus.SUCCEEDED || payment.paidAt !== null, "customer");
 
+    if (order.status === OrderStatus.PENDING && await managedResolution(tx, orderId)) {
+      if (!await attemptManagedRelease(tx, orderId, true)) throw new OrderNotCancellableError(orderId, order.status);
+      return tx.order.update({ where: { id: orderId }, data: { cancellationReason: reason } });
+    }
     const updateResult = await tx.order.updateMany({
       where: {
         id: orderId,
@@ -142,6 +147,10 @@ export async function cancelOrderByAdmin(
     const payment = await tx.payment.findUnique({ where: { orderId } });
     if (payment) throw new OrderCancellationPaymentError(payment.status === PaymentStatus.SUCCEEDED || payment.paidAt !== null);
 
+    if (order.status === OrderStatus.PENDING && await managedResolution(tx, orderId)) {
+      if (!await attemptManagedRelease(tx, orderId, true, "SELLER")) throw new OrderNotCancellableError(orderId, order.status);
+      return tx.order.update({ where: { id: orderId }, data: { cancellationReason: reason, cancelledBy: CancellationInitiator.SELLER } });
+    }
     const updateResult = await tx.order.updateMany({
       where: {
         id: orderId,
