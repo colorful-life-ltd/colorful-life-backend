@@ -24,6 +24,8 @@ export async function changeUnverifiedUserEmail(userId: number, normalizedEmail:
       if (user.emailVerified) throw new EmailChangeVerifiedUserError();
       if (user.email === normalizedEmail) throw new EmailChangeSameEmailError();
 
+      // Reset links sent to the previous address must not retain authority after a change.
+      await tx.passwordResetToken.deleteMany({ where: { userId } });
       await tx.user.update({ where: { id: userId }, data: { email: normalizedEmail } });
       const verification = await createOrReplaceEmailVerificationToken(userId, now, tx);
       if (!verification.created) throw new EmailChangeVerifiedUserError();

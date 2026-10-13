@@ -183,6 +183,7 @@ model BusinessExpense {
 model User {
   id                     Int                     @id @default(autoincrement())
   email                  String                  @unique
+  credentialVersion      String?
   passwordHash           String
   emailVerified          Boolean                 @default(false)
   role                   UserRole                @default(CUSTOMER)
@@ -850,4 +851,12 @@ model PaymentResolution {
   quarantineReason String? @db.VarChar(200)
   historical Boolean @default(false)
   @@index([state, resolutionNextCheckAt, orderId])
+}
+
+// Shared fixed-window password recovery counters; keys are HMACs, not personal data.
+model PasswordRecoveryLimit {
+  key String @id @db.VarChar(64)
+  windowStartedAt DateTime @db.Timestamptz(3)
+  count Int
+  @@index([windowStartedAt])
 }

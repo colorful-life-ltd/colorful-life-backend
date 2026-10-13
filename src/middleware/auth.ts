@@ -4,11 +4,11 @@ import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { sendApiError } from "../utils/apiErrorResponse.js";
 
-type AuthenticatedUser = { id: number; role: string; deletedAt: Date | null };
+type AuthenticatedUser = { id: number; role: string; credentialVersion?: string | null; deletedAt: Date | null };
 type AuthenticatedUserLookup = (userId: number) => Promise<AuthenticatedUser | null>;
 
 const databaseUserLookup: AuthenticatedUserLookup = (userId) =>
-  prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, deletedAt: true } });
+  prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, deletedAt: true, credentialVersion: true } });
 
 let lookupUser: AuthenticatedUserLookup = databaseUserLookup;
 
@@ -42,6 +42,12 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   }
 
   if (!user || user.deletedAt !== null) {
+    return sendApiError(res, 401, "SESSION_INVALID", "Invalid or expired token");
+  }
+
+  const version = typeof payload === "object" && payload !== null && "credentialVersion" in payload
+    ? (payload as { credentialVersion?: unknown }).credentialVersion : null;
+  if ((version ?? null) !== (user.credentialVersion ?? null)) {
     return sendApiError(res, 401, "SESSION_INVALID", "Invalid or expired token");
   }
 

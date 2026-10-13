@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import { z } from "zod";
 import { config as dotenvConfig } from "dotenv";
 import { resolveDatabaseUrl } from "./testDatabase.js";
@@ -12,6 +13,13 @@ const configSchema = z.object({
       z.number().int().positive()
     ),
     DATABASE_URL: z.string().nonempty(),
+    // Only explicit IP addresses/CIDRs; never trust arbitrary forwarded headers.
+    TRUSTED_PROXY_CIDRS: z.string().optional().refine(value => !value || value.split(",").every(entry => {
+      const parts = entry.trim().split("/");
+      const [address, bits] = parts;
+      const family = isIP(address);
+      return parts.length <= 2 && family !== 0 && (bits === undefined || (/^\d+$/.test(bits) && Number(bits) <= (family === 4 ? 32 : 128)));
+    }), "Expected comma-separated proxy IPs/CIDRs"),
     JWT_SECRET: z.string().nonempty(),
     JWT_EXPIRES_IN: z.string().nonempty().default("1h"),
     REFRESH_SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),

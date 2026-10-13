@@ -8,10 +8,12 @@ import { prisma } from "../prisma/runtime.js";
 import { createOrReplacePasswordResetToken } from "../domain/auth/passwordResetService.js";
 
 const userIds: number[] = [];
+const recoveryClientIp = `2001:db8:${randomUUID().replaceAll("-", "").slice(0, 20).match(/.{4}/g)!.join(":")}:1`;
 let server: Server;
 let url: string;
 
 before(async () => {
+  app.set("trust proxy", "loopback");
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -32,20 +34,20 @@ async function createUser(emailVerified = false) {
 }
 
 async function reset(token: string, newPassword: unknown) {
-  return fetch(`${url}/auth/reset-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, newPassword }) });
+  return fetch(`${url}/auth/reset-password`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ token, newPassword }) });
 }
 
 describe("reset-password HTTP", () => {
   it("is public and changes login password while consuming the token", async () => {
     const user = await createUser();
     const token = await createOrReplacePasswordResetToken(user.id);
-    const before = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "OldPassword1!" }) });
+    const before = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: user.email, password: "OldPassword1!" }) });
     assert.strictEqual(before.status, 200);
     const response = await reset(token.rawToken, "NewPassword1!");
     assert.strictEqual(response.status, 200);
     assert.deepStrictEqual(await response.json(), { message: "Password reset successfully" });
-    const oldLogin = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "OldPassword1!" }) });
-    const newLogin = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "NewPassword1!" }) });
+    const oldLogin = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: user.email, password: "OldPassword1!" }) });
+    const newLogin = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: user.email, password: "NewPassword1!" }) });
     assert.strictEqual(oldLogin.status, 401);
     assert.strictEqual(newLogin.status, 200);
     assert.strictEqual(await prisma.passwordResetToken.count({ where: { userId: user.id } }), 0);
