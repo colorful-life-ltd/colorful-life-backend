@@ -24,7 +24,12 @@ function eligibleProductPredicate(query: ProductCatalogueQuery): Prisma.Sql {
   if (query.theme) predicates.push(Prisma.sql`lower(lp."theme") = lower(${query.theme})`);
   if (query.categoryId !== undefined) predicates.push(Prisma.sql`lp."categoryId" = ${query.categoryId}`);
 
-  predicates.push(storefrontSellableListingExistsPredicate(query));
+  // Publication decides discoverability; sold-out products remain listed. A price
+  // filter can only match a sellable offer, so it still requires one in range.
+  predicates.push(Prisma.sql`lp."isPublished" = TRUE`);
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    predicates.push(storefrontSellableListingExistsPredicate(query));
+  }
   return Prisma.join(predicates, " AND ");
 }
 
@@ -36,8 +41,13 @@ function offerMatchesQuery(listing: any, query: ProductCatalogueQuery) {
     && (query.maxPrice === undefined || effectivePrice <= query.maxPrice);
 }
 
+export type ProductAvailability = "IN_STOCK" | "OUT_OF_STOCK";
+
 function presentProduct(product: any, query?: ProductCatalogueQuery) {
   const { category, productListings, ...shared } = product;
+  // Offers stay sellable-only; availability ignores search price bounds.
+  const availability: ProductAvailability = productListings.some((listing: any) => offerMatchesQuery(listing, {} as ProductCatalogueQuery))
+    ? "IN_STOCK" : "OUT_OF_STOCK";
   const offers = productListings
     .filter((listing: any) => query ? offerMatchesQuery(listing, query) : offerMatchesQuery(listing, {} as ProductCatalogueQuery))
     .map(({ reservedStock, ...listing }: any) => ({
@@ -48,6 +58,7 @@ function presentProduct(product: any, query?: ProductCatalogueQuery) {
   return {
     ...shared,
     category: category ?? null,
+    availability,
     offers,
   };
 }
@@ -90,14 +101,13 @@ export async function listCatalogueProducts(query: ProductCatalogueQuery) {
 
 export async function getCatalogueProductById(productId: number) {
   const product = await prisma.legoProduct.findUnique({
-    where: { id: productId },
+    where: { id: productId, isPublished: true },
     include: {
       category: { select: { id: true, name: true, subtitle: true, description: true, imageUrl: true, thumbnailUrl: true } },
       productImages,
       productListings: { select: offerSelect, orderBy: [{ condition: "asc" }, { id: "asc" }] },
     },
   });
-  if (!product) return null;
-  const presented = presentProduct(product);
-  return presented.offers.length > 0 ? presented : null;
+  // Published products keep a permanent detail page, including when sold out.
+  return product ? presentProduct(product) : null;
 }

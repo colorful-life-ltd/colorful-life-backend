@@ -64,9 +64,11 @@ describe("Product catalogue HTTP integration", () => {
       const listing = await makeListing({ setNumber, title: "Stock availability", theme: "City", originalPrice: 10, currentStock, reservedStock });
       const { response, body } = await get(`/products?q=${setNumber}`);
       assert.strictEqual(response.status, 200);
-      if (expected === 0) { assert.strictEqual(body.items.length, 0); return; }
       assert.strictEqual(body.items.length, 1);
       const item = body.items[0];
+      assert.strictEqual(item.availability, expected === 0 ? "OUT_OF_STOCK" : "IN_STOCK");
+      // A published sold-out product stays listed without purchasable offers.
+      if (expected === 0) { assert.strictEqual(item.id, listing.legoProductId); assert.deepStrictEqual(item.offers, []); return; }
       assert.strictEqual(item.id, listing.legoProductId);
       assert.strictEqual(item.offers.length, 1);
       assert.strictEqual(item.offers[0].id, listing.id);
@@ -133,11 +135,14 @@ describe("Product catalogue HTTP integration", () => {
     assert.deepEqual(detail.body, item);
   });
 
-  it("hides a product with no sellable offers from list and product detail", async () => {
+  it("keeps a published product with no sellable offers in list and product detail as OUT_OF_STOCK", async () => {
     const setNumber = `UNSELLABLE-${randomUUID()}`;
     const listing = await makeListing({ setNumber, title: "Unavailable", theme: "City", originalPrice: 10, currentStock: 0 });
-    assert.deepEqual((await get(`/products?q=${setNumber}`)).body.items, []);
-    assert.equal((await get(`/products/by-product/${listing.legoProductId}`)).response.status, 404);
+    const listed = (await get(`/products?q=${setNumber}`)).body.items;
+    assert.deepEqual(listed.map((item: any) => [item.id, item.isPublished, item.availability, item.offers]), [[listing.legoProductId, true, "OUT_OF_STOCK", []]]);
+    const detail = await get(`/products/by-product/${listing.legoProductId}`);
+    assert.equal(detail.response.status, 200);
+    assert.deepEqual([detail.body.id, detail.body.availability, detail.body.offers], [listing.legoProductId, "OUT_OF_STOCK", []]);
   });
 
   it("reads current inventory on each request without changing stock", async () => {
@@ -177,9 +182,11 @@ describe("Product catalogue HTTP integration", () => {
     });
   }
 
-  it("is public and returns the default paginated active catalogue", async () => {
+  it("is public and returns the default paginated published catalogue", async () => {
     await makeListing({ setNumber: `CAT-${randomUUID()}`, title: "Active", theme: "City", originalPrice: 10 });
-    await makeListing({ setNumber: `CAT-${randomUUID()}`, title: "Inactive", theme: "City", originalPrice: 20, active: false });
+    const inactive = await makeListing({ setNumber: `CAT-${randomUUID()}`, title: "Inactive", theme: "City", originalPrice: 20, active: false });
+    const unpublished = await makeListing({ setNumber: `CAT-${randomUUID()}`, title: "Unpublished", theme: "City", originalPrice: 20 });
+    await prisma.legoProduct.update({ where: { id: unpublished.legoProductId }, data: { isPublished: false } });
     const { response, body } = await get("/products");
     assert.strictEqual(response.status, 200);
     assert.ok(Array.isArray(body.items));
@@ -188,7 +195,9 @@ describe("Product catalogue HTTP integration", () => {
     assert.ok(body.pagination.totalItems >= 1);
     assert.ok(body.items.some((item: any) => item.title === "Active"));
     assert.equal(body.items.find((item: any) => item.title === "Active").category.name, "Others");
-    assert.ok(!body.items.some((item: any) => item.title === "Inactive"));
+    const inactiveItem = body.items.find((item: any) => item.id === inactive.legoProductId);
+    assert.deepEqual([inactiveItem.availability, inactiveItem.offers], ["OUT_OF_STOCK", []], "deactivated offers are never exposed");
+    assert.ok(!body.items.some((item: any) => item.title === "Unpublished"));
   });
 
   it("searches set number/title case-insensitively and filters theme", async () => {

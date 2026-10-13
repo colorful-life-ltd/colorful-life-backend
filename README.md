@@ -59,7 +59,7 @@ identity. Offer `availableStock` is calculated as
 Presentation fields are not duplicated inside offers. Used offer details and
 `usedConditionPhotos` remain scoped to their exact ProductListing. The
 product-level `GET /products/by-product/:productId` route returns the same
-shape, and returns 404 when the product has no sellable offers. The existing
+shape, and returns 404 only when the product is missing or unpublished. The existing
 `GET /products/:id` route remains a listing-level lookup by ProductListing ID;
 its `legoProduct` object contains shared presentation. Cart and order requests
 also use ProductListing IDs (`offers[].id`), never the top-level product ID.
@@ -90,13 +90,84 @@ independent of offer condition and `UsedOfferLifecycle.RETIRED`.
 Admin product editing uses `PATCH /admin/products/:productId`, where the path
 ID is the LegoProduct ID returned by `GET /admin/products`. The request is a
 partial JSON object containing one or more of `setNumber`, `title`,
-`description`, `theme`, `ageRecommendation`, `pieceCount`, `isRetired`, and
-`categoryId`. A successful response is the updated LegoProduct with its
+`description`, `theme`, `ageRecommendation`, `pieceCount`, `isRetired`,
+`isPublished`, and `categoryId`. A successful response is the updated LegoProduct with its
 `category` and ordered `productImages`. Missing products return 404, invalid or
 missing categories return 400, duplicate set numbers return 409, and empty or
 unsupported updates return 400. This route updates no ProductListing or
 inventory fields. The existing `PATCH /products/:id` remains listing-ID based
 for compatibility.
+
+### Product publication and sitemap (Issue #163)
+
+`LegoProduct.isPublished` controls public visibility independently of stock:
+
+| State | Public list, detail and sitemap | Purchasable |
+| --- | --- | --- |
+| Published, in stock | Yes, `availability: "IN_STOCK"` | Yes |
+| Published, sold out | Yes, `availability: "OUT_OF_STOCK"`, `offers: []` | No |
+| Unpublished | No (`GET /products/by-product/:id` and `GET /products/:listingId` return 404) | No |
+
+- `GET /products` and `GET /products/by-product/:productId` return every
+  published product and add `isPublished` and a product-level `availability`.
+  `offers` still contains only sellable offers, so existing clients never see a
+  deactivated, sold or out-of-stock offer. `minPrice`/`maxPrice` filters match
+  only products with a sellable offer in range; `availability` ignores them.
+- Cart additions and `POST /orders` reject offers of unpublished products with
+  the existing inactive-listing errors (cart 409, order creation 400). Existing
+  cart lines, historical orders and payments are not modified.
+- Admin publishes or unpublishes with `PATCH /admin/products/:productId`
+  `{ "isPublished": boolean }`. `POST /products` accepts an optional
+  `isPublished` (default `true`, keeping the current Add product flow public).
+  `GET /admin/products` and `GET /admin/product-listings` expose the flag.
+- Storefront policy (owner-confirmed): products are published by default;
+  published products stay visible regardless of stock, zero-stock products show
+  `OUT_OF_STOCK` and cannot be bought, and only explicitly unpublished products
+  are hidden from public APIs and the sitemap.
+- Legacy migration policy: an existing product is published when at least one
+  of its *active* offers is purchasable now (NEW, or AVAILABLE Used, with
+  `currentStock > 0`; reservations are ignored as transient) or has stock or
+  sales history (any `InventoryMovement` or `OrderItem`), so products that sold
+  out before the migration stay public as `OUT_OF_STOCK`. Products with no
+  offers or whose offers never held stock (drafts), and products whose offers
+  are all deactivated (private), stay unpublished until an Admin publishes them.
+- Admin product-availability summaries count a product as `activeProducts` only
+  when it is published and has a sellable offer.
+
+Canonical product URLs are `/products/:productId` on the storefront, keyed by
+LegoProduct ID and unaffected by offers or stock.
+
+`GET /sitemap.xml` returns a sitemaps.org `urlset` with the storefront home page
+and every published product, sold out or not. URLs are absolute and built only
+from `PUBLIC_SITE_URL` (a bare http(s) origin, for example
+`https://example.co.uk`); the API or request host is never used. When it is
+unset, the endpoint returns 503 `SITEMAP_UNAVAILABLE`. Category pages are not
+listed yet: their `/categories/:slug` slugs are derived by the storefront from
+curated configuration, so they are not a backend contract. Account, checkout,
+order, verification, reset and Admin routes are never listed.
+
+Product `lastmod` is the later of the product's `updatedAt` (metadata and
+publication changes) and its newest Product Image; offer price and stock changes
+do not change it. Above 50,000 URLs (the protocol limit), `/sitemap.xml`
+becomes a `sitemapindex` of `/sitemap-1.xml`, `/sitemap-2.xml`, … pages,
+ordered by product ID. Entries are bounded in length, so each file stays far
+below the 50 MiB limit (enforced defensively). Responses are
+`application/xml; charset=utf-8` with `Cache-Control: public, max-age=3600`.
+
+Public-domain routing: the sitemap must be reachable on the canonical storefront
+host. Route both `/sitemap.xml` and `/sitemap-*.xml` (pattern
+`^/sitemap-[1-9][0-9]*\.xml$`) on that host to this backend (reverse proxy or
+hosting rewrite) ahead of the SPA fallback, then add
+`Sitemap: https://<production-domain>/sitemap.xml` to the storefront's
+`public/robots.txt`. The `/sitemap-*.xml` rule is required even while the
+catalogue fits in one file: once it passes 50,000 URLs, `/sitemap.xml` becomes a
+`sitemapindex` whose `<loc>` entries are `https://<production-domain>/sitemap-N.xml`
+on the storefront host, never the API host. Without that rule the SPA would
+answer those child URLs with HTML and crawlers would drop them. When the
+catalogue fits in one file, `/sitemap-N.xml` returns 404. Serving `/sitemap.xml`
+only from the API host (authorised by the storefront robots.txt `Sitemap:`
+line) works for the single-file form only, because the index's child URLs
+always point at the storefront host.
 
 ### Admin Presentation Listing Feed
 
@@ -157,8 +228,9 @@ offer/inventory actions.
 `GET /admin/categories/:id/product-availability` returns category-wide
 `totalProducts`, `activeProducts`, and `inactiveProducts`. Counts are over
 distinct LegoProduct rows, including products without listings. A product is
-active when it has at least one listing accepted by the same storefront
-sellability predicate used by `GET /products`; retired-set status does not
+active when it is published and has at least one listing accepted by the
+storefront sellability predicate (published sold-out products are listed by
+`GET /products` but count as inactive here); retired-set status does not
 exclude an otherwise sellable product. This summary is independent of the
 paginated listing feed.
 

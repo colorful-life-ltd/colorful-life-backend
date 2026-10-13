@@ -14,6 +14,7 @@ const updatedProductSelect = {
   ageRecommendation: true,
   pieceCount: true,
   isRetired: true,
+  isPublished: true,
   categoryId: true,
   category: { select: { id: true, name: true, subtitle: true, description: true, imageUrl: true, thumbnailUrl: true } },
   productImages: {
@@ -42,6 +43,7 @@ export function createAdminProductUpdateService(db = defaultPrisma) {
         if (fields.ageRecommendation !== undefined) data.ageRecommendation = fields.ageRecommendation;
         if (fields.pieceCount !== undefined) data.pieceCount = fields.pieceCount;
         if (fields.isRetired !== undefined) data.isRetired = fields.isRetired;
+        if (fields.isPublished !== undefined) data.isPublished = fields.isPublished;
         if (fields.categoryId !== undefined) data.categoryId = fields.categoryId;
 
         return tx.legoProduct.update({ where: { id: productId }, data, select: updatedProductSelect });

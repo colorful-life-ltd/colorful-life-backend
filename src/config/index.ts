@@ -2,6 +2,7 @@ import { isIP } from "node:net";
 import { z } from "zod";
 import { config as dotenvConfig } from "dotenv";
 import { resolveDatabaseUrl } from "./testDatabase.js";
+import { parsePublicSiteOrigin } from "../domain/seo/publicSiteOrigin.js";
 
 // Load environment variables from .env if present
 dotenvConfig();
@@ -27,6 +28,10 @@ const configSchema = z.object({
     AWS_REGION: z.string().nonempty().default("eu-west-2"),
     SES_FROM_EMAIL: z.string().email().default("noreply@example.com"),
     FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+    // Canonical public storefront origin for sitemap URLs. Deliberately separate from
+    // FRONTEND_URL and never derived from the API host; the sitemap is disabled when unset.
+    PUBLIC_SITE_URL: z.string().optional().refine(value => !value || parsePublicSiteOrigin(value) !== null,
+      "Expected an http(s) origin with no path, query, fragment or credentials"),
     IDEAL_POSTCODES_API_KEY: z.string().nonempty().optional(),
     STRIPE_SECRET_KEY: z.string().nonempty().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().nonempty().optional(),

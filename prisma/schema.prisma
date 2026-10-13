@@ -274,6 +274,9 @@ model LegoProduct {
   catalogueArtworkPublicId String?
   // The migration-managed partial unique index permits one featured product per Category.
   isFeatureProduct         Boolean          @default(false)
+  // Public catalogue/detail/sitemap visibility, independent of stock. Legacy rows were
+  // backfilled from current stock or stock/sales history (see migration SQL).
+  isPublished              Boolean          @default(true)
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   productListings          ProductListing[]
@@ -281,6 +284,7 @@ model LegoProduct {
 
   @@index([theme])
   @@index([categoryId])
+  @@index([isPublished, id])
 }
 
 model Category {

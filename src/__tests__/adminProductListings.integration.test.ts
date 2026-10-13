@@ -202,6 +202,28 @@ describe("Admin ProductListing feed", () => {
     assert.deepEqual(await get("/admin/products/product-availability"), summary);
   });
 
+  it("counts an unpublished product with sellable stock as inactive until it is published", async () => {
+    const category = await prisma.category.create({ data: { name: `Publication availability ${randomUUID()}` } });
+    ids.categories.push(category.id);
+    const hidden = await product(category.id);
+    await listing(hidden.id, { currentStock: 4 });
+    await prisma.legoProduct.update({ where: { id: hidden.id }, data: { isPublished: false } });
+    const globalBefore = await get("/admin/products/product-availability");
+
+    assert.deepEqual(await get(`/admin/categories/${category.id}/product-availability`), {
+      totalProducts: 1, totalInventory: 4, activeProducts: 0, inactiveProducts: 1,
+    });
+    await prisma.legoProduct.update({ where: { id: hidden.id }, data: { isPublished: true } });
+    assert.deepEqual(await get(`/admin/categories/${category.id}/product-availability`), {
+      totalProducts: 1, totalInventory: 4, activeProducts: 1, inactiveProducts: 0,
+    });
+    const globalAfter = await get("/admin/products/product-availability");
+    assert.deepEqual(
+      [globalAfter.totalProducts, globalAfter.activeProducts, globalAfter.inactiveProducts],
+      [globalBefore.totalProducts, globalBefore.activeProducts + 1, globalBefore.inactiveProducts - 1],
+    );
+  });
+
   it("counts a product with both NEW and USED_LIKE_NEW stock once", async () => {
     const category = await prisma.category.create({ data: { name: `Dual condition ${randomUUID()}` } });
     ids.categories.push(category.id);
@@ -254,7 +276,7 @@ describe("Admin ProductListing feed", () => {
       currentStock: 0, availableStock: 0,
       legoProduct: {
         id: zeroProduct.id, setNumber: zeroProduct.setNumber, title: zeroProduct.title,
-        isFeatureProduct: true,
+        isFeatureProduct: true, isPublished: true,
         catalogueArtworkUrl: "https://images.test/juniors.jpg",
         catalogueArtworkPublicId: "colorful-life/catalogue-artwork/juniors",
         productImages: [], category: { id: category.id, name: category.name },
@@ -265,13 +287,14 @@ describe("Admin ProductListing feed", () => {
       currentStock: 5, availableStock: 3,
       legoProduct: {
         id: stockedProduct.id, setNumber: stockedProduct.setNumber, title: stockedProduct.title,
-        isFeatureProduct: false, catalogueArtworkUrl: null, catalogueArtworkPublicId: null,
+        isFeatureProduct: false, isPublished: true, catalogueArtworkUrl: null, catalogueArtworkPublicId: null,
         productImages: [], category: { id: category.id, name: category.name },
       },
     });
     const publicZero = await get(`/products?q=${zeroProduct.setNumber}`);
-    assert.deepEqual(publicZero.items, []);
-    assert.equal(publicZero.pagination.totalItems, 0);
+    // Published sold-out products stay public with no purchasable offers.
+    assert.deepEqual(publicZero.items.map((item: any) => [item.id, item.availability, item.offers]), [[zeroProduct.id, "OUT_OF_STOCK", []]]);
+    assert.equal(publicZero.pagination.totalItems, 1);
     const publicStocked = await get(`/products?q=${stockedProduct.setNumber}`);
     assert.equal(publicStocked.items[0].id, stockedProduct.id);
     assert.deepEqual(publicStocked.items[0].offers.map((offer: any) => offer.id), [stocked.id]);
@@ -280,7 +303,7 @@ describe("Admin ProductListing feed", () => {
     assert.deepEqual(lookup.items, [{
       id: zeroProduct.id, setNumber: zeroProduct.setNumber, title: zeroProduct.title,
       description: null, theme: "Test", ageRecommendation: "8+", pieceCount: 100,
-      isRetired: false, category: { id: category.id, name: category.name }, usedOfferStatus: "NONE",
+      isRetired: false, isPublished: true, category: { id: category.id, name: category.name }, usedOfferStatus: "NONE",
     }]);
     assert.equal((await request("/admin/products")).status, 400, "existing lookup still requires q");
     assert.deepEqual(await snapshot(), before, "GET requests must not mutate listing, product or inventory data");
@@ -299,7 +322,8 @@ describe("Admin ProductListing feed", () => {
     assert.equal(items.find((item) => item.id === reserved.id).availableStock, 0);
     assert.ok(!items.some((item) => item.legoProduct.id === noListing.id));
     for (const row of [lego, reservedProduct]) {
-      assert.deepEqual((await get(`/products?q=${row.setNumber}`)).items, []);
+      const items = (await get(`/products?q=${row.setNumber}`)).items;
+      assert.deepEqual(items.map((item: any) => [item.id, item.availability, item.offers]), [[row.id, "OUT_OF_STOCK", []]]);
     }
   });
 
