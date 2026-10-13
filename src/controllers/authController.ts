@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { Request, Response } from "express";
 import { signupSchema, loginSchema, verifyEmailSchema, forgotPasswordSchema, resetPasswordSchema } from "../utils/authValidation.js";
 import bcrypt from "bcrypt";
@@ -23,9 +24,9 @@ import {
 
 const REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
-function issueAccessToken(user: Pick<RefreshSessionUser, "id" | "role">) {
+function issueAccessToken(user: Pick<RefreshSessionUser, "id" | "role" | "credentialVersion">) {
   const token = jwt.sign(
-    { id: user.id, role: user.role },
+    { id: user.id, role: user.role, credentialVersion: user.credentialVersion ?? null },
     config.JWT_SECRET,
     { expiresIn: config.JWT_EXPIRES_IN } as SignOptions,
   );
@@ -93,7 +94,7 @@ export const signup = async (req: Request, res: Response) => {
       }
     }
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.role, credentialVersion: user.credentialVersion ?? null },
       config.JWT_SECRET,
       { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
     );
@@ -130,8 +131,14 @@ export const login = async (req: Request, res: Response) => {
     if (!passwordMatches) {
       return sendApiError(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
     }
-    const accessToken = issueAccessToken(user);
-    const refreshSession = await createRefreshSession(user.id);
+    const issued = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id} FOR UPDATE`;
+      const current = await tx.user.findUnique({ where: { id: user.id } });
+      if (!current || current.deletedAt !== null || current.passwordHash !== user.passwordHash) return null;
+      return { accessToken: issueAccessToken(current), refreshSession: await createRefreshSession(current.id, new Date(), tx) };
+    });
+    if (!issued) return sendApiError(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
+    const { accessToken, refreshSession } = issued;
     return res.json({
       ...accessToken,
       ...refreshSession,
@@ -217,6 +224,8 @@ export const resendVerification = async (req: Request, res: Response) => {
 };
 
 export const forgotPassword = async (req: Request, res: Response) => {
+  const started: number = res.locals?.passwordRecoveryStartedAt ?? performance.now();
+  const waitForResponse = () => delay(Math.max(0, 2000 - (performance.now() - started)));
   const parseResult = forgotPasswordSchema.safeParse(req.body);
   if (!parseResult.success) return res.status(400).json({ error: parseResult.error.format() });
   const genericResponse = { message: "If an account exists, a password reset email has been sent" };
@@ -225,19 +234,24 @@ export const forgotPassword = async (req: Request, res: Response) => {
       where: { email: parseResult.data.email, deletedAt: null },
       select: { id: true, email: true },
     });
-    if (!user) return res.status(200).json(genericResponse);
+    if (!user) {
+      await waitForResponse();
+      return res.status(200).json(genericResponse);
+    }
 
-    const reset = await createOrReplacePasswordResetToken(user.id);
+    const reset = await createOrReplacePasswordResetToken(user.id, new Date(), parseResult.data.email);
     const resetUrl = `${config.FRONTEND_URL}/reset-password?token=${encodeURIComponent(reset.rawToken)}`;
     try {
       await sendPasswordResetEmail({ recipientEmail: user.email, resetUrl });
     } catch (emailError) {
       console.error("Password reset email delivery failed");
     }
+    await waitForResponse();
     return res.status(200).json(genericResponse);
   } catch (err) {
-    console.error("Forgot password error", err);
-    return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
+    console.error("Forgot password failed");
+    await waitForResponse();
+    return res.status(200).json(genericResponse);
   }
 };
 
@@ -251,7 +265,7 @@ export const resetPasswordHandler = async (req: Request, res: Response) => {
     if (err instanceof InvalidOrExpiredPasswordResetTokenError) {
       return res.status(400).json({ error: "Invalid or expired password reset token" });
     }
-    console.error("Password reset error", err);
+    console.error("Password reset failed");
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 };

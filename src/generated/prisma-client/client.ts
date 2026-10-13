@@ -196,3 +196,8 @@ export type ReservationReleaseProof = Prisma.ReservationReleaseProofModel
  *
  */
 export type PaymentResolution = Prisma.PaymentResolutionModel
+/**
+ * Model PasswordRecoveryLimit
+ *
+ */
+export type PasswordRecoveryLimit = Prisma.PasswordRecoveryLimitModel

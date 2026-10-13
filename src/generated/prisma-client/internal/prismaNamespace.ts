@@ -427,7 +427,8 @@ export const ModelName = {
   PaymentOperation: 'PaymentOperation',
   FinancialEvidence: 'FinancialEvidence',
   ReservationReleaseProof: 'ReservationReleaseProof',
-  PaymentResolution: 'PaymentResolution'
+  PaymentResolution: 'PaymentResolution',
+  PasswordRecoveryLimit: 'PasswordRecoveryLimit'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -443,7 +444,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution"
+    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2741,6 +2742,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PasswordRecoveryLimit: {
+      payload: Prisma.$PasswordRecoveryLimitPayload<ExtArgs>
+      fields: Prisma.PasswordRecoveryLimitFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PasswordRecoveryLimitFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PasswordRecoveryLimitFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>
+        }
+        findFirst: {
+          args: Prisma.PasswordRecoveryLimitFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PasswordRecoveryLimitFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>
+        }
+        findMany: {
+          args: Prisma.PasswordRecoveryLimitFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>[]
+        }
+        create: {
+          args: Prisma.PasswordRecoveryLimitCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>
+        }
+        createMany: {
+          args: Prisma.PasswordRecoveryLimitCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PasswordRecoveryLimitCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>[]
+        }
+        delete: {
+          args: Prisma.PasswordRecoveryLimitDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>
+        }
+        update: {
+          args: Prisma.PasswordRecoveryLimitUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>
+        }
+        deleteMany: {
+          args: Prisma.PasswordRecoveryLimitDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PasswordRecoveryLimitUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PasswordRecoveryLimitUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>[]
+        }
+        upsert: {
+          args: Prisma.PasswordRecoveryLimitUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PasswordRecoveryLimitPayload>
+        }
+        aggregate: {
+          args: Prisma.PasswordRecoveryLimitAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePasswordRecoveryLimit>
+        }
+        groupBy: {
+          args: Prisma.PasswordRecoveryLimitGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PasswordRecoveryLimitGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PasswordRecoveryLimitCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PasswordRecoveryLimitCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2798,6 +2873,7 @@ export type BusinessExpenseScalarFieldEnum = (typeof BusinessExpenseScalarFieldE
 export const UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
+  credentialVersion: 'credentialVersion',
   passwordHash: 'passwordHash',
   emailVerified: 'emailVerified',
   role: 'role',
@@ -3304,6 +3380,15 @@ export const PaymentResolutionScalarFieldEnum = {
 } as const
 
 export type PaymentResolutionScalarFieldEnum = (typeof PaymentResolutionScalarFieldEnum)[keyof typeof PaymentResolutionScalarFieldEnum]
+
+
+export const PasswordRecoveryLimitScalarFieldEnum = {
+  key: 'key',
+  windowStartedAt: 'windowStartedAt',
+  count: 'count'
+} as const
+
+export type PasswordRecoveryLimitScalarFieldEnum = (typeof PasswordRecoveryLimitScalarFieldEnum)[keyof typeof PasswordRecoveryLimitScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -3996,6 +4081,7 @@ export type GlobalOmitConfig = {
   financialEvidence?: Prisma.FinancialEvidenceOmit
   reservationReleaseProof?: Prisma.ReservationReleaseProofOmit
   paymentResolution?: Prisma.PaymentResolutionOmit
+  passwordRecoveryLimit?: Prisma.PasswordRecoveryLimitOmit
 }
 
 /* Types for Logging */

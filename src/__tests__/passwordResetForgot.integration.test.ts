@@ -10,11 +10,13 @@ import { hashPasswordResetToken } from "../domain/auth/passwordResetService.js";
 import { setPasswordResetEmailSenderForTests, type PasswordResetEmail } from "../services/emailService.js";
 
 const userIds: number[] = [];
+const recoveryClientIp = `2001:db8:${randomUUID().replaceAll("-", "").slice(0, 20).match(/.{4}/g)!.join(":")}:1`;
 let server: Server;
 let url: string;
 let restoreSender: (() => void) | undefined;
 
 before(async () => {
+  app.set("trust proxy", "loopback");
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -39,10 +41,10 @@ async function createUser(email = `${randomUUID()}@example.com`, emailVerified =
 
 describe("forgot-password HTTP", () => {
   it("creates one hashed token and sends a trusted URL for an existing user", async () => {
-    const user = await createUser("forgot@example.com");
+    const user = await createUser();
     let email: PasswordResetEmail | undefined;
     restoreSender = setPasswordResetEmailSenderForTests(async (value) => { email = value; });
-    const response = await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "  FORGOT@EXAMPLE.COM " }) });
+    const response = await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: `  ${user.email.toUpperCase()}  ` }) });
     assert.strictEqual(response.status, 200);
     const body = await response.json();
     assert.deepStrictEqual(body, { message: "If an account exists, a password reset email has been sent" });
@@ -60,7 +62,7 @@ describe("forgot-password HTTP", () => {
   it("returns the identical generic response for an unknown email and sends nothing", async () => {
     const sent: PasswordResetEmail[] = [];
     restoreSender = setPasswordResetEmailSenderForTests(async (value) => { sent.push(value); });
-    const existing = await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "nobody@example.com" }) });
+    const existing = await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: "nobody@example.com" }) });
     const unknownBody = await existing.json();
     assert.strictEqual(existing.status, 200);
     assert.deepStrictEqual(unknownBody, { message: "If an account exists, a password reset email has been sent" });
@@ -70,7 +72,7 @@ describe("forgot-password HTTP", () => {
   it("keeps the same response and token when email delivery fails", async () => {
     const user = await createUser();
     restoreSender = setPasswordResetEmailSenderForTests(async () => { throw new Error("SES unavailable"); });
-    const response = await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email }) });
+    const response = await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: user.email }) });
     assert.strictEqual(response.status, 200);
     assert.deepStrictEqual(await response.json(), { message: "If an account exists, a password reset email has been sent" });
     assert.ok(await prisma.passwordResetToken.findUnique({ where: { userId: user.id } }));
@@ -80,11 +82,11 @@ describe("forgot-password HTTP", () => {
     const user = await createUser();
     const emails: PasswordResetEmail[] = [];
     restoreSender = setPasswordResetEmailSenderForTests(async (value) => { emails.push(value); });
-    await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email }) });
-    await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email }) });
+    await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: user.email }) });
+    await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: user.email }) });
     assert.strictEqual(await prisma.passwordResetToken.count({ where: { userId: user.id } }), 1);
     assert.notStrictEqual(emails[0].resetUrl, emails[1].resetUrl);
-    const invalid = await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "not-an-email" }) });
+    const invalid = await fetch(`${url}/auth/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: "not-an-email" }) });
     assert.strictEqual(invalid.status, 400);
   });
 });

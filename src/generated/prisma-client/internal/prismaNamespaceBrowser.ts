@@ -81,7 +81,8 @@ export const ModelName = {
   PaymentOperation: 'PaymentOperation',
   FinancialEvidence: 'FinancialEvidence',
   ReservationReleaseProof: 'ReservationReleaseProof',
-  PaymentResolution: 'PaymentResolution'
+  PaymentResolution: 'PaymentResolution',
+  PasswordRecoveryLimit: 'PasswordRecoveryLimit'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -118,6 +119,7 @@ export type BusinessExpenseScalarFieldEnum = (typeof BusinessExpenseScalarFieldE
 export const UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
+  credentialVersion: 'credentialVersion',
   passwordHash: 'passwordHash',
   emailVerified: 'emailVerified',
   role: 'role',
@@ -624,6 +626,15 @@ export const PaymentResolutionScalarFieldEnum = {
 } as const
 
 export type PaymentResolutionScalarFieldEnum = (typeof PaymentResolutionScalarFieldEnum)[keyof typeof PaymentResolutionScalarFieldEnum]
+
+
+export const PasswordRecoveryLimitScalarFieldEnum = {
+  key: 'key',
+  windowStartedAt: 'windowStartedAt',
+  count: 'count'
+} as const
+
+export type PasswordRecoveryLimitScalarFieldEnum = (typeof PasswordRecoveryLimitScalarFieldEnum)[keyof typeof PasswordRecoveryLimitScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -5,7 +5,7 @@ import { prisma } from "../../prisma/runtime.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type RefreshSessionUser = { id: number; role: string; deletedAt: Date | null };
+export type RefreshSessionUser = { id: number; role: string; credentialVersion?: string | null; deletedAt: Date | null };
 export type AccessTokenIssuer<T> = (user: RefreshSessionUser) => T;
 
 export class InvalidRefreshSessionError extends Error {
@@ -24,10 +24,10 @@ function createRefreshCredential() {
   return { refreshToken, refreshTokenHash: hashRefreshToken(refreshToken) };
 }
 
-export async function createRefreshSession(userId: number, now = new Date()) {
+export async function createRefreshSession(userId: number, now = new Date(), tx: Prisma.TransactionClient = prisma) {
   const credential = createRefreshCredential();
   const expiresAt = new Date(now.getTime() + config.REFRESH_SESSION_TTL_DAYS * DAY_MS);
-  await prisma.refreshSession.create({
+  await tx.refreshSession.create({
     data: { userId, refreshTokenHash: credential.refreshTokenHash, expiresAt },
   });
   return { refreshToken: credential.refreshToken, refreshExpiresAt: expiresAt };
@@ -59,7 +59,7 @@ export async function rotateRefreshSession<T>(
 
     const user = await tx.user.findUnique({
       where: { id: discovered.userId },
-      select: { id: true, role: true, deletedAt: true },
+      select: { id: true, role: true, deletedAt: true, credentialVersion: true },
     });
     if (!user || user.deletedAt !== null) throw new InvalidRefreshSessionError();
 

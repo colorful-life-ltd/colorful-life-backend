@@ -1,4 +1,5 @@
 import express from "express";
+import { config } from "./config/index.js";
 import authRouter from "./routes/auth.js";
 import profileRouter from "./routes/profile.js";
 import usersRouter from "./routes/users.js";
@@ -25,6 +26,7 @@ import type { ImageStorage } from "./infrastructure/imageStorage/imageStorage.js
 
 export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?: ImageStorage, categoryArtworkStorage?: ImageStorage) {
   const app = express();
+  if (config.TRUSTED_PROXY_CIDRS) app.set("trust proxy", config.TRUSTED_PROXY_CIDRS.split(",").map(value => value.trim()));
   app.use(cors({ origin: "http://localhost:5173" }));
   app.use("/payments", stripeWebhookRouter);
   app.use("/payments", paypalWebhookRouter);

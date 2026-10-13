@@ -17,7 +17,10 @@ export const passwordSchema = z
   .regex(/[a-z]/, { message: "Password must contain a lowercase letter" })
   .regex(/[A-Z]/, { message: "Password must contain an uppercase letter" })
   .regex(/[0-9]/, { message: "Password must contain a digit" })
-  .regex(/[^A-Za-z0-9]/, { message: "Password must contain a special character" });
+  .regex(/[^A-Za-z0-9]/, { message: "Password must contain a special character" })
+  .refine(password => Buffer.byteLength(password, "utf8") <= 72, {
+    message: "Password must not exceed 72 UTF-8 bytes",
+  });
 
 /**
  * Signup request validation schema.

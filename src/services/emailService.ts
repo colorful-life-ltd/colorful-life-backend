@@ -56,8 +56,8 @@ const sesVerificationEmailSender: VerificationEmailSender = async (email) => {
   }));
 };
 
-const sesPasswordResetEmailSender: PasswordResetEmailSender = async (email) => {
-  await sesClient.send(new SendEmailCommand({
+export function buildPasswordResetEmailCommand(email: PasswordResetEmail) {
+  return new SendEmailCommand({
     Source: config.SES_FROM_EMAIL,
     Destination: { ToAddresses: [email.recipientEmail] },
     Message: {
@@ -66,9 +66,13 @@ const sesPasswordResetEmailSender: PasswordResetEmailSender = async (email) => {
         "Use the link below to reset your Colorful Life password:",
         email.resetUrl,
         "This link expires in 1 hour.",
-      ].join("\\n"), Charset: "UTF-8" } },
+      ].join("\n"), Charset: "UTF-8" } },
     },
-  }));
+  });
+}
+
+const sesPasswordResetEmailSender: PasswordResetEmailSender = async (email) => {
+  await sesClient.send(buildPasswordResetEmailCommand(email), { abortSignal: AbortSignal.timeout(1500) });
 };
 
 let sender: EmailSender = sesEmailSender;
