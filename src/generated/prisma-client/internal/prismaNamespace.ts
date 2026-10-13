@@ -3350,6 +3350,7 @@ export type FinancialEvidenceScalarFieldEnum = (typeof FinancialEvidenceScalarFi
 export const ReservationReleaseProofScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
+  type: 'type',
   evidenceId: 'evidenceId',
   decisionVersion: 'decisionVersion',
   coverage: 'coverage',
@@ -3855,6 +3856,20 @@ export type EnumFinancialEvidenceKindFieldRefInput<$PrismaModel> = FieldRefInput
  * Reference to a field of type 'FinancialEvidenceKind[]'
  */
 export type ListEnumFinancialEvidenceKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FinancialEvidenceKind[]'>
+
+
+
+/**
+ * Reference to a field of type 'ReservationReleaseProofType'
+ */
+export type EnumReservationReleaseProofTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReservationReleaseProofType'>
+
+
+
+/**
+ * Reference to a field of type 'ReservationReleaseProofType[]'
+ */
+export type ListEnumReservationReleaseProofTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReservationReleaseProofType[]'>
 
 
 

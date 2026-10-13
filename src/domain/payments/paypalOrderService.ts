@@ -1,3 +1,4 @@
+import { checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
 import { prisma } from "../../prisma/runtime.js";
@@ -49,17 +50,20 @@ export async function createOrReusePayPalOrder(orderId: number, userId: number, 
     const order = locked[0];
     if (!order) throw new PayPalOrderNotFoundError();
     if (order.userId !== userId) throw new PayPalOrderOwnershipError();
-    if (order.status === OrderStatus.EXPIRED || (order.reservationExpiresAt && order.reservationExpiresAt <= new Date())) throw new PayPalOrderExpiredError();
+    const managed = await checkPaymentAdmission(tx, orderId);
+    if (order.status === OrderStatus.EXPIRED || (!managed && order.reservationExpiresAt && order.reservationExpiresAt <= new Date())) throw new PayPalOrderExpiredError();
     if (order.status === OrderStatus.CANCELLED) throw new PayPalOrderAlreadyCompletedError();
     const value = amountString(order.totalAmount);
     const existing = await tx.payment.findUnique({ where: { orderId } });
     if (existing) {
       if (existing.provider !== PaymentProvider.PAYPAL || existing.status === PaymentStatus.SUCCEEDED || existing.paidAt) throw new PayPalOrderAlreadyCompletedError();
+      await guardPendingCreation(tx, existing);
       if (!existing.providerReference.startsWith("pending:")) return { payment: existing, value, requestId: existing.idempotencyKey ?? `order-${orderId}-paypal` };
       return { payment: existing, value, requestId: existing.idempotencyKey ?? `order-${orderId}-paypal` };
     }
     const requestId = `order-${orderId}-paypal`;
     const payment = await tx.payment.create({ data: { orderId, amount: order.totalAmount, currency: "GBP", provider: PaymentProvider.PAYPAL, providerReference: `pending:${requestId}`, idempotencyKey: requestId, status: PaymentStatus.PENDING } });
+    await journalNewPayment(tx, payment, "CREATE");
     return { payment, value, requestId };
   });
   if (!local.payment.providerReference.startsWith("pending:")) return { paymentId: local.payment.id, paypalOrderId: local.payment.providerReference };
@@ -76,6 +80,7 @@ export async function createOrReusePayPalOrder(orderId: number, userId: number, 
     const payment = await tx.payment.findUnique({ where: { id: local.payment.id } });
     if (!payment || payment.orderId !== orderId || payment.provider !== PaymentProvider.PAYPAL) throw new PayPalProviderError("PayPal payment identity changed");
     if (!payment.providerReference.startsWith("pending:") && payment.providerReference !== created.id) throw new PayPalProviderError("PayPal order identity mismatch");
+    await bindManagedProvider(tx, local.payment.id, created.id);
     // A delayed create response binds identity only. It is never payment-state evidence.
     if (payment.providerReference.startsWith("pending:")) await tx.payment.update({ where: { id: payment.id }, data: { providerReference: created.id } });
     if (payment.status === PaymentStatus.SUCCEEDED || payment.paidAt) throw new PayPalOrderAlreadyCompletedError();

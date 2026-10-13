@@ -1,3 +1,4 @@
+import { recordManagedFailure } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { z } from "zod";
 import { PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
@@ -119,6 +120,10 @@ export async function processPayPalWebhookReceipt(receiptId: number): Promise<Pa
       const now = new Date();
       await recordPayPalSuccess(tx, payment, event.captureId, now);
       return finish(true, true, payPalLateSuccessDiagnostic(payment.order, now));
+    }
+    if (event.eventType === "PAYMENT.CAPTURE.DENIED" && event.captureId && event.paypalOrderId === payment.providerReference
+      && event.currency?.toUpperCase() === payment.currency && event.amount === new Decimal(payment.amount).toFixed(2)) {
+      await recordManagedFailure(tx, payment, payment.providerReference, `paypal-failure:${receipt.id}`, receipt.id);
     }
     if (payment.status !== PaymentStatus.SUCCEEDED && !payment.paidAt) {
       await tx.payment.update({ where: { id: payment.id }, data: {

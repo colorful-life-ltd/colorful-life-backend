@@ -815,12 +815,17 @@ model FinancialEvidence {
   @@unique([provider, evidenceKey])
   @@index([orderId, id])
 }
+enum ReservationReleaseProofType {
+  NO_PAYMENT
+  PROVIDER_FINALITY
+}
 model ReservationReleaseProof {
   id Int @id @default(autoincrement())
   orderId Int
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  evidenceId Int
-  evidence FinancialEvidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+  type ReservationReleaseProofType @default(PROVIDER_FINALITY)
+  evidenceId Int?
+  evidence FinancialEvidence? @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
   decisionVersion Int
   // Immutable IDs/snapshot of covered attempts and operations, validated by Phase 2B.
   coverage Json

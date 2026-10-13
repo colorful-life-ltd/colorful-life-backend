@@ -1,3 +1,4 @@
+import { PaymentAdmissionClosedError, PaymentResolutionUnavailableError } from "../domain/payments/paymentResolutionService.js";
 import { sendApiError } from "../utils/apiErrorResponse.js";
 import type { Request, Response } from "express";
 import { createOrReuseStripePaymentIntent, StripePaymentAlreadyCompletedError, StripePaymentExpiredError, StripePaymentOrderNotFoundError, StripePaymentOwnershipError, StripePaymentProviderError, StripePaymentNotPayableError } from "../domain/payments/stripePaymentService.js";
@@ -11,6 +12,8 @@ export async function createStripePaymentIntentHandler(req: Request, res: Respon
     const result = await createOrReuseStripePaymentIntent(orderId, userId);
     return res.status(201).json({ clientSecret: result.clientSecret });
   } catch (error) {
+    if (error instanceof PaymentAdmissionClosedError) return sendApiError(res, 409, "PAYMENT_ADMISSION_CLOSED", "Payment admission window is closed");
+    if (error instanceof PaymentResolutionUnavailableError) return sendApiError(res, 409, "PAYMENT_OUTCOME_UNRESOLVED", "A prior payment operation requires resolution");
     if (error instanceof StripePaymentOrderNotFoundError || error instanceof StripePaymentOwnershipError) return res.status(404).json({ error: "Order not found" });
     if (error instanceof StripePaymentExpiredError) return sendApiError(res, 409, "ORDER_EXPIRED", "Order reservation has expired");
     if (error instanceof StripePaymentAlreadyCompletedError) return sendApiError(res, 409, "PAYMENT_ALREADY_COMPLETED", "Order already has a completed payment or another provider");

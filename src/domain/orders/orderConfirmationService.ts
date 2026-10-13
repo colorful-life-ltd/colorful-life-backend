@@ -1,3 +1,4 @@
+import { managedResolution, markManagedConsumed } from "../payments/paymentResolutionService.js";
 import { queueCartReconciliation } from "../cart/cartProvenanceService.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
 import { prisma } from "../../prisma/runtime.js";
@@ -31,8 +32,14 @@ export async function confirmOrderInTransaction(tx: Prisma.TransactionClient, pe
     throw new OrderNotConfirmableError(orderId, order.status);
   }
 
+  const managed = await managedResolution(tx, orderId);
+  if (managed) {
+    const paid = await tx.payment.findUnique({ where: { orderId } });
+    if (!paid || paid.status !== "SUCCEEDED" || !paid.paidAt) throw new OrderNotConfirmableError(orderId, order.status);
+  }
   // Validate stock and perform deductions
   for (const item of [...order.orderItems].sort((a, b) => a.productListingId - b.productListingId)) {
+    await tx.$queryRaw`SELECT id FROM "ProductListing" WHERE id = ${item.productListingId} FOR UPDATE`;
     const conversionResult = await tx.$executeRaw`
       UPDATE "ProductListing"
       SET "currentStock" = "currentStock" - ${item.quantity},
@@ -41,6 +48,11 @@ export async function confirmOrderInTransaction(tx: Prisma.TransactionClient, pe
       WHERE id = ${item.productListingId}
         AND "currentStock" >= ${item.quantity}
         AND "reservedStock" >= ${item.quantity}
+        AND (${!managed} OR "reservedStock" >= (
+          SELECT COALESCE(SUM(oi.quantity), 0) FROM "OrderItem" oi
+          JOIN "PaymentResolution" r ON r."orderId" = oi."orderId"
+          WHERE oi."productListingId" = ${item.productListingId} AND r."reservationDisposition" = 'HELD'
+        ))
         AND ("condition" = 'NEW' OR ("condition" = 'USED_LIKE_NEW' AND "usedLifecycle" = 'AVAILABLE' AND ${item.quantity} = 1))
     `;
     if (conversionResult === 0) {
@@ -65,6 +77,7 @@ export async function confirmOrderInTransaction(tx: Prisma.TransactionClient, pe
     where: { id: orderId, status: OrderStatus.PENDING },
     data: { status: OrderStatus.CONFIRMED, reservationExpiresAt: null },
   });
+  await markManagedConsumed(tx, orderId);
   await queueCartReconciliation(tx, orderId, true);
   return updatedOrder;
 }

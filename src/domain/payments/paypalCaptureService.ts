@@ -1,3 +1,4 @@
+import { checkPaymentAdmission, journalPayPalCapture } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
 import { prisma } from "../../prisma/runtime.js";
@@ -78,10 +79,12 @@ async function execute(orderId: number, userId: number, client?: PayPalCaptureCl
       }
       throw new PayPalCaptureAlreadyCompletedError();
     }
-    if (order.reservationExpiresAt && order.reservationExpiresAt <= new Date()) throw new PayPalCaptureExpiredError();
+    const managed = await checkPaymentAdmission(tx, orderId);
+    if (!managed && order.reservationExpiresAt && order.reservationExpiresAt <= new Date()) throw new PayPalCaptureExpiredError();
+    const operation = await journalPayPalCapture(tx, payment);
     if (payment.currency !== "GBP") throw new PayPalCaptureMismatchError("Unsupported payment currency");
     if (!payment.providerReference || payment.providerReference.startsWith("pending:")) throw new PayPalCaptureProviderError("PayPal Order is not available");
-    const requestId = payment.captureIdempotencyKey ?? `order-${orderId}-paypal-capture`;
+    const requestId = operation?.operationKey ?? payment.captureIdempotencyKey ?? `order-${orderId}-paypal-capture`;
     if (!payment.captureIdempotencyKey) await tx.payment.update({ where: { id: payment.id }, data: { captureIdempotencyKey: requestId } });
     return { paymentId: payment.id, paypalOrderId: payment.providerReference, requestId, amount: new Decimal(payment.amount) };
   });

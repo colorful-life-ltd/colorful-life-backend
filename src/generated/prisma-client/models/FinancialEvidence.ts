@@ -530,11 +530,6 @@ export type FinancialEvidenceSumOrderByAggregateInput = {
   operationId?: Prisma.SortOrder
 }
 
-export type FinancialEvidenceScalarRelationFilter = {
-  is?: Prisma.FinancialEvidenceWhereInput
-  isNot?: Prisma.FinancialEvidenceWhereInput
-}
-
 export type FinancialEvidenceCreateNestedManyWithoutOrderInput = {
   create?: Prisma.XOR<Prisma.FinancialEvidenceCreateWithoutOrderInput, Prisma.FinancialEvidenceUncheckedCreateWithoutOrderInput> | Prisma.FinancialEvidenceCreateWithoutOrderInput[] | Prisma.FinancialEvidenceUncheckedCreateWithoutOrderInput[]
   connectOrCreate?: Prisma.FinancialEvidenceCreateOrConnectWithoutOrderInput | Prisma.FinancialEvidenceCreateOrConnectWithoutOrderInput[]
@@ -719,10 +714,12 @@ export type FinancialEvidenceCreateNestedOneWithoutReleaseProofsInput = {
   connect?: Prisma.FinancialEvidenceWhereUniqueInput
 }
 
-export type FinancialEvidenceUpdateOneRequiredWithoutReleaseProofsNestedInput = {
+export type FinancialEvidenceUpdateOneWithoutReleaseProofsNestedInput = {
   create?: Prisma.XOR<Prisma.FinancialEvidenceCreateWithoutReleaseProofsInput, Prisma.FinancialEvidenceUncheckedCreateWithoutReleaseProofsInput>
   connectOrCreate?: Prisma.FinancialEvidenceCreateOrConnectWithoutReleaseProofsInput
   upsert?: Prisma.FinancialEvidenceUpsertWithoutReleaseProofsInput
+  disconnect?: Prisma.FinancialEvidenceWhereInput | boolean
+  delete?: Prisma.FinancialEvidenceWhereInput | boolean
   connect?: Prisma.FinancialEvidenceWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.FinancialEvidenceUpdateToOneWithWhereWithoutReleaseProofsInput, Prisma.FinancialEvidenceUpdateWithoutReleaseProofsInput>, Prisma.FinancialEvidenceUncheckedUpdateWithoutReleaseProofsInput>
 }

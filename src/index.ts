@@ -1,3 +1,4 @@
+import { startPaymentResolutionWorker } from "./domain/payments/stripeResolutionService.js";
 import { startCartReconciliationWorker } from "./domain/cart/cartProvenanceService.js";
 import { startPayPalWebhookReplayWorker } from "./domain/payments/paypalWebhookReplayService.js";
 import app from "./app.js";
@@ -10,3 +11,5 @@ app.listen(PORT, () => {
 
 startCartReconciliationWorker();
 startPayPalWebhookReplayWorker();
+
+startPaymentResolutionWorker();
