@@ -226,3 +226,57 @@ export const CartReconciliationState = {
 } as const
 
 export type CartReconciliationState = (typeof CartReconciliationState)[keyof typeof CartReconciliationState]
+
+
+export const ReservationDisposition = {
+  HELD: 'HELD',
+  CONSUMED: 'CONSUMED',
+  RELEASED: 'RELEASED'
+} as const
+
+export type ReservationDisposition = (typeof ReservationDisposition)[keyof typeof ReservationDisposition]
+
+
+export const PaymentResolutionState = {
+  INITIAL_OPEN: 'INITIAL_OPEN',
+  INITIAL_WAIT: 'INITIAL_WAIT',
+  RETRY_OPEN: 'RETRY_OPEN',
+  CLOSED_RESOLVING: 'CLOSED_RESOLVING',
+  SAFETY_HOLD: 'SAFETY_HOLD',
+  PAID: 'PAID',
+  RELEASED: 'RELEASED',
+  REVIEW_REQUIRED: 'REVIEW_REQUIRED'
+} as const
+
+export type PaymentResolutionState = (typeof PaymentResolutionState)[keyof typeof PaymentResolutionState]
+
+
+export const PaymentOperationType = {
+  CREATE: 'CREATE',
+  CONFIRM: 'CONFIRM',
+  CAPTURE: 'CAPTURE',
+  TERMINATE: 'TERMINATE',
+  RETRIEVE: 'RETRIEVE'
+} as const
+
+export type PaymentOperationType = (typeof PaymentOperationType)[keyof typeof PaymentOperationType]
+
+
+export const PaymentOperationState = {
+  PREPARED: 'PREPARED',
+  POTENTIALLY_DISPATCHED: 'POTENTIALLY_DISPATCHED',
+  RESULT_RECORDED: 'RESULT_RECORDED',
+  UNKNOWN: 'UNKNOWN'
+} as const
+
+export type PaymentOperationState = (typeof PaymentOperationState)[keyof typeof PaymentOperationState]
+
+
+export const FinancialEvidenceKind = {
+  HISTORICAL_UNVERIFIED: 'HISTORICAL_UNVERIFIED',
+  FAILURE: 'FAILURE',
+  SUCCESS: 'SUCCESS',
+  TERMINAL_UNPAID: 'TERMINAL_UNPAID'
+} as const
+
+export type FinancialEvidenceKind = (typeof FinancialEvidenceKind)[keyof typeof FinancialEvidenceKind]

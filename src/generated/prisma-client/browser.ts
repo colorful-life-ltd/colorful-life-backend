@@ -147,3 +147,28 @@ export type PurchaseDocument = Prisma.PurchaseDocumentModel
  *
  */
 export type PurchaseItem = Prisma.PurchaseItemModel
+/**
+ * Model PaymentAttempt
+ *
+ */
+export type PaymentAttempt = Prisma.PaymentAttemptModel
+/**
+ * Model PaymentOperation
+ *
+ */
+export type PaymentOperation = Prisma.PaymentOperationModel
+/**
+ * Model FinancialEvidence
+ *
+ */
+export type FinancialEvidence = Prisma.FinancialEvidenceModel
+/**
+ * Model ReservationReleaseProof
+ *
+ */
+export type ReservationReleaseProof = Prisma.ReservationReleaseProofModel
+/**
+ * Model PaymentResolution
+ *
+ */
+export type PaymentResolution = Prisma.PaymentResolutionModel

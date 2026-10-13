@@ -76,7 +76,12 @@ export const ModelName = {
   OrderReturn: 'OrderReturn',
   Purchase: 'Purchase',
   PurchaseDocument: 'PurchaseDocument',
-  PurchaseItem: 'PurchaseItem'
+  PurchaseItem: 'PurchaseItem',
+  PaymentAttempt: 'PaymentAttempt',
+  PaymentOperation: 'PaymentOperation',
+  FinancialEvidence: 'FinancialEvidence',
+  ReservationReleaseProof: 'ReservationReleaseProof',
+  PaymentResolution: 'PaymentResolution'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -527,6 +532,100 @@ export const PurchaseItemScalarFieldEnum = {
 export type PurchaseItemScalarFieldEnum = (typeof PurchaseItemScalarFieldEnum)[keyof typeof PurchaseItemScalarFieldEnum]
 
 
+export const PaymentAttemptScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  paymentId: 'paymentId',
+  provider: 'provider',
+  amount: 'amount',
+  currency: 'currency',
+  providerReference: 'providerReference',
+  providerCaptureReference: 'providerCaptureReference',
+  creationKey: 'creationKey',
+  admittedAt: 'admittedAt',
+  historical: 'historical',
+  successEvidenceId: 'successEvidenceId',
+  finalityEvidenceId: 'finalityEvidenceId',
+  createdAt: 'createdAt'
+} as const
+
+export type PaymentAttemptScalarFieldEnum = (typeof PaymentAttemptScalarFieldEnum)[keyof typeof PaymentAttemptScalarFieldEnum]
+
+
+export const PaymentOperationScalarFieldEnum = {
+  id: 'id',
+  attemptId: 'attemptId',
+  type: 'type',
+  operationKey: 'operationKey',
+  requestHash: 'requestHash',
+  admittedAt: 'admittedAt',
+  historical: 'historical',
+  state: 'state',
+  evidenceId: 'evidenceId',
+  admissionDeadline: 'admissionDeadline',
+  claimOwner: 'claimOwner',
+  claimGeneration: 'claimGeneration',
+  leaseExpiresAt: 'leaseExpiresAt',
+  executionCount: 'executionCount',
+  nextCheckAt: 'nextCheckAt',
+  lastErrorCode: 'lastErrorCode',
+  createdAt: 'createdAt'
+} as const
+
+export type PaymentOperationScalarFieldEnum = (typeof PaymentOperationScalarFieldEnum)[keyof typeof PaymentOperationScalarFieldEnum]
+
+
+export const FinancialEvidenceScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  provider: 'provider',
+  evidenceKey: 'evidenceKey',
+  kind: 'kind',
+  normalized: 'normalized',
+  verifiedAt: 'verifiedAt',
+  receivedAt: 'receivedAt',
+  webhookEventId: 'webhookEventId',
+  operationId: 'operationId'
+} as const
+
+export type FinancialEvidenceScalarFieldEnum = (typeof FinancialEvidenceScalarFieldEnum)[keyof typeof FinancialEvidenceScalarFieldEnum]
+
+
+export const ReservationReleaseProofScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  evidenceId: 'evidenceId',
+  decisionVersion: 'decisionVersion',
+  coverage: 'coverage',
+  createdAt: 'createdAt'
+} as const
+
+export type ReservationReleaseProofScalarFieldEnum = (typeof ReservationReleaseProofScalarFieldEnum)[keyof typeof ReservationReleaseProofScalarFieldEnum]
+
+
+export const PaymentResolutionScalarFieldEnum = {
+  orderId: 'orderId',
+  state: 'state',
+  orderCreatedAt: 'orderCreatedAt',
+  initialPaymentDeadline: 'initialPaymentDeadline',
+  firstFailureVerifiedAt: 'firstFailureVerifiedAt',
+  retryDeadline: 'retryDeadline',
+  firstFailureOperationId: 'firstFailureOperationId',
+  firstFailureEvidenceId: 'firstFailureEvidenceId',
+  paymentAdmissionClosedAt: 'paymentAdmissionClosedAt',
+  closureReason: 'closureReason',
+  reservationDisposition: 'reservationDisposition',
+  dispositionAt: 'dispositionAt',
+  releaseProofId: 'releaseProofId',
+  resolutionNextCheckAt: 'resolutionNextCheckAt',
+  escalatedAt: 'escalatedAt',
+  quarantineReason: 'quarantineReason',
+  historical: 'historical'
+} as const
+
+export type PaymentResolutionScalarFieldEnum = (typeof PaymentResolutionScalarFieldEnum)[keyof typeof PaymentResolutionScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -541,6 +640,13 @@ export const NullableJsonNullValueInput = {
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {

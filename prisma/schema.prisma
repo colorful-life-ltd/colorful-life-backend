@@ -455,6 +455,10 @@ model Order {
   payments              Payment[]
   refunds               Refund[]
   cartProvenance        OrderCartProvenance?
+  paymentResolution     PaymentResolution?
+  paymentAttempts       PaymentAttempt[]
+  financialEvidence     FinancialEvidence[]
+  reservationReleaseProofs ReservationReleaseProof[]
 
   @@unique([userId, creationIdempotencyKey])
   @@index([userId])
@@ -519,6 +523,7 @@ model Payment {
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
   refunds                  Refund[]
+  attempts                 PaymentAttempt[]
 
   @@unique([provider, providerReference])
   @@unique([provider, providerCaptureReference])
@@ -535,6 +540,7 @@ model PaymentWebhookEvent {
   processedAt     DateTime?
   processingError String?
   evidence        Json?
+  financialEvidence FinancialEvidence[]
 
   @@unique([provider, providerEventId])
   @@index([receivedAt])
@@ -698,4 +704,150 @@ model PurchaseItem {
   @@index([productListingId])
   @@index([externalProductId])
   @@index([sourceSetNumber])
+}
+
+// Phase 2A: dormant foundation. Historical UNKNOWN never implies provider finality.
+enum ReservationDisposition {
+  HELD
+  CONSUMED
+  RELEASED
+}
+enum PaymentResolutionState {
+  INITIAL_OPEN
+  INITIAL_WAIT
+  RETRY_OPEN
+  CLOSED_RESOLVING
+  SAFETY_HOLD
+  PAID
+  RELEASED
+  REVIEW_REQUIRED
+}
+enum PaymentOperationType {
+  CREATE
+  CONFIRM
+  CAPTURE
+  TERMINATE
+  RETRIEVE
+}
+enum PaymentOperationState {
+  PREPARED
+  POTENTIALLY_DISPATCHED
+  RESULT_RECORDED
+  UNKNOWN
+}
+enum FinancialEvidenceKind {
+  HISTORICAL_UNVERIFIED
+  FAILURE
+  SUCCESS
+  TERMINAL_UNPAID
+}
+model PaymentAttempt {
+  id Int @id @default(autoincrement())
+  orderId Int
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentId Int
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  provider PaymentProvider
+  amount Decimal @db.Decimal(12, 2)
+  currency String @db.VarChar(3)
+  providerReference String?
+  providerCaptureReference String?
+  creationKey String? @unique
+  admittedAt DateTime? @db.Timestamptz(3)
+  historical Boolean @default(false)
+  successEvidenceId Int?
+  successEvidence FinancialEvidence? @relation("AttemptSuccess", fields: [successEvidenceId], references: [id], onDelete: Restrict)
+  finalityEvidenceId Int?
+  finalityEvidence FinancialEvidence? @relation("AttemptFinality", fields: [finalityEvidenceId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  operations PaymentOperation[]
+  @@unique([provider, providerReference])
+  @@unique([provider, providerCaptureReference])
+  @@index([orderId, id])
+  @@index([paymentId])
+}
+model PaymentOperation {
+  id Int @id @default(autoincrement())
+  attemptId Int
+  attempt PaymentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  type PaymentOperationType
+  operationKey String @unique @db.VarChar(128)
+  requestHash String? @db.VarChar(64)
+  admittedAt DateTime? @db.Timestamptz(3)
+  historical Boolean @default(false)
+  state PaymentOperationState @default(PREPARED)
+  evidenceId Int?
+  evidence FinancialEvidence? @relation("OperationResult", fields: [evidenceId], references: [id], onDelete: Restrict)
+  sourceEvidence FinancialEvidence[] @relation("OperationSource")
+  failureResolutions PaymentResolution[]
+  admissionDeadline DateTime? @db.Timestamptz(3)
+  claimOwner String? @db.VarChar(128)
+  claimGeneration Int @default(0)
+  leaseExpiresAt DateTime? @db.Timestamptz(3)
+  executionCount Int @default(0)
+  nextCheckAt DateTime? @db.Timestamptz(3)
+  lastErrorCode String? @db.VarChar(100)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([state, nextCheckAt, id])
+  @@index([attemptId, id])
+}
+model FinancialEvidence {
+  id Int @id @default(autoincrement())
+  orderId Int
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider PaymentProvider
+  evidenceKey String @db.VarChar(256)
+  kind FinancialEvidenceKind
+  // Allowlisted normalized evidence only; never credentials or raw provider payloads.
+  normalized Json
+  verifiedAt DateTime? @db.Timestamptz(3)
+  receivedAt DateTime @default(now()) @db.Timestamptz(3)
+  webhookEventId Int?
+  webhookEvent PaymentWebhookEvent? @relation(fields: [webhookEventId], references: [id], onDelete: Restrict)
+  successfulAttempts PaymentAttempt[] @relation("AttemptSuccess")
+  finalAttempts PaymentAttempt[] @relation("AttemptFinality")
+  operations PaymentOperation[] @relation("OperationResult")
+  operationId Int?
+  operation PaymentOperation? @relation("OperationSource", fields: [operationId], references: [id], onDelete: Restrict)
+  releaseProofs ReservationReleaseProof[]
+  failureResolutions PaymentResolution[]
+  @@unique([provider, evidenceKey])
+  @@index([orderId, id])
+}
+model ReservationReleaseProof {
+  id Int @id @default(autoincrement())
+  orderId Int
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  evidenceId Int
+  evidence FinancialEvidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+  decisionVersion Int
+  // Immutable IDs/snapshot of covered attempts and operations, validated by Phase 2B.
+  coverage Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  resolution PaymentResolution?
+  @@index([orderId, id])
+}
+model PaymentResolution {
+  orderId Int @id
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  state PaymentResolutionState @default(INITIAL_OPEN)
+  orderCreatedAt DateTime @db.Timestamptz(3)
+  initialPaymentDeadline DateTime @db.Timestamptz(3)
+  firstFailureVerifiedAt DateTime? @db.Timestamptz(3)
+  retryDeadline DateTime? @db.Timestamptz(3)
+  firstFailureOperationId Int?
+  firstFailureOperation PaymentOperation? @relation(fields: [firstFailureOperationId], references: [id], onDelete: Restrict)
+  firstFailureEvidenceId Int?
+  firstFailureEvidence FinancialEvidence? @relation(fields: [firstFailureEvidenceId], references: [id], onDelete: Restrict)
+  paymentAdmissionClosedAt DateTime? @db.Timestamptz(3)
+  closureReason String? @db.VarChar(100)
+  reservationDisposition ReservationDisposition?
+  dispositionAt DateTime? @db.Timestamptz(3)
+  releaseProofId Int? @unique
+  releaseProof ReservationReleaseProof? @relation(fields: [releaseProofId], references: [id], onDelete: Restrict)
+  resolutionNextCheckAt DateTime? @db.Timestamptz(3)
+  escalatedAt DateTime? @db.Timestamptz(3)
+  quarantineReason String? @db.VarChar(200)
+  historical Boolean @default(false)
+  @@index([state, resolutionNextCheckAt, orderId])
 }
