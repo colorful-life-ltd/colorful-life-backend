@@ -74,7 +74,7 @@ type DetailFields = {
 };
 ```
 
-Items sort by ID ascending. Money uses Prisma decimal JSON strings; dates use ISO strings. Shipping uses the order's saved delivery snapshot rather than the user's current address. No separate tax/shipping charge breakdown exists in the current order model; `actualShippingCost` is the seller's dispatch cost, not a customer surcharge. Shipment progress is represented by order status and the carrier/tracking/dispatch fields. Passwords, provider references, keys, billing addresses and refund records are excluded.
+Items sort by ID ascending. Money uses Prisma decimal JSON strings; dates use ISO strings. Shipping uses the order's saved delivery snapshot rather than the user's current address. No separate tax/shipping charge breakdown exists in the current order model; `actualShippingCost` is the seller's dispatch cost, not a customer surcharge. Shipment progress is represented by order status and the carrier/tracking/dispatch fields, plus (Issue #165) `preparingAt`, `fulfilmentStage`, `fulfilment`, `shipments` and `fulfilmentEvents` as described in [order-fulfilment.md](order-fulfilment.md). Passwords, provider references, keys, billing addresses and refund records are excluded.
 
 Read errors follow existing conventions: 401 `{error:{code:"AUTH_REQUIRED"|"SESSION_INVALID",message:string}}`; 403 `{error:{code:"FORBIDDEN",message:"Forbidden: ADMIN only"}}`; invalid list query 400 `{error:<Zod formatted error>}`; invalid detail ID 400 `{error:"Invalid order id"}`; detail query 400 `{error:"Unexpected query parameters"}`; missing detail 404 `{error:"Order not found"}`; internal error 500 `{error:{code:"INTERNAL_SERVER_ERROR",message:"Internal server error"}}`.
 
@@ -95,7 +95,7 @@ Eligibility is checked inside the transaction **after acquiring SELECT … FOR U
 
 ## Dispatch integration
 
-Keep `POST /orders/:orderId/dispatch` with JSON `{actualShippingCost:number,shippingCarrier:string,trackingNumber?:string}`. Cost is required and nonnegative; carrier is required and trimmed/nonblank; tracking is optional and trimmed. ADMIN only. Successful response and existing errors are unchanged. Only CONFIRMED transitions to DISPATCHED; duplicate dispatch cannot overwrite metadata or modify inventory.
+Keep `POST /orders/:orderId/dispatch` with JSON `{actualShippingCost:number,shippingCarrier:string,trackingNumber?:string}`. Cost is required and nonnegative; carrier is required and trimmed/nonblank; tracking is optional and trimmed; both are at most 100 characters. ADMIN only. Successful response and existing errors are unchanged. Only CONFIRMED (including Preparing) transitions to DISPATCHED; duplicate dispatch cannot overwrite metadata or modify inventory. Since Issue #165 the order's payment must be verified (409 `ORDER_PAYMENT_NOT_VERIFIED`), and each dispatch records a Shipment and an audit event. The Preparing step, trusted-carrier dispatch and customer tracking are documented in [order-fulfilment.md](order-fulfilment.md).
 
 ## Admin #39 integration and limitations
 

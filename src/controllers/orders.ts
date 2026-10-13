@@ -62,6 +62,7 @@ import {
 } from "../domain/orders/orderConfirmationErrors.js";
 import { OrderNotFoundError as OrderNotFoundErrorDispatch, OrderNotDispatchableError } from "../domain/orders/orderDispatchErrors.js";
 import { sendDispatchNotification } from "../services/emailService.js";
+import { FulfilmentPaymentNotVerifiedError } from "../domain/fulfilment/fulfilmentErrors.js";
 import { getCustomerOrder, listCustomerOrders } from "../domain/orders/orderReadService.js";
 import { sendApiError } from "../utils/apiErrorResponse.js";
 
@@ -507,6 +508,7 @@ export const completeOrderReturnHandler = async (req: Request, res: Response) =>
         parseResult.data.actualShippingCost,
         parseResult.data.shippingCarrier,
         parseResult.data.trackingNumber,
+        (req.user as { id: number }).id,
       );
       try {
         await sendDispatchNotification({
@@ -531,6 +533,9 @@ export const completeOrderReturnHandler = async (req: Request, res: Response) =>
       }
       if (err instanceof OrderNotDispatchableError) {
         return res.status(400).json({ error: err.message });
+      }
+      if (err instanceof FulfilmentPaymentNotVerifiedError) {
+        return sendApiError(res, 409, "ORDER_PAYMENT_NOT_VERIFIED", err.message);
       }
       console.error("Order dispatch error", err);
       return res.status(500).json({ error: "Internal server error" });

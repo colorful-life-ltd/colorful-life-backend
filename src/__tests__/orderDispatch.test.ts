@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { describe, it, before, after, afterEach } from "node:test";
 import { prisma } from "../prisma/runtime.js";
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { createOrder } from "../domain/orders/orderService.js";
 import { dispatchOrder } from "../domain/orders/orderDispatchService.js";
@@ -105,8 +106,8 @@ describe("orderDispatchService", () => {
     });
     createdOrderIds.push(order.id);
     // Update status to CONFIRMED
-    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } });
-    const dispatched = await dispatchOrder(order.id, 5.99, "UPS", "1Z999AA10123456784");
+    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } }); await recordVerifiedPayment(order.id);
+    const dispatched = await dispatchOrder(order.id, 5.99, "UPS", "1Z999AA10123456784", userId);
     assert.strictEqual(dispatched.status, OrderStatus.DISPATCHED);
     assert.strictEqual(dispatched.actualShippingCost?.toString(), new Decimal(5.99).toString());
     assert.strictEqual(dispatched.shippingCarrier, "UPS");
@@ -116,7 +117,7 @@ describe("orderDispatchService", () => {
 
   it("throws OrderNotFoundError for non-existent order", async () => {
     await assert.rejects(
-      async () => dispatchOrder(9999999, 5, "UPS"),
+      async () => dispatchOrder(9999999, 5, "UPS", undefined, userId),
       (err) => err instanceof OrderNotFoundError,
     );
   });
@@ -128,7 +129,7 @@ describe("orderDispatchService", () => {
     createdOrderIds.push(order.id);
     // Order remains in PENDING
     await assert.rejects(
-      async () => dispatchOrder(order.id, 5, "UPS"),
+      async () => dispatchOrder(order.id, 5, "UPS", undefined, userId),
       (err) => err instanceof OrderNotDispatchableError,
     );
   });
@@ -137,8 +138,8 @@ describe("orderDispatchService", () => {
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
-    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } });
-    const dispatched = await dispatchOrder(order.id, 5.99, "UPS");
+    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } }); await recordVerifiedPayment(order.id);
+    const dispatched = await dispatchOrder(order.id, 5.99, "UPS", undefined, userId);
     assert.strictEqual(dispatched.trackingNumber, null);
   });
   it("throws OrderNotDispatchableError for PENDING status", async () => {
@@ -147,7 +148,7 @@ describe("orderDispatchService", () => {
     });
     createdOrderIds.push(order.id);
     await assert.rejects(
-      async () => dispatchOrder(order.id, 5, "UPS"),
+      async () => dispatchOrder(order.id, 5, "UPS", undefined, userId),
       (err) => err instanceof OrderNotDispatchableError,
     );
   });
@@ -158,7 +159,7 @@ describe("orderDispatchService", () => {
     createdOrderIds.push(order.id);
     await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CANCELLED } });
     await assert.rejects(
-      async () => dispatchOrder(order.id, 5, "UPS"),
+      async () => dispatchOrder(order.id, 5, "UPS", undefined, userId),
       (err) => err instanceof OrderNotDispatchableError,
     );
   });
@@ -169,7 +170,7 @@ describe("orderDispatchService", () => {
     createdOrderIds.push(order.id);
     await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.DISPATCHED } });
     await assert.rejects(
-      async () => dispatchOrder(order.id, 5, "UPS"),
+      async () => dispatchOrder(order.id, 5, "UPS", undefined, userId),
       (err) => err instanceof OrderNotDispatchableError,
     );
   });
@@ -180,7 +181,7 @@ describe("orderDispatchService", () => {
     createdOrderIds.push(order.id);
     await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.COMPLETED } });
     await assert.rejects(
-      async () => dispatchOrder(order.id, 5, "UPS"),
+      async () => dispatchOrder(order.id, 5, "UPS", undefined, userId),
       (err) => err instanceof OrderNotDispatchableError,
     );
   });
@@ -191,7 +192,7 @@ describe("orderDispatchService", () => {
     createdOrderIds.push(order.id);
     await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.RETURNED } });
     await assert.rejects(
-      async () => dispatchOrder(order.id, 5, "UPS"),
+      async () => dispatchOrder(order.id, 5, "UPS", undefined, userId),
       (err) => err instanceof OrderNotDispatchableError,
     );
   });
@@ -200,12 +201,12 @@ describe("orderDispatchService", () => {
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
-    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } });
-  const first = await dispatchOrder(order.id, 5, "UPS", "TRACK1");
+    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } }); await recordVerifiedPayment(order.id);
+  const first = await dispatchOrder(order.id, 5, "UPS", "TRACK1", userId);
   const firstDispatchedAt = first.dispatchedAt;
   assert.strictEqual(first.trackingNumber, "TRACK1");
     await assert.rejects(
-      async () => dispatchOrder(order.id, 10, "DHL", "TRACK2"),
+      async () => dispatchOrder(order.id, 10, "DHL", "TRACK2", userId),
       (err) => err instanceof OrderNotDispatchableError,
     );
     const final = await prisma.order.findUnique({ where: { id: order.id } });
@@ -220,12 +221,12 @@ describe("orderDispatchService", () => {
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
-    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } });
+    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } }); await recordVerifiedPayment(order.id);
     const payloadA = { actualShippingCost: 5, shippingCarrier: "UPS", trackingNumber: "A1" };
     const payloadB = { actualShippingCost: 10, shippingCarrier: "DHL", trackingNumber: "B1" };
     const [resA, resB] = await Promise.allSettled([
-      dispatchOrder(order.id, payloadA.actualShippingCost, payloadA.shippingCarrier, payloadA.trackingNumber),
-      dispatchOrder(order.id, payloadB.actualShippingCost, payloadB.shippingCarrier, payloadB.trackingNumber),
+      dispatchOrder(order.id, payloadA.actualShippingCost, payloadA.shippingCarrier, payloadA.trackingNumber, userId),
+      dispatchOrder(order.id, payloadB.actualShippingCost, payloadB.shippingCarrier, payloadB.trackingNumber, userId),
     ]);
     const fulfilled = [resA, resB].filter((r) => r.status === "fulfilled");
     const rejected = [resA, resB].filter((r) => r.status === "rejected");
@@ -248,10 +249,10 @@ describe("orderDispatchService", () => {
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
-    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } });
+    await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } }); await recordVerifiedPayment(order.id);
     const stockBefore = (await prisma.productListing.findUnique({ where: { id: productListingId } }))?.currentStock ?? 0;
      const movementCountBefore = await prisma.inventoryMovement.count({ where: { listingId: productListingId, type: InventoryMovementType.WEBSITE_SALE } });
-    await dispatchOrder(order.id, 5, "UPS");
+    await dispatchOrder(order.id, 5, "UPS", undefined, userId);
     const stockAfter = (await prisma.productListing.findUnique({ where: { id: productListingId } }))?.currentStock ?? 0;
      const movementCountAfter = await prisma.inventoryMovement.count({ where: { listingId: productListingId, type: InventoryMovementType.WEBSITE_SALE } });
     assert.strictEqual(stockBefore, stockAfter);

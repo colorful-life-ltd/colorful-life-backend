@@ -205,6 +205,8 @@ model User {
   passwordResetToken     PasswordResetToken?
   refreshSessions        RefreshSession[]
   cart                   Cart?
+  shipmentsCreated       Shipment[]
+  fulfilmentEvents       OrderFulfilmentEvent[]
 }
 
 model RefreshSession {
@@ -448,6 +450,8 @@ model Order {
   shippingCarrier       String?
   trackingNumber        String?
   dispatchedAt          DateTime?
+  // Fulfilment sub-stage of CONFIRMED (Confirmed -> Preparing); not a separate order status.
+  preparingAt           DateTime?              @db.Timestamptz(3)
   reservationExpiresAt  DateTime?
   createdAt             DateTime               @default(now())
   // Cancellation metadata – optional until cancellation occurs
@@ -464,6 +468,8 @@ model Order {
   paymentAttempts       PaymentAttempt[]
   financialEvidence     FinancialEvidence[]
   reservationReleaseProofs ReservationReleaseProof[]
+  shipments             Shipment[]
+  fulfilmentEvents      OrderFulfilmentEvent[]
 
   @@unique([userId, creationIdempotencyKey])
   @@index([userId])
@@ -868,4 +874,70 @@ model PasswordRecoveryLimit {
   windowStartedAt DateTime @db.Timestamptz(3)
   count Int
   @@index([windowStartedAt])
+}
+
+// -----------------------------------------------------------------------------
+// Fulfilment (Issue #165, Phase 1 of #161)
+// -----------------------------------------------------------------------------
+
+// Trusted carriers. Tracking links are built server-side from these codes only.
+enum ShippingCarrier {
+  ROYAL_MAIL
+  EVRI
+  DPD
+  OTHER
+}
+
+// Customer-facing fulfilment progress derived from Order.status and preparingAt.
+enum FulfilmentStage {
+  CONFIRMED
+  PREPARING
+  DISPATCHED
+}
+
+enum FulfilmentEventAction {
+  PREPARING_STARTED
+  DISPATCHED
+}
+
+// One parcel of an order. Phase 1 creates exactly one (sequence 1) per order;
+// (orderId, sequence) allows additional parcels later. Order.shippingCarrier,
+// trackingNumber and dispatchedAt remain the summary of the first shipment.
+model Shipment {
+  id              Int                    @id @default(autoincrement())
+  orderId         Int
+  order           Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sequence        Int                    @default(1)
+  // Null only for dispatches whose free-text carrier matches no trusted carrier.
+  carrier         ShippingCarrier?
+  carrierName     String                 @db.VarChar(100)
+  trackingNumber  String?                @db.VarChar(100)
+  dispatchedAt    DateTime               @db.Timestamptz(3)
+  createdByUserId Int
+  createdByUser   User                   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdAt       DateTime               @default(now()) @db.Timestamptz(3)
+  events          OrderFulfilmentEvent[]
+
+  @@unique([orderId, sequence])
+  @@index([createdByUserId])
+}
+
+// Append-only audit trail of administrator fulfilment actions.
+model OrderFulfilmentEvent {
+  id                Int                   @id @default(autoincrement())
+  orderId           Int
+  order             Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  action            FulfilmentEventAction
+  fromStage         FulfilmentStage
+  toStage           FulfilmentStage
+  shipmentId        Int?
+  shipment          Shipment?             @relation(fields: [shipmentId], references: [id], onDelete: NoAction)
+  performedByUserId Int
+  performedByUser   User                  @relation(fields: [performedByUserId], references: [id], onDelete: Restrict)
+  source            String                @db.VarChar(40)
+  createdAt         DateTime              @default(now()) @db.Timestamptz(3)
+
+  @@index([orderId, id])
+  @@index([performedByUserId])
+  @@index([shipmentId])
 }

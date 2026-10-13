@@ -428,7 +428,9 @@ export const ModelName = {
   FinancialEvidence: 'FinancialEvidence',
   ReservationReleaseProof: 'ReservationReleaseProof',
   PaymentResolution: 'PaymentResolution',
-  PasswordRecoveryLimit: 'PasswordRecoveryLimit'
+  PasswordRecoveryLimit: 'PasswordRecoveryLimit',
+  Shipment: 'Shipment',
+  OrderFulfilmentEvent: 'OrderFulfilmentEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -444,7 +446,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit"
+    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2816,6 +2818,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Shipment: {
+      payload: Prisma.$ShipmentPayload<ExtArgs>
+      fields: Prisma.ShipmentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShipmentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShipmentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>
+        }
+        findFirst: {
+          args: Prisma.ShipmentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShipmentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>
+        }
+        findMany: {
+          args: Prisma.ShipmentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>[]
+        }
+        create: {
+          args: Prisma.ShipmentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>
+        }
+        createMany: {
+          args: Prisma.ShipmentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShipmentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>[]
+        }
+        delete: {
+          args: Prisma.ShipmentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>
+        }
+        update: {
+          args: Prisma.ShipmentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>
+        }
+        deleteMany: {
+          args: Prisma.ShipmentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShipmentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShipmentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>[]
+        }
+        upsert: {
+          args: Prisma.ShipmentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentPayload>
+        }
+        aggregate: {
+          args: Prisma.ShipmentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShipment>
+        }
+        groupBy: {
+          args: Prisma.ShipmentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShipmentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentCountAggregateOutputType> | number
+        }
+      }
+    }
+    OrderFulfilmentEvent: {
+      payload: Prisma.$OrderFulfilmentEventPayload<ExtArgs>
+      fields: Prisma.OrderFulfilmentEventFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.OrderFulfilmentEventFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.OrderFulfilmentEventFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>
+        }
+        findFirst: {
+          args: Prisma.OrderFulfilmentEventFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.OrderFulfilmentEventFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>
+        }
+        findMany: {
+          args: Prisma.OrderFulfilmentEventFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>[]
+        }
+        create: {
+          args: Prisma.OrderFulfilmentEventCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>
+        }
+        createMany: {
+          args: Prisma.OrderFulfilmentEventCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.OrderFulfilmentEventCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>[]
+        }
+        delete: {
+          args: Prisma.OrderFulfilmentEventDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>
+        }
+        update: {
+          args: Prisma.OrderFulfilmentEventUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>
+        }
+        deleteMany: {
+          args: Prisma.OrderFulfilmentEventDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.OrderFulfilmentEventUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.OrderFulfilmentEventUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>[]
+        }
+        upsert: {
+          args: Prisma.OrderFulfilmentEventUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderFulfilmentEventPayload>
+        }
+        aggregate: {
+          args: Prisma.OrderFulfilmentEventAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateOrderFulfilmentEvent>
+        }
+        groupBy: {
+          args: Prisma.OrderFulfilmentEventGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OrderFulfilmentEventGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.OrderFulfilmentEventCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OrderFulfilmentEventCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -3097,6 +3247,7 @@ export const OrderScalarFieldEnum = {
   shippingCarrier: 'shippingCarrier',
   trackingNumber: 'trackingNumber',
   dispatchedAt: 'dispatchedAt',
+  preparingAt: 'preparingAt',
   reservationExpiresAt: 'reservationExpiresAt',
   createdAt: 'createdAt',
   cancelledAt: 'cancelledAt',
@@ -3391,6 +3542,36 @@ export const PasswordRecoveryLimitScalarFieldEnum = {
 } as const
 
 export type PasswordRecoveryLimitScalarFieldEnum = (typeof PasswordRecoveryLimitScalarFieldEnum)[keyof typeof PasswordRecoveryLimitScalarFieldEnum]
+
+
+export const ShipmentScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  sequence: 'sequence',
+  carrier: 'carrier',
+  carrierName: 'carrierName',
+  trackingNumber: 'trackingNumber',
+  dispatchedAt: 'dispatchedAt',
+  createdByUserId: 'createdByUserId',
+  createdAt: 'createdAt'
+} as const
+
+export type ShipmentScalarFieldEnum = (typeof ShipmentScalarFieldEnum)[keyof typeof ShipmentScalarFieldEnum]
+
+
+export const OrderFulfilmentEventScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  action: 'action',
+  fromStage: 'fromStage',
+  toStage: 'toStage',
+  shipmentId: 'shipmentId',
+  performedByUserId: 'performedByUserId',
+  source: 'source',
+  createdAt: 'createdAt'
+} as const
+
+export type OrderFulfilmentEventScalarFieldEnum = (typeof OrderFulfilmentEventScalarFieldEnum)[keyof typeof OrderFulfilmentEventScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -3903,6 +4084,48 @@ export type ListEnumReservationDispositionFieldRefInput<$PrismaModel> = FieldRef
 
 
 /**
+ * Reference to a field of type 'ShippingCarrier'
+ */
+export type EnumShippingCarrierFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ShippingCarrier'>
+
+
+
+/**
+ * Reference to a field of type 'ShippingCarrier[]'
+ */
+export type ListEnumShippingCarrierFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ShippingCarrier[]'>
+
+
+
+/**
+ * Reference to a field of type 'FulfilmentEventAction'
+ */
+export type EnumFulfilmentEventActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FulfilmentEventAction'>
+
+
+
+/**
+ * Reference to a field of type 'FulfilmentEventAction[]'
+ */
+export type ListEnumFulfilmentEventActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FulfilmentEventAction[]'>
+
+
+
+/**
+ * Reference to a field of type 'FulfilmentStage'
+ */
+export type EnumFulfilmentStageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FulfilmentStage'>
+
+
+
+/**
+ * Reference to a field of type 'FulfilmentStage[]'
+ */
+export type ListEnumFulfilmentStageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FulfilmentStage[]'>
+
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -4098,6 +4321,8 @@ export type GlobalOmitConfig = {
   reservationReleaseProof?: Prisma.ReservationReleaseProofOmit
   paymentResolution?: Prisma.PaymentResolutionOmit
   passwordRecoveryLimit?: Prisma.PasswordRecoveryLimitOmit
+  shipment?: Prisma.ShipmentOmit
+  orderFulfilmentEvent?: Prisma.OrderFulfilmentEventOmit
 }
 
 /* Types for Logging */

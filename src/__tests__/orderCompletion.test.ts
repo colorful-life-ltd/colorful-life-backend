@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { describe, it, before, after, afterEach } from "node:test";
 import { prisma } from "../prisma/runtime.js";
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { createOrder } from "../domain/orders/orderService.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
@@ -122,7 +123,8 @@ describe("Order completion workflow", () => {
     });
     createdOrderIds.push(order.id);
     await confirmOrder(adminId, order.id);
-    await dispatchOrder(order.id, 5, "UPS", "TRACK123");
+    await recordVerifiedPayment(order.id);
+    await dispatchOrder(order.id, 5, "UPS", "TRACK123", adminId);
     return order.id;
   }
 

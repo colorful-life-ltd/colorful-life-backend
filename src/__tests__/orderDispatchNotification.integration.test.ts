@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import app from "../app.js";
 import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { createOrder } from "../domain/orders/orderService.js";
 import { OrderStatus } from "../generated/prisma-client/enums.js";
 import { setDispatchNotificationSenderForTests, type DispatchNotification } from "../services/emailService.js";
@@ -68,6 +69,7 @@ async function makeFixture() {
   const order = await createOrder(customer.id, { items: [{ productListingId: listing.id, quantity: 1 }] });
   orders.push(order.id);
   await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } });
+  await recordVerifiedPayment(order.id);
   return { customer, admin, listing, order };
 }
 

@@ -8,10 +8,12 @@ export const DispatchOrderSchema = z
     shippingCarrier: z
       .string()
       .transform((s) => s.trim())
-      .refine((s) => s.length > 0, { message: "Shipping carrier cannot be empty" }),
+      .refine((s) => s.length > 0, { message: "Shipping carrier cannot be empty" })
+      .refine((s) => s.length <= 100, { message: "Shipping carrier must be at most 100 characters" }),
     trackingNumber: z
       .string()
       .optional()
-      .transform((s) => (s ? s.trim() || undefined : undefined)),
+      .transform((s) => (s ? s.trim() || undefined : undefined))
+      .refine((s) => s === undefined || s.length <= 100, { message: "Tracking number must be at most 100 characters" }),
   })
   .strict();

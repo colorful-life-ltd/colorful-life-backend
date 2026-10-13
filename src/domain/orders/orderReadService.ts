@@ -1,4 +1,6 @@
 import { prisma } from "../../prisma/runtime.js";
+import { customerShipmentSelect, presentFulfilment } from "../fulfilment/fulfilmentPresenter.js";
+import { fulfilmentStage } from "../fulfilment/fulfilmentService.js";
 
 const orderReadSelect = {
   id: true,
@@ -10,6 +12,8 @@ const orderReadSelect = {
   trackingNumber: true,
   dispatchedAt: true,
   completedAt: true,
+  preparingAt: true,
+  shipments: customerShipmentSelect,
   orderItems: {
     select: {
       id: true,
@@ -32,12 +36,19 @@ const orderReadSelect = {
 
 export type CustomerOrder = Awaited<ReturnType<typeof getCustomerOrder>>;
 
+/** Replaces raw fulfilment columns with the derived, link-safe fulfilment view. */
+function withFulfilment<T extends Parameters<typeof presentFulfilment>[0]>(order: T) {
+  const { shipments: _shipments, preparingAt: _preparingAt, ...rest } = order;
+  return { ...rest, fulfilment: presentFulfilment(order) };
+}
+
 export async function listCustomerOrders(userId: number) {
-  return prisma.order.findMany({
+  const orders = await prisma.order.findMany({
     where: { userId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: orderReadSelect,
   });
+  return orders.map(withFulfilment);
 }
 
 export async function getCustomerOrder(userId: number, orderId: number) {
@@ -57,13 +68,13 @@ export async function getCustomerOrder(userId: number, orderId: number) {
   });
   if (!order) return null;
   const { payments, ...safeOrder } = order;
-  return { ...safeOrder, payment: payments[0] ?? null };
+  return { ...withFulfilment(safeOrder), payment: payments[0] ?? null };
 }
 
 // Explicit projections keep provider references, idempotency keys and credentials private.
 const adminOrderSummarySelect = {
   id: true, userId: true, status: true, totalAmount: true, createdAt: true,
-  shippingCarrier: true, trackingNumber: true, dispatchedAt: true,
+  shippingCarrier: true, trackingNumber: true, dispatchedAt: true, preparingAt: true,
   user: { select: { id: true, firstName: true, lastName: true, email: true } },
   payments: { select: { status: true, currency: true, paidAt: true } },
 } as const;
@@ -73,6 +84,10 @@ function projectAdminPayment<T extends { payments: Array<{ status: string; curre
   const payment = payments[0] ?? null;
   // All existing checkout and manual payment paths price orders in GBP.
   return { ...safeOrder, payment, paymentStatus: payment?.status ?? null, currency: payment?.currency ?? "GBP" };
+}
+
+function withFulfilmentStage<T extends { status: string; preparingAt: Date | null; dispatchedAt: Date | null }>(order: T) {
+  return { ...order, fulfilmentStage: fulfilmentStage(order) };
 }
 
 export async function listAdminOrders(query: import("./adminOrderValidator.js").AdminOrderQuery) {
@@ -85,7 +100,7 @@ export async function listAdminOrders(query: import("./adminOrderValidator.js").
         skip: (query.page - 1) * query.pageSize, take: query.pageSize,
       }),
     ]);
-    return { items: orders.map(projectAdminPayment), pagination: {
+    return { items: orders.map((order) => withFulfilmentStage(projectAdminPayment(order))), pagination: {
       page: query.page, pageSize: query.pageSize, totalItems, totalPages: Math.ceil(totalItems / query.pageSize),
     } };
   }, { isolationLevel: "RepeatableRead" });
@@ -102,7 +117,15 @@ export async function getAdminOrder(orderId: number) {
       deliveryCity: true, deliveryCounty: true, deliveryPostcode: true,
       deliveryCountryCode: true, deliveryPhone: true,
       orderItems: { ...orderReadSelect.orderItems, orderBy: { id: "asc" } },
+      shipments: { ...customerShipmentSelect, select: { ...customerShipmentSelect.select, id: true, createdByUserId: true, createdAt: true } },
+      fulfilmentEvents: {
+        select: { id: true, action: true, fromStage: true, toStage: true, shipmentId: true, source: true, createdAt: true,
+          performedByUser: { select: { id: true, email: true } } },
+        orderBy: { id: "asc" },
+      },
     },
   });
-  return order ? projectAdminPayment(order) : null;
+  if (!order) return null;
+  const { shipments, fulfilmentEvents, ...rest } = projectAdminPayment(order);
+  return { ...withFulfilmentStage(rest), fulfilment: presentFulfilment(order), shipments, fulfilmentEvents };
 }
