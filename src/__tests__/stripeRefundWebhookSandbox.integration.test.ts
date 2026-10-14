@@ -57,7 +57,7 @@ describe("Stripe Sandbox refund webhook E2E", { concurrency: 1 }, () => {
     await stripe.paymentIntents.confirm(initiated.providerReference, { payment_method: "pm_card_visa", return_url: "https://example.com/stripe-sandbox-return" });
     await waitForPayment(initiated.paymentId, initiated.providerReference, Date.now() + 90_000);
 
-    const refund = await createOrReuseStripeRefund(order.id, initiated.paymentId, 1, undefined, user.id);
+    const refund = await createOrReuseStripeRefund(order.id, initiated.paymentId, 1, undefined, user.id, undefined, undefined, randomUUID());
     refundIds.push(refund.id);
     assert.equal(refund.provider, RefundProvider.STRIPE);
     assert.match(refund.providerReference, /^re_/);

@@ -25,6 +25,7 @@ import {
   listPaymentsHandler,
 } from "../controllers/payments.js";
 import {
+  reconcileRefundHandler,
   createRefundHandler,
   listRefundsHandler,
 } from "../controllers/refunds.js";
@@ -95,5 +96,6 @@ router.post("/:orderId/payments/paypal/capture", authMiddleware, requireVerified
 router.get("/:orderId/payments", authMiddleware, listPaymentsHandler);
 router.post("/:orderId/refunds", authMiddleware, createRefundHandler);
 router.get("/:orderId/refunds", authMiddleware, listRefundsHandler);
+router.post("/:orderId/refunds/:refundId/reconcile", authMiddleware, reconcileRefundHandler);
 
 export default router;

@@ -1,3 +1,4 @@
+import { reconcileRefundWebhook } from "../refunds/refundWebhookService.js";
 import { config } from "../../config/index.js";
 import { bindManagedProvider, recordManagedFailure, recordManagedSuccess, managedResolution } from "./paymentResolutionService.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
@@ -5,8 +6,6 @@ import { confirmOrderInTransaction } from "../orders/orderConfirmationService.js
 import { PaymentProvider, PaymentStatus, OrderStatus } from "../../generated/prisma-client/enums.js";
 import { prisma } from "../../prisma/runtime.js";
 import { Decimal } from "@prisma/client/runtime/client";
-import { finalizeRefundCapacity, releaseRefundCapacity } from "../refunds/refundCapacityService.js";
-import { RefundProvider, RefundStatus } from "../../generated/prisma-client/enums.js";
 
 export type StripePaymentIntentEvent = {
   id: string;
@@ -127,26 +126,12 @@ export type StripeRefundEvent = { id: string; type: "refund.created" | "refund.u
 function paymentIntentId(value: string | { id: string } | null | undefined) { return typeof value === "string" ? value : value?.id; }
 
 export async function reconcileStripeRefundEvent(event: StripeRefundEvent): Promise<{ duplicate: boolean; handled: boolean }> {
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const receipt = await tx.paymentWebhookEvent.create({ data: { provider: PaymentProvider.STRIPE, providerEventId: event.id, eventType: event.type } });
-      let refund = await tx.refund.findFirst({ where: { provider: RefundProvider.STRIPE, providerReference: event.refundId } });
-      const localId = Number(event.metadata?.local_refund_id);
-      if (!refund && Number.isInteger(localId) && localId > 0) refund = await tx.refund.findUnique({ where: { id: localId } });
-      const payment = refund ? await tx.payment.findUnique({ where: { id: refund.paymentId } }) : null;
-      const metadataMatches = !event.metadata?.local_refund_id || (Number.isInteger(localId) && localId === refund?.id);
-      const providerReferenceMatches = !!refund && (refund.providerReference === event.refundId || refund.providerReference.startsWith("pending:"));
-      const valid = !!refund && !!payment && metadataMatches && providerReferenceMatches && refund.provider === RefundProvider.STRIPE && payment.provider === PaymentProvider.STRIPE && paymentIntentId(event.paymentIntentId) === payment.providerReference && event.amount === new Decimal(refund.amount).mul(100).toNumber() && event.currency.toLowerCase() === refund.currency.toLowerCase() && (!event.metadata?.order_id || event.metadata.order_id === String(refund.orderId));
-      if (!valid) { await tx.paymentWebhookEvent.update({ where: { id: receipt.id }, data: { processedAt: new Date(), processingError: "Stripe refund correlation or financial validation failed" } }); return { duplicate: false, handled: false }; }
-      if (refund!.status === RefundStatus.PROCESSING) {
-        if (event.status === "succeeded") { await finalizeRefundCapacity(refund!.paymentId, refund!.amount, tx); await tx.refund.update({ where: { id: refund!.id }, data: { providerReference: event.refundId, status: RefundStatus.SUCCEEDED } }); }
-        else if (event.status === "failed" || event.status === "canceled") { await releaseRefundCapacity(refund!.paymentId, refund!.amount, tx); await tx.refund.update({ where: { id: refund!.id }, data: { providerReference: event.refundId, status: RefundStatus.FAILED } }); }
-        else await tx.refund.update({ where: { id: refund!.id }, data: { providerReference: event.refundId } });
-      }
-      await tx.paymentWebhookEvent.update({ where: { id: receipt.id }, data: { processedAt: new Date() } });
-      return { duplicate: false, handled: true };
-    });
-  } catch (error) { if (typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "P2002") return { duplicate: true, handled: true }; throw error; }
+  return reconcileRefundWebhook({version:2,kind:"refund",provider:"STRIPE",id:event.id,eventType:event.type,
+    reference:event.refundId,parentReference:paymentIntentId(event.paymentIntentId)??undefined,
+    amount:Number.isSafeInteger(event.amount)&&event.amount>0?new Decimal(event.amount).div(100).toFixed(2):undefined,
+    currency:event.currency,localRefundId:event.metadata?.local_refund_id,localOrderId:event.metadata?.order_id,
+    status:event.type==="refund.failed"&&!["failed","canceled"].includes(event.status)?"UNKNOWN":event.status==="succeeded"?"SUCCEEDED":event.status==="failed"||event.status==="canceled"?"FAILED"
+      :event.status==="pending"||event.status==="requires_action"?"PENDING":"UNKNOWN"});
 }
 
 /** Replay only the allowlisted evidence persisted by verified Stripe processing, under Order first. */

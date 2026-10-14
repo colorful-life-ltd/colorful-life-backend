@@ -570,6 +570,14 @@ model Refund {
   provider             RefundProvider @default(MANUAL)
   providerReference    String
   refundIdempotencyKey String?        @unique
+  clientRequestKey     String?        @unique @db.VarChar(128)
+  providerPaymentReference String?
+  submissionStartedAt DateTime?      @db.Timestamptz(3)
+  resolutionCode       String?        @db.VarChar(64)
+  reviewRequired       Boolean        @default(false)
+  reconciliationAttempts Int          @default(0)
+  providerOutcome      Json?
+  reviewEvidence       Json?
   reason               String?
   performedByUserId    Int
   performedByUser      User           @relation(fields: [performedByUserId], references: [id], onDelete: Restrict)
@@ -579,6 +587,7 @@ model Refund {
   @@unique([provider, providerReference])
   @@index([orderId])
   @@index([paymentId])
+  @@index([paymentId, status])
   @@index([performedByUserId])
   @@index([createdAt])
 }

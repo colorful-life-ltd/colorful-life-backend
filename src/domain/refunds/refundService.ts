@@ -1,3 +1,4 @@
+import { assertNoUnresolvedRefund, lockRefundPayment } from "./refundLifecycleService.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import {
   PaymentStatus,
@@ -57,6 +58,7 @@ export async function createRefund(
 
   try {
     return await prisma.$transaction(async (tx) => {
+      await lockRefundPayment(tx, orderId, paymentId);
       const order = await tx.order.findUnique({
         where: { id: orderId },
         select: { id: true },
@@ -93,13 +95,14 @@ export async function createRefund(
         return { refund: existing, created: false };
       }
 
+      await assertNoUnresolvedRefund(tx, paymentId);
       const claim = await tx.payment.updateMany({
         where: {
           id: paymentId,
           orderId,
           status: PaymentStatus.SUCCEEDED,
           refundedAmount: {
-            lte: payment.amount.minus(amount),
+            lte: payment.amount.minus(amount).minus(payment.reservedRefundAmount),
           },
         },
         data: {
@@ -167,6 +170,7 @@ export async function getOrderRefunds(orderId: number) {
   }
 
   return prisma.refund.findMany({
+    omit: { providerOutcome: true, reviewEvidence: true, providerPaymentReference: true, clientRequestKey: true, submissionStartedAt: true },
     where: { orderId },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });

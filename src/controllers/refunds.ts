@@ -1,3 +1,6 @@
+import { RefundIntentError, RefundPersistenceError, refundProjection } from "../domain/refunds/refundLifecycleService.js";
+import { reconcileExternalRefund } from "../domain/refunds/refundReconciliationService.js";
+import { RefundCapacityExceededError } from "../domain/refunds/refundCapacityService.js";
 import { Request, Response } from "express";
 import { createRefund, getOrderRefunds } from "../domain/refunds/refundService.js";
 import { createOrReusePayPalRefund, PayPalRefundProviderError, PayPalRefundValidationError } from "../domain/refunds/paypalRefundService.js";
@@ -40,13 +43,13 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     if (!payment || payment.orderId !== orderId) return res.status(404).json({ error: "Payment not found for order" });
     if (payment.provider === PaymentProvider.PAYPAL) {
       if (providerReference !== undefined) return res.status(400).json({ error: "providerReference is only valid for manual refunds" });
-      const refund = await createOrReusePayPalRefund(orderId, paymentId, amount, reason, user.id, undefined, refundId);
-      return res.status(refundId ? 200 : 201).json({ refundId: refund.id, status: refund.status, amount: refund.amount, currency: refund.currency, provider: refund.provider });
+      const refund = await createOrReusePayPalRefund(orderId, paymentId, amount, reason, user.id, undefined, refundId, req.get("Idempotency-Key"));
+      return res.status(refund.status === "PROCESSING" ? 202 : refundId ? 200 : 201).json(refundProjection(refund));
     }
     if (payment.provider === PaymentProvider.STRIPE) {
       if (providerReference !== undefined) return res.status(400).json({ error: "providerReference is only valid for manual refunds" });
-      const refund = await createOrReuseStripeRefund(orderId, paymentId, amount, reason, user.id, undefined, refundId);
-      return res.status(refundId ? 200 : 201).json({ refundId: refund.id, status: refund.status, amount: refund.amount, currency: refund.currency, provider: refund.provider });
+      const refund = await createOrReuseStripeRefund(orderId, paymentId, amount, reason, user.id, undefined, refundId, req.get("Idempotency-Key"));
+      return res.status(refund.status === "PROCESSING" ? 202 : refundId ? 200 : 201).json(refundProjection(refund));
     }
     if (refundId !== undefined) return res.status(400).json({ error: "refundId is only valid for PayPal refunds" });
     if (providerReference === undefined) return res.status(400).json({ error: "Refund provider reference cannot be empty" });
@@ -60,6 +63,9 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     );
     return res.status(result.created ? 201 : 200).json(result.refund);
   } catch (err: unknown) {
+    if(err instanceof RefundIntentError)return res.status(err.httpStatus).json({error:err.code,...(err.refundId?{refundId:err.refundId,status:err.refundStatus??"UNKNOWN",resolutionCode:err.code}:{})});
+    if(err instanceof RefundPersistenceError)return res.status(503).json({error:"REFUND_PERSISTENCE_UNAVAILABLE",refundId:err.refundId,status:"UNKNOWN",resolutionCode:"RECONCILIATION_REQUIRED"});
+    if(err instanceof RefundCapacityExceededError)return res.status(409).json({error:"REFUND_CAPACITY_EXCEEDED"});
     if (
       err instanceof RefundInvalidAmountError ||
       err instanceof RefundInvalidProviderReferenceError ||
@@ -84,7 +90,7 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     if (err instanceof PayPalRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
     if (err instanceof StripeRefundValidationError) return res.status(409).json({ error: "Stripe refund request is not valid" });
     if (err instanceof StripeRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
-    console.error("Create refund error", err);
+    console.error("Create refund failed; inspect existing intent before retry");
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -107,7 +113,19 @@ export const listRefundsHandler = async (req: Request, res: Response) => {
     if (err instanceof RefundOrderNotFoundError) {
       return res.status(404).json({ error: err.message });
     }
-    console.error("List refunds error", err);
+    console.error("List refunds failed");
     return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const reconcileRefundHandler=async(req:Request,res:Response)=>{
+  if((req.user as {role:string}).role!=="ADMIN")return sendApiError(res,403,"FORBIDDEN","Forbidden: ADMIN only");
+  const orderId=Number(req.params.orderId),refundId=Number(req.params.refundId);
+  if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(refundId)||refundId<1)return res.status(400).json({error:"INVALID_REFUND_ID"});
+  if(req.body&&Object.keys(req.body).length)return res.status(400).json({error:"Reconciliation does not accept provider parameters"});
+  try{const refund=await reconcileExternalRefund(orderId,refundId);return res.status(refund.status==="PROCESSING"?202:200).json(refundProjection(refund));}
+  catch(error){
+    if(error instanceof RefundIntentError)return res.status(error.httpStatus).json({error:error.code,refundId:error.refundId??refundId,status:error.refundStatus??"UNKNOWN"});
+    return res.status(503).json({error:"REFUND_RECONCILIATION_UNAVAILABLE",refundId,status:"UNKNOWN"});
   }
 };

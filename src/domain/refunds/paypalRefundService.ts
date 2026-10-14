@@ -1,58 +1,79 @@
 import { Decimal } from "@prisma/client/runtime/client";
-import { randomUUID } from "node:crypto";
-import { PaymentProvider, PaymentStatus, RefundProvider, RefundStatus } from "../../generated/prisma-client/enums.js";
-import { prisma } from "../../prisma/runtime.js";
 import { config } from "../../config/index.js";
-import { reserveRefundCapacity, finalizeRefundCapacity, releaseRefundCapacity } from "./refundCapacityService.js";
-import { RefundAmountExceededError, RefundOrderNotFoundError, RefundPaymentNotFoundError, RefundPaymentNotRefundableError } from "./refundErrors.js";
-
+import { applyRefundObservation, DefinitiveRefundRejection, prepareExternalRefund, refundWithContext, retainUnresolved, type RefundObservation } from "./refundLifecycleService.js";
 export class PayPalRefundProviderError extends Error {}
 export class PayPalRefundValidationError extends Error {}
-
-export type PayPalRefundResponse = { id?: string; status?: string; amount?: { value?: string; currency_code?: string } };
-export type PayPalRefundClient = { refundCapture(captureId: string, requestId: string, amount: string, currency: string): Promise<PayPalRefundResponse> };
-let testClient: PayPalRefundClient | undefined;
-export function setPayPalRefundClientForTests(client: PayPalRefundClient): () => void { const previous = testClient; testClient = client; return () => { testClient = previous; }; }
-
-function createClient(): PayPalRefundClient {
-  if (!config.PAYPAL_CLIENT_ID || !config.PAYPAL_CLIENT_SECRET) throw new PayPalRefundProviderError("PayPal is not configured");
-  let accessToken: string | undefined;
-  return { async refundCapture(captureId, requestId, amount, currency) { try { if (!accessToken) { const auth = await fetch(`${config.PAYPAL_BASE_URL}/v1/oauth2/token`, { method: "POST", headers: { Authorization: `Basic ${Buffer.from(`${config.PAYPAL_CLIENT_ID}:${config.PAYPAL_CLIENT_SECRET}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" }, body: "grant_type=client_credentials" }); if (!auth.ok) throw new Error(); accessToken = (await auth.json() as { access_token: string }).access_token; } const response = await fetch(`${config.PAYPAL_BASE_URL}/v2/payments/captures/${encodeURIComponent(captureId)}/refund`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "PayPal-Request-Id": requestId }, body: JSON.stringify({ amount: { value: amount, currency_code: currency } }) }); if (!response.ok) throw new Error(); return await response.json() as PayPalRefundResponse; } catch { throw new PayPalRefundProviderError("PayPal refund operation failed"); } } };
-}
-
-export async function createOrReusePayPalRefund(orderId: number, paymentId: number, inputAmount: Decimal | number, reason: string | undefined, performedByUserId: number, client?: PayPalRefundClient, refundId?: number) {
-  const requested = inputAmount instanceof Decimal ? inputAmount : new Decimal(inputAmount);
-  if (requested.lte(0) || !requested.mul(100).isInteger()) throw new PayPalRefundValidationError("Invalid refund amount");
-  const prepared = await prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({ where: { id: orderId }, select: { id: true } }); if (!order) throw new RefundOrderNotFoundError(orderId);
-    const payment = await tx.payment.findUnique({ where: { id: paymentId } }); if (!payment || payment.orderId !== orderId) throw new RefundPaymentNotFoundError(paymentId, orderId);
-    if (payment.status !== PaymentStatus.SUCCEEDED) throw new RefundPaymentNotRefundableError(paymentId);
-    if (payment.provider !== PaymentProvider.PAYPAL || !payment.providerCaptureReference) throw new PayPalRefundValidationError("PayPal capture is unavailable");
-    const key = `refund-${randomUUID()}-paypal`;
-    const existing = refundId ? await tx.refund.findUnique({ where: { id: refundId } }) : null;
-    if (existing) {
-      if (existing.orderId !== orderId || existing.paymentId !== paymentId || existing.provider !== RefundProvider.PAYPAL) throw new PayPalRefundValidationError("Refund attempt does not belong to this payment");
-      if (existing.status === RefundStatus.SUCCEEDED) return { existing, payment, key };
-      if (existing.status === RefundStatus.FAILED) throw new PayPalRefundValidationError("Refund attempt has failed");
-      if (!existing.refundIdempotencyKey || new Decimal(existing.amount).lte(0) || !new Decimal(existing.amount).mul(100).isInteger() || existing.currency !== payment.currency) throw new PayPalRefundValidationError("Refund attempt is invalid");
-      return { existing, payment, key };
+export type PayPalRefundResponse={id?:string;status?:string;amount?:{value?:string;currency_code?:string};custom_id?:string;links?:Array<{rel?:string;href?:string}>};
+export type PayPalRefundClient={refundCapture(captureId:string,requestId:string,amount:string,currency:string,localRefundId?:number):Promise<PayPalRefundResponse>;
+  retrieveRefund?(reference:string):Promise<PayPalRefundResponse>};
+let testClient:PayPalRefundClient|undefined;
+export function setPayPalRefundClientForTests(client:PayPalRefundClient):()=>void{const previous=testClient;testClient=client;return()=>{testClient=previous;};}
+export function paypalRefundClient():PayPalRefundClient{
+  if(testClient)return testClient;
+  if(!config.PAYPAL_CLIENT_ID||!config.PAYPAL_CLIENT_SECRET)throw new PayPalRefundProviderError("PayPal is not configured");
+  async function request(path:string,body?:object,requestId?:string){
+    const signal=AbortSignal.timeout(5000);
+    const auth=await fetch(`${config.PAYPAL_BASE_URL}/v1/oauth2/token`,{method:"POST",redirect:"error",signal,headers:{Authorization:`Basic ${Buffer.from(`${config.PAYPAL_CLIENT_ID}:${config.PAYPAL_CLIENT_SECRET}`).toString("base64")}`,"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=client_credentials"});
+    if(!auth.ok)throw new PayPalRefundProviderError("PayPal authentication unavailable");
+    const token=(await auth.json() as {access_token?:string}).access_token;if(!token)throw new PayPalRefundProviderError("PayPal authentication unavailable");
+    const response=await fetch(`${config.PAYPAL_BASE_URL}${path}`,{method:body?"POST":"GET",redirect:"error",signal,headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json",Prefer:"return=representation",...(requestId?{"PayPal-Request-Id":requestId}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    if(!response.ok){
+      if(body && response.status===400){
+        const error=await response.json() as {name?:string;details?:Array<{issue?:string}>};
+        const issues=error.details?.map(d=>d.issue);
+        if(error.name==="INVALID_REQUEST" && issues?.length && issues.every(i=>["INVALID_PARAMETER_VALUE","MISSING_REQUIRED_PARAMETER","INVALID_STRING_LENGTH"].includes(i??"")))throw new DefinitiveRefundRejection("PAYPAL_INVALID_REQUEST");
+      }
+      throw new PayPalRefundProviderError("PayPal operation unavailable");
     }
-    await reserveRefundCapacity(paymentId, requested, tx);
-    return { existing: await tx.refund.create({ data: { orderId, paymentId, amount: requested, currency: payment.currency, status: RefundStatus.PROCESSING, provider: RefundProvider.PAYPAL, providerReference: `pending:${key}`, refundIdempotencyKey: key, reason: reason?.trim() || undefined, performedByUserId } }), payment, key };
-  });
-  if (prepared.existing?.status === RefundStatus.SUCCEEDED) return prepared.existing;
-  if (!prepared.existing) throw new PayPalRefundValidationError("Refund attempt unavailable");
-  if (prepared.existing.status !== RefundStatus.PROCESSING) throw new PayPalRefundValidationError("Refund attempt is not retryable");
-  const storedAmount = new Decimal(prepared.existing.amount);
-  const storedCurrency = prepared.existing.currency;
-  let response: PayPalRefundResponse;
-  try { response = await (client ?? testClient ?? createClient()).refundCapture(prepared.payment.providerCaptureReference!, prepared.existing.refundIdempotencyKey!, storedAmount.toFixed(2), storedCurrency); }
-  catch (error) { if (error instanceof PayPalRefundProviderError) throw error; throw new PayPalRefundProviderError("PayPal refund operation failed"); }
-  if (response.status === "FAILED" || response.status === "DENIED") return prisma.$transaction(async (tx) => { await releaseRefundCapacity(paymentId, storedAmount, tx); return tx.refund.update({ where: { id: prepared.existing!.id }, data: { status: RefundStatus.FAILED } }); });
-  const valid = response.status === "COMPLETED" && !!response.id && response.amount?.value === storedAmount.toFixed(2) && response.amount.currency_code?.toUpperCase() === storedCurrency.toUpperCase();
-  if (!valid) throw new PayPalRefundValidationError("PayPal refund response did not match the local refund");
-  return prisma.$transaction(async (tx) => {
-    await finalizeRefundCapacity(paymentId, storedAmount, tx);
-    return tx.refund.update({ where: { id: prepared.existing.id }, data: { providerReference: response.id, status: RefundStatus.SUCCEEDED } });
+    return await response.json() as PayPalRefundResponse;
+  }
+  return {refundCapture:(captureId,requestId,amount,currency,localRefundId)=>request(`/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
+    {amount:{value:amount,currency_code:currency},custom_id:`cl-refund-${localRefundId}`},requestId),
+    retrieveRefund:reference=>request(`/v2/payments/refunds/${encodeURIComponent(reference)}`)};
+}
+/** Parse identity only; never follow a provider-supplied URL. */
+export function paypalRefundParent(response:PayPalRefundResponse):string|undefined{
+  const live=["api-m.paypal.com","api.paypal.com"];
+  const sandbox=["api-m.sandbox.paypal.com","api.sandbox.paypal.com"];
+  try{
+    const base=new URL(config.PAYPAL_BASE_URL);
+    const hosts=live.includes(base.hostname)?live:sandbox.includes(base.hostname)?sandbox:[];
+    if(base.protocol!=="https:"||base.port||base.username||base.password)return undefined;
+    const links=response.links?.filter(l=>l.rel==="up")??[];
+    if(!links.length)return undefined;
+    let parent:string|undefined;
+    for(const link of links){
+      if(!link.href)return undefined;
+      const url=new URL(link.href);
+      if(url.protocol!=="https:"||!hosts.includes(url.hostname)||url.port||url.username||url.password||url.search||url.hash)return undefined;
+      const match=/^\/v2\/payments\/captures\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
+      if(!match || parent!==undefined&&parent!==match[1])return undefined;
+      parent=match[1];
+    }
+    return parent;
+  }catch{return undefined;}
+}
+export function paypalRefundObservation(response:PayPalRefundResponse,parentReference:string):RefundObservation{
+  return {provider:"PAYPAL",reference:response.id,parentReference,amount:response.amount?.value??"",currency:response.amount?.currency_code??"",
+    status:response.status==="COMPLETED"?"SUCCEEDED":response.status==="FAILED"||response.status==="CANCELLED"?"FAILED":response.status==="PENDING"?"PENDING":"UNKNOWN"};
+}
+export async function createOrReusePayPalRefund(orderId:number,paymentId:number,inputAmount:Decimal|number,reason:string|undefined,performedByUserId:number,
+  injectedClient?:PayPalRefundClient,refundId?:number,clientRequestKey?:string){
+  const prepared=await prepareExternalRefund({orderId,paymentId,amount:inputAmount,reason,actor:performedByUserId,provider:"PAYPAL",refundId,clientRequestKey});
+  if(!prepared.submit)return prepared.refund;
+  const refund=prepared.refund;
+  return refundWithContext(refund.id,async()=>{
+    let response:PayPalRefundResponse;
+    try{response=await (injectedClient??paypalRefundClient()).refundCapture(refund.providerPaymentReference!,refund.refundIdempotencyKey!,new Decimal(refund.amount).toFixed(2),refund.currency,refund.id);}
+    catch(error){
+      if(error instanceof DefinitiveRefundRejection)return applyRefundObservation(refund.id,{provider:"PAYPAL",parentReference:refund.providerPaymentReference!,amount:refund.amount.toString(),currency:refund.currency,status:"FAILED",rejectionCode:error.safeCode});
+      return retainUnresolved(refund.id,"PROVIDER_OUTCOME_UNKNOWN");
+    }
+    // The authenticated POST response belongs to its requested capture. Any supplied parent/custom ID must corroborate it.
+    const parent=paypalRefundParent(response);
+    if(response.links?.some(link=>link.rel==="up")&&!parent || parent&&parent!==refund.providerPaymentReference || response.custom_id&&response.custom_id!==`cl-refund-${refund.id}`)return retainUnresolved(refund.id,"PROVIDER_EVIDENCE_MISMATCH",true);
+    const validId=typeof response.id==="string"&&/^[A-Za-z0-9_-]{1,256}$/.test(response.id);
+    if(!validId||!response.amount?.value||!response.amount.currency_code)return retainUnresolved(refund.id,"INCOMPLETE_PROVIDER_RESPONSE",false,validId?{reference:response.id!}:undefined);
+    return applyRefundObservation(refund.id,paypalRefundObservation(response,parent??refund.providerPaymentReference!));
   });
 }
