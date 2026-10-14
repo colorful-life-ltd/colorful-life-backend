@@ -303,7 +303,9 @@ export type ShippingCarrier = (typeof ShippingCarrier)[keyof typeof ShippingCarr
 export const FulfilmentStage = {
   CONFIRMED: 'CONFIRMED',
   PREPARING: 'PREPARING',
-  DISPATCHED: 'DISPATCHED'
+  DISPATCHED: 'DISPATCHED',
+  IN_TRANSIT: 'IN_TRANSIT',
+  DELIVERED: 'DELIVERED'
 } as const
 
 export type FulfilmentStage = (typeof FulfilmentStage)[keyof typeof FulfilmentStage]
@@ -315,3 +317,45 @@ export const FulfilmentEventAction = {
 } as const
 
 export type FulfilmentEventAction = (typeof FulfilmentEventAction)[keyof typeof FulfilmentEventAction]
+
+
+export const TrackingStatus = {
+  UNKNOWN: 'UNKNOWN',
+  DISPATCHED: 'DISPATCHED',
+  IN_TRANSIT: 'IN_TRANSIT',
+  DELIVERED: 'DELIVERED',
+  EXCEPTION: 'EXCEPTION'
+} as const
+
+export type TrackingStatus = (typeof TrackingStatus)[keyof typeof TrackingStatus]
+
+
+export const TrackingEvidenceSource = {
+  AUTHENTICATED_API: 'AUTHENTICATED_API',
+  VERIFIED_WEBHOOK: 'VERIFIED_WEBHOOK',
+  TEST_FIXTURE: 'TEST_FIXTURE'
+} as const
+
+export type TrackingEvidenceSource = (typeof TrackingEvidenceSource)[keyof typeof TrackingEvidenceSource]
+
+
+export const TrackingEventDisposition = {
+  APPLIED: 'APPLIED',
+  STALE: 'STALE',
+  REJECTED: 'REJECTED',
+  UNKNOWN: 'UNKNOWN'
+} as const
+
+export type TrackingEventDisposition = (typeof TrackingEventDisposition)[keyof typeof TrackingEventDisposition]
+
+
+export const TrackingException = {
+  DELIVERY_ATTEMPT_FAILED: 'DELIVERY_ATTEMPT_FAILED',
+  ADDRESS_ISSUE: 'ADDRESS_ISSUE',
+  DELAY: 'DELAY',
+  DAMAGED: 'DAMAGED',
+  RETURN_TO_SENDER: 'RETURN_TO_SENDER',
+  UNKNOWN: 'UNKNOWN'
+} as const
+
+export type TrackingException = (typeof TrackingException)[keyof typeof TrackingException]

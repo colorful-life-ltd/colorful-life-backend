@@ -1,6 +1,5 @@
 import { prisma } from "../../prisma/runtime.js";
 import { customerShipmentSelect, presentFulfilment } from "../fulfilment/fulfilmentPresenter.js";
-import { fulfilmentStage } from "../fulfilment/fulfilmentService.js";
 
 const orderReadSelect = {
   id: true,
@@ -74,7 +73,7 @@ export async function getCustomerOrder(userId: number, orderId: number) {
 // Explicit projections keep provider references, idempotency keys and credentials private.
 const adminOrderSummarySelect = {
   id: true, userId: true, status: true, totalAmount: true, createdAt: true,
-  shippingCarrier: true, trackingNumber: true, dispatchedAt: true, preparingAt: true,
+  shippingCarrier: true, trackingNumber: true, dispatchedAt: true, preparingAt: true, shipments: customerShipmentSelect,
   user: { select: { id: true, firstName: true, lastName: true, email: true } },
   payments: { select: { status: true, currency: true, paidAt: true } },
 } as const;
@@ -86,8 +85,9 @@ function projectAdminPayment<T extends { payments: Array<{ status: string; curre
   return { ...safeOrder, payment, paymentStatus: payment?.status ?? null, currency: payment?.currency ?? "GBP" };
 }
 
-function withFulfilmentStage<T extends { status: string; preparingAt: Date | null; dispatchedAt: Date | null }>(order: T) {
-  return { ...order, fulfilmentStage: fulfilmentStage(order) };
+function withFulfilmentStage<T extends Parameters<typeof presentFulfilment>[0]>(order: T) {
+  const { shipments: _shipments, ...safe } = order;
+  return { ...safe, fulfilmentStage: presentFulfilment(order).stage };
 }
 
 export async function listAdminOrders(query: import("./adminOrderValidator.js").AdminOrderQuery) {
@@ -127,5 +127,5 @@ export async function getAdminOrder(orderId: number) {
   });
   if (!order) return null;
   const { shipments, fulfilmentEvents, ...rest } = projectAdminPayment(order);
-  return { ...withFulfilmentStage(rest), fulfilment: presentFulfilment(order), shipments, fulfilmentEvents };
+  return { ...rest, fulfilmentStage: presentFulfilment(order).stage, fulfilment: presentFulfilment(order), shipments: shipments.map(({ trackingState: _internal, ...safe }) => safe), fulfilmentEvents };
 }

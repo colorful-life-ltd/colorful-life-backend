@@ -84,7 +84,14 @@ export const ModelName = {
   PaymentResolution: 'PaymentResolution',
   PasswordRecoveryLimit: 'PasswordRecoveryLimit',
   Shipment: 'Shipment',
-  OrderFulfilmentEvent: 'OrderFulfilmentEvent'
+  OrderFulfilmentEvent: 'OrderFulfilmentEvent',
+  ShipmentTrackingEvent: 'ShipmentTrackingEvent',
+  ShipmentTrackingState: 'ShipmentTrackingState',
+  ShipmentTrackingSync: 'ShipmentTrackingSync',
+  TrackingCarrierBudget: 'TrackingCarrierBudget',
+  ShipmentTrackingPoll: 'ShipmentTrackingPoll',
+  ShipmentTrackingConflict: 'ShipmentTrackingConflict',
+  ShipmentCarrierEvidence: 'ShipmentCarrierEvidence'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -670,6 +677,125 @@ export const OrderFulfilmentEventScalarFieldEnum = {
 } as const
 
 export type OrderFulfilmentEventScalarFieldEnum = (typeof OrderFulfilmentEventScalarFieldEnum)[keyof typeof OrderFulfilmentEventScalarFieldEnum]
+
+
+export const ShipmentTrackingEventScalarFieldEnum = {
+  id: 'id',
+  shipmentId: 'shipmentId',
+  carrier: 'carrier',
+  providerIdentity: 'providerIdentity',
+  providerEventId: 'providerEventId',
+  trackingNumber: 'trackingNumber',
+  occurredAt: 'occurredAt',
+  receivedAt: 'receivedAt',
+  verifiedAt: 'verifiedAt',
+  source: 'source',
+  verified: 'verified',
+  status: 'status',
+  exception: 'exception',
+  providerStatus: 'providerStatus',
+  deliveryConfirmed: 'deliveryConfirmed',
+  deliveryAt: 'deliveryAt',
+  evidenceReference: 'evidenceReference',
+  fingerprint: 'fingerprint',
+  evidenceId: 'evidenceId',
+  evaluationKey: 'evaluationKey',
+  disposition: 'disposition',
+  reason: 'reason'
+} as const
+
+export type ShipmentTrackingEventScalarFieldEnum = (typeof ShipmentTrackingEventScalarFieldEnum)[keyof typeof ShipmentTrackingEventScalarFieldEnum]
+
+
+export const ShipmentTrackingStateScalarFieldEnum = {
+  shipmentId: 'shipmentId',
+  progress: 'progress',
+  lastEventAt: 'lastEventAt',
+  lastEventId: 'lastEventId',
+  deliveredEventId: 'deliveredEventId',
+  exception: 'exception',
+  exceptionAt: 'exceptionAt',
+  version: 'version',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ShipmentTrackingStateScalarFieldEnum = (typeof ShipmentTrackingStateScalarFieldEnum)[keyof typeof ShipmentTrackingStateScalarFieldEnum]
+
+
+export const ShipmentTrackingSyncScalarFieldEnum = {
+  shipmentId: 'shipmentId',
+  providerIdentity: 'providerIdentity',
+  enabled: 'enabled',
+  nextPollAt: 'nextPollAt',
+  lastPollAt: 'lastPollAt',
+  lastSuccessAt: 'lastSuccessAt',
+  consecutiveFailures: 'consecutiveFailures',
+  totalRequests: 'totalRequests',
+  claimOwner: 'claimOwner',
+  claimGeneration: 'claimGeneration',
+  leaseExpiresAt: 'leaseExpiresAt',
+  lastErrorCode: 'lastErrorCode',
+  stoppedReason: 'stoppedReason',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ShipmentTrackingSyncScalarFieldEnum = (typeof ShipmentTrackingSyncScalarFieldEnum)[keyof typeof ShipmentTrackingSyncScalarFieldEnum]
+
+
+export const TrackingCarrierBudgetScalarFieldEnum = {
+  carrier: 'carrier',
+  providerIdentity: 'providerIdentity',
+  minuteStartedAt: 'minuteStartedAt',
+  minuteRequests: 'minuteRequests',
+  dayStartedAt: 'dayStartedAt',
+  dayRequests: 'dayRequests'
+} as const
+
+export type TrackingCarrierBudgetScalarFieldEnum = (typeof TrackingCarrierBudgetScalarFieldEnum)[keyof typeof TrackingCarrierBudgetScalarFieldEnum]
+
+
+export const ShipmentTrackingPollScalarFieldEnum = {
+  id: 'id',
+  shipmentId: 'shipmentId',
+  providerIdentity: 'providerIdentity',
+  generation: 'generation',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  outcome: 'outcome'
+} as const
+
+export type ShipmentTrackingPollScalarFieldEnum = (typeof ShipmentTrackingPollScalarFieldEnum)[keyof typeof ShipmentTrackingPollScalarFieldEnum]
+
+
+export const ShipmentTrackingConflictScalarFieldEnum = {
+  id: 'id',
+  originalEventId: 'originalEventId',
+  fingerprint: 'fingerprint',
+  source: 'source',
+  verified: 'verified',
+  normalized: 'normalized',
+  receivedAt: 'receivedAt'
+} as const
+
+export type ShipmentTrackingConflictScalarFieldEnum = (typeof ShipmentTrackingConflictScalarFieldEnum)[keyof typeof ShipmentTrackingConflictScalarFieldEnum]
+
+
+export const ShipmentCarrierEvidenceScalarFieldEnum = {
+  id: 'id',
+  shipmentId: 'shipmentId',
+  carrier: 'carrier',
+  providerIdentity: 'providerIdentity',
+  providerEventId: 'providerEventId',
+  trackingNumber: 'trackingNumber',
+  occurredAt: 'occurredAt',
+  providerStatus: 'providerStatus',
+  deliveryAt: 'deliveryAt',
+  evidenceReference: 'evidenceReference',
+  fingerprint: 'fingerprint',
+  receivedAt: 'receivedAt'
+} as const
+
+export type ShipmentCarrierEvidenceScalarFieldEnum = (typeof ShipmentCarrierEvidenceScalarFieldEnum)[keyof typeof ShipmentCarrierEvidenceScalarFieldEnum]
 
 
 export const SortOrder = {

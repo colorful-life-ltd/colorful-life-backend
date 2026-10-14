@@ -885,6 +885,91 @@ export type EnumFulfilmentStageWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel>
 }
 
+export type EnumShippingCarrierFilter<$PrismaModel = never> = {
+  equals?: $Enums.ShippingCarrier | Prisma.EnumShippingCarrierFieldRefInput<$PrismaModel>
+  in?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumShippingCarrierFilter<$PrismaModel> | $Enums.ShippingCarrier
+}
+
+export type EnumTrackingEvidenceSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingEvidenceSource | Prisma.EnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingEvidenceSource[] | Prisma.ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingEvidenceSource[] | Prisma.ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingEvidenceSourceFilter<$PrismaModel> | $Enums.TrackingEvidenceSource
+}
+
+export type EnumTrackingStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingStatus | Prisma.EnumTrackingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingStatus[] | Prisma.ListEnumTrackingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingStatus[] | Prisma.ListEnumTrackingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingStatusFilter<$PrismaModel> | $Enums.TrackingStatus
+}
+
+export type EnumTrackingExceptionNullableFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingException | Prisma.EnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  in?: $Enums.TrackingException[] | Prisma.ListEnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.TrackingException[] | Prisma.ListEnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumTrackingExceptionNullableFilter<$PrismaModel> | $Enums.TrackingException | null
+}
+
+export type EnumTrackingEventDispositionFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingEventDisposition | Prisma.EnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingEventDisposition[] | Prisma.ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingEventDisposition[] | Prisma.ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingEventDispositionFilter<$PrismaModel> | $Enums.TrackingEventDisposition
+}
+
+export type EnumShippingCarrierWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ShippingCarrier | Prisma.EnumShippingCarrierFieldRefInput<$PrismaModel>
+  in?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumShippingCarrierWithAggregatesFilter<$PrismaModel> | $Enums.ShippingCarrier
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumShippingCarrierFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumShippingCarrierFilter<$PrismaModel>
+}
+
+export type EnumTrackingEvidenceSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingEvidenceSource | Prisma.EnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingEvidenceSource[] | Prisma.ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingEvidenceSource[] | Prisma.ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingEvidenceSourceWithAggregatesFilter<$PrismaModel> | $Enums.TrackingEvidenceSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTrackingEvidenceSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTrackingEvidenceSourceFilter<$PrismaModel>
+}
+
+export type EnumTrackingStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingStatus | Prisma.EnumTrackingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingStatus[] | Prisma.ListEnumTrackingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingStatus[] | Prisma.ListEnumTrackingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingStatusWithAggregatesFilter<$PrismaModel> | $Enums.TrackingStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTrackingStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTrackingStatusFilter<$PrismaModel>
+}
+
+export type EnumTrackingExceptionNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingException | Prisma.EnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  in?: $Enums.TrackingException[] | Prisma.ListEnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.TrackingException[] | Prisma.ListEnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumTrackingExceptionNullableWithAggregatesFilter<$PrismaModel> | $Enums.TrackingException | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTrackingExceptionNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTrackingExceptionNullableFilter<$PrismaModel>
+}
+
+export type EnumTrackingEventDispositionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingEventDisposition | Prisma.EnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingEventDisposition[] | Prisma.ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingEventDisposition[] | Prisma.ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingEventDispositionWithAggregatesFilter<$PrismaModel> | $Enums.TrackingEventDisposition
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTrackingEventDispositionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTrackingEventDispositionFilter<$PrismaModel>
+}
+
 export type NestedIntFilter<$PrismaModel = never> = {
   equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
   in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
@@ -1713,6 +1798,91 @@ export type NestedEnumFulfilmentStageWithAggregatesFilter<$PrismaModel = never> 
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel>
   _max?: Prisma.NestedEnumFulfilmentStageFilter<$PrismaModel>
+}
+
+export type NestedEnumShippingCarrierFilter<$PrismaModel = never> = {
+  equals?: $Enums.ShippingCarrier | Prisma.EnumShippingCarrierFieldRefInput<$PrismaModel>
+  in?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumShippingCarrierFilter<$PrismaModel> | $Enums.ShippingCarrier
+}
+
+export type NestedEnumTrackingEvidenceSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingEvidenceSource | Prisma.EnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingEvidenceSource[] | Prisma.ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingEvidenceSource[] | Prisma.ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingEvidenceSourceFilter<$PrismaModel> | $Enums.TrackingEvidenceSource
+}
+
+export type NestedEnumTrackingStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingStatus | Prisma.EnumTrackingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingStatus[] | Prisma.ListEnumTrackingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingStatus[] | Prisma.ListEnumTrackingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingStatusFilter<$PrismaModel> | $Enums.TrackingStatus
+}
+
+export type NestedEnumTrackingExceptionNullableFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingException | Prisma.EnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  in?: $Enums.TrackingException[] | Prisma.ListEnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.TrackingException[] | Prisma.ListEnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumTrackingExceptionNullableFilter<$PrismaModel> | $Enums.TrackingException | null
+}
+
+export type NestedEnumTrackingEventDispositionFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingEventDisposition | Prisma.EnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingEventDisposition[] | Prisma.ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingEventDisposition[] | Prisma.ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingEventDispositionFilter<$PrismaModel> | $Enums.TrackingEventDisposition
+}
+
+export type NestedEnumShippingCarrierWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ShippingCarrier | Prisma.EnumShippingCarrierFieldRefInput<$PrismaModel>
+  in?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ShippingCarrier[] | Prisma.ListEnumShippingCarrierFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumShippingCarrierWithAggregatesFilter<$PrismaModel> | $Enums.ShippingCarrier
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumShippingCarrierFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumShippingCarrierFilter<$PrismaModel>
+}
+
+export type NestedEnumTrackingEvidenceSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingEvidenceSource | Prisma.EnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingEvidenceSource[] | Prisma.ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingEvidenceSource[] | Prisma.ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingEvidenceSourceWithAggregatesFilter<$PrismaModel> | $Enums.TrackingEvidenceSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTrackingEvidenceSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTrackingEvidenceSourceFilter<$PrismaModel>
+}
+
+export type NestedEnumTrackingStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingStatus | Prisma.EnumTrackingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingStatus[] | Prisma.ListEnumTrackingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingStatus[] | Prisma.ListEnumTrackingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingStatusWithAggregatesFilter<$PrismaModel> | $Enums.TrackingStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTrackingStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTrackingStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumTrackingExceptionNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingException | Prisma.EnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  in?: $Enums.TrackingException[] | Prisma.ListEnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.TrackingException[] | Prisma.ListEnumTrackingExceptionFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumTrackingExceptionNullableWithAggregatesFilter<$PrismaModel> | $Enums.TrackingException | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTrackingExceptionNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTrackingExceptionNullableFilter<$PrismaModel>
+}
+
+export type NestedEnumTrackingEventDispositionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TrackingEventDisposition | Prisma.EnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  in?: $Enums.TrackingEventDisposition[] | Prisma.ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TrackingEventDisposition[] | Prisma.ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTrackingEventDispositionWithAggregatesFilter<$PrismaModel> | $Enums.TrackingEventDisposition
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTrackingEventDispositionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTrackingEventDispositionFilter<$PrismaModel>
 }
 
 

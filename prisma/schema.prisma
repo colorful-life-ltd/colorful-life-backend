@@ -893,6 +893,8 @@ enum FulfilmentStage {
   CONFIRMED
   PREPARING
   DISPATCHED
+  IN_TRANSIT
+  DELIVERED
 }
 
 enum FulfilmentEventAction {
@@ -917,6 +919,11 @@ model Shipment {
   createdByUser   User                   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
   createdAt       DateTime               @default(now()) @db.Timestamptz(3)
   events          OrderFulfilmentEvent[]
+  carrierEvidence ShipmentCarrierEvidence[]
+  trackingEvents  ShipmentTrackingEvent[]
+  trackingState   ShipmentTrackingState?
+  trackingSync    ShipmentTrackingSync?
+  trackingPolls   ShipmentTrackingPoll[]
 
   @@unique([orderId, sequence])
   @@index([createdByUserId])
@@ -940,4 +947,148 @@ model OrderFulfilmentEvent {
   @@index([orderId, id])
   @@index([performedByUserId])
   @@index([shipmentId])
+}
+
+// Carrier progress is shipment-owned; OrderStatus and financial models are unchanged.
+enum TrackingStatus {
+  UNKNOWN
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
+}
+enum TrackingEvidenceSource {
+  AUTHENTICATED_API
+  VERIFIED_WEBHOOK
+  TEST_FIXTURE
+}
+enum TrackingEventDisposition {
+  APPLIED
+  STALE
+  REJECTED
+  UNKNOWN
+}
+enum TrackingException {
+  DELIVERY_ATTEMPT_FAILED
+  ADDRESS_ISSUE
+  DELAY
+  DAMAGED
+  RETURN_TO_SENDER
+  UNKNOWN
+}
+model ShipmentTrackingEvent {
+  id Int @id @default(autoincrement())
+  shipmentId Int
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  carrier ShippingCarrier
+  providerIdentity String @db.VarChar(80)
+  providerEventId String @db.VarChar(128)
+  trackingNumber String @db.VarChar(100)
+  occurredAt DateTime @db.Timestamptz(3)
+  receivedAt DateTime @default(now()) @db.Timestamptz(3)
+  verifiedAt DateTime? @db.Timestamptz(3)
+  source TrackingEvidenceSource
+  verified Boolean
+  status TrackingStatus
+  exception TrackingException?
+  providerStatus String @db.VarChar(128)
+  deliveryConfirmed Boolean @default(false)
+  deliveryAt DateTime? @db.Timestamptz(3)
+  evidenceReference String? @db.VarChar(128)
+  fingerprint String @db.VarChar(64)
+  evidenceId Int?
+  evidence ShipmentCarrierEvidence? @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+  evaluationKey String @default("legacy") @db.VarChar(64)
+  disposition TrackingEventDisposition
+  reason String? @db.VarChar(40)
+  conflicts ShipmentTrackingConflict[]
+  lastForStates ShipmentTrackingState[] @relation("TrackingLastEvent")
+  deliveredForStates ShipmentTrackingState[] @relation("TrackingDeliveryEvent")
+  @@unique([shipmentId, providerIdentity, providerEventId, evaluationKey], map: "tracking_event_evaluation_key")
+  @@index([shipmentId, occurredAt, id])
+}
+model ShipmentTrackingState {
+  shipmentId Int @id
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  progress TrackingStatus @default(DISPATCHED)
+  lastEventAt DateTime? @db.Timestamptz(3)
+  lastEventId Int?
+  lastEvent ShipmentTrackingEvent? @relation("TrackingLastEvent", fields: [lastEventId], references: [id], onDelete: Restrict)
+  deliveredEventId Int?
+  deliveredEvent ShipmentTrackingEvent? @relation("TrackingDeliveryEvent", fields: [deliveredEventId], references: [id], onDelete: Restrict)
+  exception TrackingException?
+  exceptionAt DateTime? @db.Timestamptz(3)
+  version Int @default(0)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+model ShipmentTrackingSync {
+  shipmentId Int @id
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  providerIdentity String @db.VarChar(80)
+  enabled Boolean @default(false)
+  nextPollAt DateTime? @db.Timestamptz(3)
+  lastPollAt DateTime? @db.Timestamptz(3)
+  lastSuccessAt DateTime? @db.Timestamptz(3)
+  consecutiveFailures Int @default(0)
+  totalRequests Int @default(0)
+  claimOwner String? @db.VarChar(36)
+  claimGeneration Int @default(0)
+  leaseExpiresAt DateTime? @db.Timestamptz(3)
+  lastErrorCode String? @db.VarChar(40)
+  stoppedReason String? @db.VarChar(40)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@index([enabled, nextPollAt, shipmentId])
+}
+model TrackingCarrierBudget {
+  carrier ShippingCarrier
+  providerIdentity String @db.VarChar(80)
+  minuteStartedAt DateTime @db.Timestamptz(3)
+  minuteRequests Int @default(0)
+  dayStartedAt DateTime @db.Timestamptz(3)
+  dayRequests Int @default(0)
+  @@id([carrier, providerIdentity])
+}
+model ShipmentTrackingPoll {
+  id Int @id @default(autoincrement())
+  shipmentId Int
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  providerIdentity String @db.VarChar(80)
+  generation Int
+  startedAt DateTime @default(now()) @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  outcome String @db.VarChar(40)
+  @@unique([shipmentId, generation])
+  @@index([shipmentId, id])
+}
+
+// Redacted, normalized conflicting evidence is retained without overwriting the original event.
+model ShipmentTrackingConflict {
+  id Int @id @default(autoincrement())
+  originalEventId Int
+  originalEvent ShipmentTrackingEvent @relation(fields: [originalEventId], references: [id], onDelete: Restrict)
+  fingerprint String @db.VarChar(64)
+  source TrackingEvidenceSource
+  verified Boolean
+  normalized Json
+  receivedAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([originalEventId, fingerprint])
+}
+
+// Stable carrier fields; assertions and normalization live in append-only event evaluations.
+model ShipmentCarrierEvidence {
+  id Int @id @default(autoincrement())
+  shipmentId Int
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  carrier ShippingCarrier
+  providerIdentity String @db.VarChar(80)
+  providerEventId String @db.VarChar(128)
+  trackingNumber String @db.VarChar(100)
+  occurredAt DateTime @db.Timestamptz(3)
+  providerStatus String @db.VarChar(128)
+  deliveryAt DateTime? @db.Timestamptz(3)
+  evidenceReference String? @db.VarChar(128)
+  fingerprint String @db.VarChar(64)
+  receivedAt DateTime @default(now()) @db.Timestamptz(3)
+  evaluations ShipmentTrackingEvent[]
+  @@unique([shipmentId, providerIdentity, providerEventId], map: "tracking_carrier_evidence_key")
 }

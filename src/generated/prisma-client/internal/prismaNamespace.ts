@@ -430,7 +430,14 @@ export const ModelName = {
   PaymentResolution: 'PaymentResolution',
   PasswordRecoveryLimit: 'PasswordRecoveryLimit',
   Shipment: 'Shipment',
-  OrderFulfilmentEvent: 'OrderFulfilmentEvent'
+  OrderFulfilmentEvent: 'OrderFulfilmentEvent',
+  ShipmentTrackingEvent: 'ShipmentTrackingEvent',
+  ShipmentTrackingState: 'ShipmentTrackingState',
+  ShipmentTrackingSync: 'ShipmentTrackingSync',
+  TrackingCarrierBudget: 'TrackingCarrierBudget',
+  ShipmentTrackingPoll: 'ShipmentTrackingPoll',
+  ShipmentTrackingConflict: 'ShipmentTrackingConflict',
+  ShipmentCarrierEvidence: 'ShipmentCarrierEvidence'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -446,7 +453,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent"
+    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2966,6 +2973,524 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ShipmentTrackingEvent: {
+      payload: Prisma.$ShipmentTrackingEventPayload<ExtArgs>
+      fields: Prisma.ShipmentTrackingEventFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShipmentTrackingEventFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShipmentTrackingEventFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>
+        }
+        findFirst: {
+          args: Prisma.ShipmentTrackingEventFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShipmentTrackingEventFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>
+        }
+        findMany: {
+          args: Prisma.ShipmentTrackingEventFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>[]
+        }
+        create: {
+          args: Prisma.ShipmentTrackingEventCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>
+        }
+        createMany: {
+          args: Prisma.ShipmentTrackingEventCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShipmentTrackingEventCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>[]
+        }
+        delete: {
+          args: Prisma.ShipmentTrackingEventDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>
+        }
+        update: {
+          args: Prisma.ShipmentTrackingEventUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>
+        }
+        deleteMany: {
+          args: Prisma.ShipmentTrackingEventDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShipmentTrackingEventUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShipmentTrackingEventUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>[]
+        }
+        upsert: {
+          args: Prisma.ShipmentTrackingEventUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingEventPayload>
+        }
+        aggregate: {
+          args: Prisma.ShipmentTrackingEventAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShipmentTrackingEvent>
+        }
+        groupBy: {
+          args: Prisma.ShipmentTrackingEventGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingEventGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShipmentTrackingEventCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingEventCountAggregateOutputType> | number
+        }
+      }
+    }
+    ShipmentTrackingState: {
+      payload: Prisma.$ShipmentTrackingStatePayload<ExtArgs>
+      fields: Prisma.ShipmentTrackingStateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShipmentTrackingStateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShipmentTrackingStateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>
+        }
+        findFirst: {
+          args: Prisma.ShipmentTrackingStateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShipmentTrackingStateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>
+        }
+        findMany: {
+          args: Prisma.ShipmentTrackingStateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>[]
+        }
+        create: {
+          args: Prisma.ShipmentTrackingStateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>
+        }
+        createMany: {
+          args: Prisma.ShipmentTrackingStateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShipmentTrackingStateCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>[]
+        }
+        delete: {
+          args: Prisma.ShipmentTrackingStateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>
+        }
+        update: {
+          args: Prisma.ShipmentTrackingStateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>
+        }
+        deleteMany: {
+          args: Prisma.ShipmentTrackingStateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShipmentTrackingStateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShipmentTrackingStateUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>[]
+        }
+        upsert: {
+          args: Prisma.ShipmentTrackingStateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingStatePayload>
+        }
+        aggregate: {
+          args: Prisma.ShipmentTrackingStateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShipmentTrackingState>
+        }
+        groupBy: {
+          args: Prisma.ShipmentTrackingStateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingStateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShipmentTrackingStateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingStateCountAggregateOutputType> | number
+        }
+      }
+    }
+    ShipmentTrackingSync: {
+      payload: Prisma.$ShipmentTrackingSyncPayload<ExtArgs>
+      fields: Prisma.ShipmentTrackingSyncFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShipmentTrackingSyncFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShipmentTrackingSyncFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>
+        }
+        findFirst: {
+          args: Prisma.ShipmentTrackingSyncFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShipmentTrackingSyncFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>
+        }
+        findMany: {
+          args: Prisma.ShipmentTrackingSyncFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>[]
+        }
+        create: {
+          args: Prisma.ShipmentTrackingSyncCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>
+        }
+        createMany: {
+          args: Prisma.ShipmentTrackingSyncCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShipmentTrackingSyncCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>[]
+        }
+        delete: {
+          args: Prisma.ShipmentTrackingSyncDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>
+        }
+        update: {
+          args: Prisma.ShipmentTrackingSyncUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>
+        }
+        deleteMany: {
+          args: Prisma.ShipmentTrackingSyncDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShipmentTrackingSyncUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShipmentTrackingSyncUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>[]
+        }
+        upsert: {
+          args: Prisma.ShipmentTrackingSyncUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingSyncPayload>
+        }
+        aggregate: {
+          args: Prisma.ShipmentTrackingSyncAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShipmentTrackingSync>
+        }
+        groupBy: {
+          args: Prisma.ShipmentTrackingSyncGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingSyncGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShipmentTrackingSyncCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingSyncCountAggregateOutputType> | number
+        }
+      }
+    }
+    TrackingCarrierBudget: {
+      payload: Prisma.$TrackingCarrierBudgetPayload<ExtArgs>
+      fields: Prisma.TrackingCarrierBudgetFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TrackingCarrierBudgetFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TrackingCarrierBudgetFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>
+        }
+        findFirst: {
+          args: Prisma.TrackingCarrierBudgetFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TrackingCarrierBudgetFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>
+        }
+        findMany: {
+          args: Prisma.TrackingCarrierBudgetFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>[]
+        }
+        create: {
+          args: Prisma.TrackingCarrierBudgetCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>
+        }
+        createMany: {
+          args: Prisma.TrackingCarrierBudgetCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TrackingCarrierBudgetCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>[]
+        }
+        delete: {
+          args: Prisma.TrackingCarrierBudgetDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>
+        }
+        update: {
+          args: Prisma.TrackingCarrierBudgetUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>
+        }
+        deleteMany: {
+          args: Prisma.TrackingCarrierBudgetDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TrackingCarrierBudgetUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TrackingCarrierBudgetUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>[]
+        }
+        upsert: {
+          args: Prisma.TrackingCarrierBudgetUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TrackingCarrierBudgetPayload>
+        }
+        aggregate: {
+          args: Prisma.TrackingCarrierBudgetAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTrackingCarrierBudget>
+        }
+        groupBy: {
+          args: Prisma.TrackingCarrierBudgetGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TrackingCarrierBudgetGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TrackingCarrierBudgetCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TrackingCarrierBudgetCountAggregateOutputType> | number
+        }
+      }
+    }
+    ShipmentTrackingPoll: {
+      payload: Prisma.$ShipmentTrackingPollPayload<ExtArgs>
+      fields: Prisma.ShipmentTrackingPollFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShipmentTrackingPollFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShipmentTrackingPollFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>
+        }
+        findFirst: {
+          args: Prisma.ShipmentTrackingPollFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShipmentTrackingPollFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>
+        }
+        findMany: {
+          args: Prisma.ShipmentTrackingPollFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>[]
+        }
+        create: {
+          args: Prisma.ShipmentTrackingPollCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>
+        }
+        createMany: {
+          args: Prisma.ShipmentTrackingPollCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShipmentTrackingPollCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>[]
+        }
+        delete: {
+          args: Prisma.ShipmentTrackingPollDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>
+        }
+        update: {
+          args: Prisma.ShipmentTrackingPollUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>
+        }
+        deleteMany: {
+          args: Prisma.ShipmentTrackingPollDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShipmentTrackingPollUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShipmentTrackingPollUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>[]
+        }
+        upsert: {
+          args: Prisma.ShipmentTrackingPollUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingPollPayload>
+        }
+        aggregate: {
+          args: Prisma.ShipmentTrackingPollAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShipmentTrackingPoll>
+        }
+        groupBy: {
+          args: Prisma.ShipmentTrackingPollGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingPollGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShipmentTrackingPollCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingPollCountAggregateOutputType> | number
+        }
+      }
+    }
+    ShipmentTrackingConflict: {
+      payload: Prisma.$ShipmentTrackingConflictPayload<ExtArgs>
+      fields: Prisma.ShipmentTrackingConflictFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShipmentTrackingConflictFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShipmentTrackingConflictFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>
+        }
+        findFirst: {
+          args: Prisma.ShipmentTrackingConflictFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShipmentTrackingConflictFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>
+        }
+        findMany: {
+          args: Prisma.ShipmentTrackingConflictFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>[]
+        }
+        create: {
+          args: Prisma.ShipmentTrackingConflictCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>
+        }
+        createMany: {
+          args: Prisma.ShipmentTrackingConflictCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShipmentTrackingConflictCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>[]
+        }
+        delete: {
+          args: Prisma.ShipmentTrackingConflictDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>
+        }
+        update: {
+          args: Prisma.ShipmentTrackingConflictUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>
+        }
+        deleteMany: {
+          args: Prisma.ShipmentTrackingConflictDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShipmentTrackingConflictUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShipmentTrackingConflictUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>[]
+        }
+        upsert: {
+          args: Prisma.ShipmentTrackingConflictUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentTrackingConflictPayload>
+        }
+        aggregate: {
+          args: Prisma.ShipmentTrackingConflictAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShipmentTrackingConflict>
+        }
+        groupBy: {
+          args: Prisma.ShipmentTrackingConflictGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingConflictGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShipmentTrackingConflictCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentTrackingConflictCountAggregateOutputType> | number
+        }
+      }
+    }
+    ShipmentCarrierEvidence: {
+      payload: Prisma.$ShipmentCarrierEvidencePayload<ExtArgs>
+      fields: Prisma.ShipmentCarrierEvidenceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShipmentCarrierEvidenceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShipmentCarrierEvidenceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>
+        }
+        findFirst: {
+          args: Prisma.ShipmentCarrierEvidenceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShipmentCarrierEvidenceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>
+        }
+        findMany: {
+          args: Prisma.ShipmentCarrierEvidenceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>[]
+        }
+        create: {
+          args: Prisma.ShipmentCarrierEvidenceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>
+        }
+        createMany: {
+          args: Prisma.ShipmentCarrierEvidenceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShipmentCarrierEvidenceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>[]
+        }
+        delete: {
+          args: Prisma.ShipmentCarrierEvidenceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>
+        }
+        update: {
+          args: Prisma.ShipmentCarrierEvidenceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>
+        }
+        deleteMany: {
+          args: Prisma.ShipmentCarrierEvidenceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShipmentCarrierEvidenceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShipmentCarrierEvidenceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>[]
+        }
+        upsert: {
+          args: Prisma.ShipmentCarrierEvidenceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShipmentCarrierEvidencePayload>
+        }
+        aggregate: {
+          args: Prisma.ShipmentCarrierEvidenceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShipmentCarrierEvidence>
+        }
+        groupBy: {
+          args: Prisma.ShipmentCarrierEvidenceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentCarrierEvidenceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShipmentCarrierEvidenceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShipmentCarrierEvidenceCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -3574,6 +4099,125 @@ export const OrderFulfilmentEventScalarFieldEnum = {
 export type OrderFulfilmentEventScalarFieldEnum = (typeof OrderFulfilmentEventScalarFieldEnum)[keyof typeof OrderFulfilmentEventScalarFieldEnum]
 
 
+export const ShipmentTrackingEventScalarFieldEnum = {
+  id: 'id',
+  shipmentId: 'shipmentId',
+  carrier: 'carrier',
+  providerIdentity: 'providerIdentity',
+  providerEventId: 'providerEventId',
+  trackingNumber: 'trackingNumber',
+  occurredAt: 'occurredAt',
+  receivedAt: 'receivedAt',
+  verifiedAt: 'verifiedAt',
+  source: 'source',
+  verified: 'verified',
+  status: 'status',
+  exception: 'exception',
+  providerStatus: 'providerStatus',
+  deliveryConfirmed: 'deliveryConfirmed',
+  deliveryAt: 'deliveryAt',
+  evidenceReference: 'evidenceReference',
+  fingerprint: 'fingerprint',
+  evidenceId: 'evidenceId',
+  evaluationKey: 'evaluationKey',
+  disposition: 'disposition',
+  reason: 'reason'
+} as const
+
+export type ShipmentTrackingEventScalarFieldEnum = (typeof ShipmentTrackingEventScalarFieldEnum)[keyof typeof ShipmentTrackingEventScalarFieldEnum]
+
+
+export const ShipmentTrackingStateScalarFieldEnum = {
+  shipmentId: 'shipmentId',
+  progress: 'progress',
+  lastEventAt: 'lastEventAt',
+  lastEventId: 'lastEventId',
+  deliveredEventId: 'deliveredEventId',
+  exception: 'exception',
+  exceptionAt: 'exceptionAt',
+  version: 'version',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ShipmentTrackingStateScalarFieldEnum = (typeof ShipmentTrackingStateScalarFieldEnum)[keyof typeof ShipmentTrackingStateScalarFieldEnum]
+
+
+export const ShipmentTrackingSyncScalarFieldEnum = {
+  shipmentId: 'shipmentId',
+  providerIdentity: 'providerIdentity',
+  enabled: 'enabled',
+  nextPollAt: 'nextPollAt',
+  lastPollAt: 'lastPollAt',
+  lastSuccessAt: 'lastSuccessAt',
+  consecutiveFailures: 'consecutiveFailures',
+  totalRequests: 'totalRequests',
+  claimOwner: 'claimOwner',
+  claimGeneration: 'claimGeneration',
+  leaseExpiresAt: 'leaseExpiresAt',
+  lastErrorCode: 'lastErrorCode',
+  stoppedReason: 'stoppedReason',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ShipmentTrackingSyncScalarFieldEnum = (typeof ShipmentTrackingSyncScalarFieldEnum)[keyof typeof ShipmentTrackingSyncScalarFieldEnum]
+
+
+export const TrackingCarrierBudgetScalarFieldEnum = {
+  carrier: 'carrier',
+  providerIdentity: 'providerIdentity',
+  minuteStartedAt: 'minuteStartedAt',
+  minuteRequests: 'minuteRequests',
+  dayStartedAt: 'dayStartedAt',
+  dayRequests: 'dayRequests'
+} as const
+
+export type TrackingCarrierBudgetScalarFieldEnum = (typeof TrackingCarrierBudgetScalarFieldEnum)[keyof typeof TrackingCarrierBudgetScalarFieldEnum]
+
+
+export const ShipmentTrackingPollScalarFieldEnum = {
+  id: 'id',
+  shipmentId: 'shipmentId',
+  providerIdentity: 'providerIdentity',
+  generation: 'generation',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  outcome: 'outcome'
+} as const
+
+export type ShipmentTrackingPollScalarFieldEnum = (typeof ShipmentTrackingPollScalarFieldEnum)[keyof typeof ShipmentTrackingPollScalarFieldEnum]
+
+
+export const ShipmentTrackingConflictScalarFieldEnum = {
+  id: 'id',
+  originalEventId: 'originalEventId',
+  fingerprint: 'fingerprint',
+  source: 'source',
+  verified: 'verified',
+  normalized: 'normalized',
+  receivedAt: 'receivedAt'
+} as const
+
+export type ShipmentTrackingConflictScalarFieldEnum = (typeof ShipmentTrackingConflictScalarFieldEnum)[keyof typeof ShipmentTrackingConflictScalarFieldEnum]
+
+
+export const ShipmentCarrierEvidenceScalarFieldEnum = {
+  id: 'id',
+  shipmentId: 'shipmentId',
+  carrier: 'carrier',
+  providerIdentity: 'providerIdentity',
+  providerEventId: 'providerEventId',
+  trackingNumber: 'trackingNumber',
+  occurredAt: 'occurredAt',
+  providerStatus: 'providerStatus',
+  deliveryAt: 'deliveryAt',
+  evidenceReference: 'evidenceReference',
+  fingerprint: 'fingerprint',
+  receivedAt: 'receivedAt'
+} as const
+
+export type ShipmentCarrierEvidenceScalarFieldEnum = (typeof ShipmentCarrierEvidenceScalarFieldEnum)[keyof typeof ShipmentCarrierEvidenceScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -4126,6 +4770,62 @@ export type ListEnumFulfilmentStageFieldRefInput<$PrismaModel> = FieldRefInputTy
 
 
 /**
+ * Reference to a field of type 'TrackingEvidenceSource'
+ */
+export type EnumTrackingEvidenceSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TrackingEvidenceSource'>
+
+
+
+/**
+ * Reference to a field of type 'TrackingEvidenceSource[]'
+ */
+export type ListEnumTrackingEvidenceSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TrackingEvidenceSource[]'>
+
+
+
+/**
+ * Reference to a field of type 'TrackingStatus'
+ */
+export type EnumTrackingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TrackingStatus'>
+
+
+
+/**
+ * Reference to a field of type 'TrackingStatus[]'
+ */
+export type ListEnumTrackingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TrackingStatus[]'>
+
+
+
+/**
+ * Reference to a field of type 'TrackingException'
+ */
+export type EnumTrackingExceptionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TrackingException'>
+
+
+
+/**
+ * Reference to a field of type 'TrackingException[]'
+ */
+export type ListEnumTrackingExceptionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TrackingException[]'>
+
+
+
+/**
+ * Reference to a field of type 'TrackingEventDisposition'
+ */
+export type EnumTrackingEventDispositionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TrackingEventDisposition'>
+
+
+
+/**
+ * Reference to a field of type 'TrackingEventDisposition[]'
+ */
+export type ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TrackingEventDisposition[]'>
+
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -4323,6 +5023,13 @@ export type GlobalOmitConfig = {
   passwordRecoveryLimit?: Prisma.PasswordRecoveryLimitOmit
   shipment?: Prisma.ShipmentOmit
   orderFulfilmentEvent?: Prisma.OrderFulfilmentEventOmit
+  shipmentTrackingEvent?: Prisma.ShipmentTrackingEventOmit
+  shipmentTrackingState?: Prisma.ShipmentTrackingStateOmit
+  shipmentTrackingSync?: Prisma.ShipmentTrackingSyncOmit
+  trackingCarrierBudget?: Prisma.TrackingCarrierBudgetOmit
+  shipmentTrackingPoll?: Prisma.ShipmentTrackingPollOmit
+  shipmentTrackingConflict?: Prisma.ShipmentTrackingConflictOmit
+  shipmentCarrierEvidence?: Prisma.ShipmentCarrierEvidenceOmit
 }
 
 /* Types for Logging */

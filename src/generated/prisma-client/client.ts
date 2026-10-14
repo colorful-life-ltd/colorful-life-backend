@@ -211,3 +211,38 @@ export type Shipment = Prisma.ShipmentModel
  *
  */
 export type OrderFulfilmentEvent = Prisma.OrderFulfilmentEventModel
+/**
+ * Model ShipmentTrackingEvent
+ *
+ */
+export type ShipmentTrackingEvent = Prisma.ShipmentTrackingEventModel
+/**
+ * Model ShipmentTrackingState
+ *
+ */
+export type ShipmentTrackingState = Prisma.ShipmentTrackingStateModel
+/**
+ * Model ShipmentTrackingSync
+ *
+ */
+export type ShipmentTrackingSync = Prisma.ShipmentTrackingSyncModel
+/**
+ * Model TrackingCarrierBudget
+ *
+ */
+export type TrackingCarrierBudget = Prisma.TrackingCarrierBudgetModel
+/**
+ * Model ShipmentTrackingPoll
+ *
+ */
+export type ShipmentTrackingPoll = Prisma.ShipmentTrackingPollModel
+/**
+ * Model ShipmentTrackingConflict
+ *
+ */
+export type ShipmentTrackingConflict = Prisma.ShipmentTrackingConflictModel
+/**
+ * Model ShipmentCarrierEvidence
+ *
+ */
+export type ShipmentCarrierEvidence = Prisma.ShipmentCarrierEvidenceModel
