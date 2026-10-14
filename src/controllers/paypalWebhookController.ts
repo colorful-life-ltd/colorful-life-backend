@@ -1,8 +1,10 @@
+import { reconcileRefundWebhook } from "../domain/refunds/refundWebhookService.js";
+import { paypalRefundParent } from "../domain/refunds/paypalRefundService.js";
 import type { Request, Response } from "express";
 import { config } from "../config/index.js";
 import { reconcilePayPalWebhookEvent } from "../domain/payments/paypalReconciliationService.js";
 
-type PayPalResource = { id?: string; status?: string; amount?: { value?: string; currency_code?: string }; supplementary_data?: { related_ids?: { order_id?: string } }; links?: Array<{ rel?: string; href?: string }> };
+type PayPalResource = { custom_id?: string; id?: string; status?: string; amount?: { value?: string; currency_code?: string }; supplementary_data?: { related_ids?: { order_id?: string } }; links?: Array<{ rel?: string; href?: string }> };
 
 const refundWebhookTypes = new Set(["PAYMENT.CAPTURE.REFUNDED", "PAYMENT.REFUND.PENDING", "PAYMENT.REFUND.FAILED"]);
 
@@ -57,6 +59,14 @@ export async function paypalWebhookHandler(req: Request, res: Response) {
   }
   const resource = event.resource ?? {};
   try {
+    if(refundWebhookTypes.has(event.event_type)){
+      const local=resource.custom_id===undefined?undefined:/^cl-refund-([1-9][0-9]*)$/.exec(resource.custom_id)?.[1]??"invalid";
+      const result=await reconcileRefundWebhook({version:2,kind:"refund",provider:"PAYPAL",id:event.id,eventType:event.event_type,
+        reference:resource.id,parentReference:paypalRefundParent(resource),localRefundId:local,
+        amount:resource.amount?.value,currency:resource.amount?.currency_code,
+        status:event.event_type==="PAYMENT.REFUND.PENDING"&&resource.status!=="PENDING"||event.event_type==="PAYMENT.REFUND.FAILED"&&resource.status!=="FAILED"?"UNKNOWN":resource.status==="COMPLETED"?"SUCCEEDED":resource.status==="FAILED"||resource.status==="CANCELLED"?"FAILED":resource.status==="PENDING"?"PENDING":"UNKNOWN"});
+      return res.status(200).json(result);
+    }
     const result = await reconcilePayPalWebhookEvent({ id: event.id, eventType: event.event_type, captureId: resource.id, paypalOrderId: resource.supplementary_data?.related_ids?.order_id, amount: resource.amount?.value, currency: resource.amount?.currency_code });
     return res.status(200).json(result);
   } catch {

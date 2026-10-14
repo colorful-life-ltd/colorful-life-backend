@@ -20,7 +20,7 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
     await reconcileStripePaymentEvent({ id: event.id, type: event.type as "payment_intent.succeeded" | "payment_intent.payment_failed" | "payment_intent.canceled", paymentIntentId: intent.id, amount: intent.amount, currency: intent.currency, metadata: intent.metadata });
     return res.sendStatus(200);
   } catch (error) {
-    console.error("Stripe webhook reconciliation failed", error);
+    console.error("Stripe webhook reconciliation failed; durable evidence retained when persisted");
     // Express 4 does not forward rejected async handlers automatically.
     // Tell Stripe to redeliver; the failed reconciliation transaction rolled back.
     return res.status(500).json({ error: "Webhook reconciliation failed" });

@@ -31,6 +31,7 @@ export type RefundAvgAggregateOutputType = {
   orderId: number | null
   paymentId: number | null
   amount: runtime.Decimal | null
+  reconciliationAttempts: number | null
   performedByUserId: number | null
 }
 
@@ -39,6 +40,7 @@ export type RefundSumAggregateOutputType = {
   orderId: number | null
   paymentId: number | null
   amount: runtime.Decimal | null
+  reconciliationAttempts: number | null
   performedByUserId: number | null
 }
 
@@ -52,6 +54,12 @@ export type RefundMinAggregateOutputType = {
   provider: $Enums.RefundProvider | null
   providerReference: string | null
   refundIdempotencyKey: string | null
+  clientRequestKey: string | null
+  providerPaymentReference: string | null
+  submissionStartedAt: Date | null
+  resolutionCode: string | null
+  reviewRequired: boolean | null
+  reconciliationAttempts: number | null
   reason: string | null
   performedByUserId: number | null
   createdAt: Date | null
@@ -68,6 +76,12 @@ export type RefundMaxAggregateOutputType = {
   provider: $Enums.RefundProvider | null
   providerReference: string | null
   refundIdempotencyKey: string | null
+  clientRequestKey: string | null
+  providerPaymentReference: string | null
+  submissionStartedAt: Date | null
+  resolutionCode: string | null
+  reviewRequired: boolean | null
+  reconciliationAttempts: number | null
   reason: string | null
   performedByUserId: number | null
   createdAt: Date | null
@@ -84,6 +98,14 @@ export type RefundCountAggregateOutputType = {
   provider: number
   providerReference: number
   refundIdempotencyKey: number
+  clientRequestKey: number
+  providerPaymentReference: number
+  submissionStartedAt: number
+  resolutionCode: number
+  reviewRequired: number
+  reconciliationAttempts: number
+  providerOutcome: number
+  reviewEvidence: number
   reason: number
   performedByUserId: number
   createdAt: number
@@ -97,6 +119,7 @@ export type RefundAvgAggregateInputType = {
   orderId?: true
   paymentId?: true
   amount?: true
+  reconciliationAttempts?: true
   performedByUserId?: true
 }
 
@@ -105,6 +128,7 @@ export type RefundSumAggregateInputType = {
   orderId?: true
   paymentId?: true
   amount?: true
+  reconciliationAttempts?: true
   performedByUserId?: true
 }
 
@@ -118,6 +142,12 @@ export type RefundMinAggregateInputType = {
   provider?: true
   providerReference?: true
   refundIdempotencyKey?: true
+  clientRequestKey?: true
+  providerPaymentReference?: true
+  submissionStartedAt?: true
+  resolutionCode?: true
+  reviewRequired?: true
+  reconciliationAttempts?: true
   reason?: true
   performedByUserId?: true
   createdAt?: true
@@ -134,6 +164,12 @@ export type RefundMaxAggregateInputType = {
   provider?: true
   providerReference?: true
   refundIdempotencyKey?: true
+  clientRequestKey?: true
+  providerPaymentReference?: true
+  submissionStartedAt?: true
+  resolutionCode?: true
+  reviewRequired?: true
+  reconciliationAttempts?: true
   reason?: true
   performedByUserId?: true
   createdAt?: true
@@ -150,6 +186,14 @@ export type RefundCountAggregateInputType = {
   provider?: true
   providerReference?: true
   refundIdempotencyKey?: true
+  clientRequestKey?: true
+  providerPaymentReference?: true
+  submissionStartedAt?: true
+  resolutionCode?: true
+  reviewRequired?: true
+  reconciliationAttempts?: true
+  providerOutcome?: true
+  reviewEvidence?: true
   reason?: true
   performedByUserId?: true
   createdAt?: true
@@ -253,6 +297,14 @@ export type RefundGroupByOutputType = {
   provider: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey: string | null
+  clientRequestKey: string | null
+  providerPaymentReference: string | null
+  submissionStartedAt: Date | null
+  resolutionCode: string | null
+  reviewRequired: boolean
+  reconciliationAttempts: number
+  providerOutcome: runtime.JsonValue | null
+  reviewEvidence: runtime.JsonValue | null
   reason: string | null
   performedByUserId: number
   createdAt: Date
@@ -292,6 +344,14 @@ export type RefundWhereInput = {
   provider?: Prisma.EnumRefundProviderFilter<"Refund"> | $Enums.RefundProvider
   providerReference?: Prisma.StringFilter<"Refund"> | string
   refundIdempotencyKey?: Prisma.StringNullableFilter<"Refund"> | string | null
+  clientRequestKey?: Prisma.StringNullableFilter<"Refund"> | string | null
+  providerPaymentReference?: Prisma.StringNullableFilter<"Refund"> | string | null
+  submissionStartedAt?: Prisma.DateTimeNullableFilter<"Refund"> | Date | string | null
+  resolutionCode?: Prisma.StringNullableFilter<"Refund"> | string | null
+  reviewRequired?: Prisma.BoolFilter<"Refund"> | boolean
+  reconciliationAttempts?: Prisma.IntFilter<"Refund"> | number
+  providerOutcome?: Prisma.JsonNullableFilter<"Refund">
+  reviewEvidence?: Prisma.JsonNullableFilter<"Refund">
   reason?: Prisma.StringNullableFilter<"Refund"> | string | null
   performedByUserId?: Prisma.IntFilter<"Refund"> | number
   createdAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
@@ -311,6 +371,14 @@ export type RefundOrderByWithRelationInput = {
   provider?: Prisma.SortOrder
   providerReference?: Prisma.SortOrder
   refundIdempotencyKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  clientRequestKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerPaymentReference?: Prisma.SortOrderInput | Prisma.SortOrder
+  submissionStartedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  resolutionCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewRequired?: Prisma.SortOrder
+  reconciliationAttempts?: Prisma.SortOrder
+  providerOutcome?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewEvidence?: Prisma.SortOrderInput | Prisma.SortOrder
   reason?: Prisma.SortOrderInput | Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -323,6 +391,7 @@ export type RefundOrderByWithRelationInput = {
 export type RefundWhereUniqueInput = Prisma.AtLeast<{
   id?: number
   refundIdempotencyKey?: string
+  clientRequestKey?: string
   provider_providerReference?: Prisma.RefundProviderProviderReferenceCompoundUniqueInput
   AND?: Prisma.RefundWhereInput | Prisma.RefundWhereInput[]
   OR?: Prisma.RefundWhereInput[]
@@ -334,6 +403,13 @@ export type RefundWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumRefundStatusFilter<"Refund"> | $Enums.RefundStatus
   provider?: Prisma.EnumRefundProviderFilter<"Refund"> | $Enums.RefundProvider
   providerReference?: Prisma.StringFilter<"Refund"> | string
+  providerPaymentReference?: Prisma.StringNullableFilter<"Refund"> | string | null
+  submissionStartedAt?: Prisma.DateTimeNullableFilter<"Refund"> | Date | string | null
+  resolutionCode?: Prisma.StringNullableFilter<"Refund"> | string | null
+  reviewRequired?: Prisma.BoolFilter<"Refund"> | boolean
+  reconciliationAttempts?: Prisma.IntFilter<"Refund"> | number
+  providerOutcome?: Prisma.JsonNullableFilter<"Refund">
+  reviewEvidence?: Prisma.JsonNullableFilter<"Refund">
   reason?: Prisma.StringNullableFilter<"Refund"> | string | null
   performedByUserId?: Prisma.IntFilter<"Refund"> | number
   createdAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
@@ -341,7 +417,7 @@ export type RefundWhereUniqueInput = Prisma.AtLeast<{
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
   payment?: Prisma.XOR<Prisma.PaymentScalarRelationFilter, Prisma.PaymentWhereInput>
   performedByUser?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
-}, "id" | "refundIdempotencyKey" | "provider_providerReference">
+}, "id" | "refundIdempotencyKey" | "clientRequestKey" | "provider_providerReference">
 
 export type RefundOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -353,6 +429,14 @@ export type RefundOrderByWithAggregationInput = {
   provider?: Prisma.SortOrder
   providerReference?: Prisma.SortOrder
   refundIdempotencyKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  clientRequestKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  providerPaymentReference?: Prisma.SortOrderInput | Prisma.SortOrder
+  submissionStartedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  resolutionCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewRequired?: Prisma.SortOrder
+  reconciliationAttempts?: Prisma.SortOrder
+  providerOutcome?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewEvidence?: Prisma.SortOrderInput | Prisma.SortOrder
   reason?: Prisma.SortOrderInput | Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -377,6 +461,14 @@ export type RefundScalarWhereWithAggregatesInput = {
   provider?: Prisma.EnumRefundProviderWithAggregatesFilter<"Refund"> | $Enums.RefundProvider
   providerReference?: Prisma.StringWithAggregatesFilter<"Refund"> | string
   refundIdempotencyKey?: Prisma.StringNullableWithAggregatesFilter<"Refund"> | string | null
+  clientRequestKey?: Prisma.StringNullableWithAggregatesFilter<"Refund"> | string | null
+  providerPaymentReference?: Prisma.StringNullableWithAggregatesFilter<"Refund"> | string | null
+  submissionStartedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Refund"> | Date | string | null
+  resolutionCode?: Prisma.StringNullableWithAggregatesFilter<"Refund"> | string | null
+  reviewRequired?: Prisma.BoolWithAggregatesFilter<"Refund"> | boolean
+  reconciliationAttempts?: Prisma.IntWithAggregatesFilter<"Refund"> | number
+  providerOutcome?: Prisma.JsonNullableWithAggregatesFilter<"Refund">
+  reviewEvidence?: Prisma.JsonNullableWithAggregatesFilter<"Refund">
   reason?: Prisma.StringNullableWithAggregatesFilter<"Refund"> | string | null
   performedByUserId?: Prisma.IntWithAggregatesFilter<"Refund"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Refund"> | Date | string
@@ -390,6 +482,14 @@ export type RefundCreateInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -408,6 +508,14 @@ export type RefundUncheckedCreateInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   performedByUserId: number
   createdAt?: Date | string
@@ -421,6 +529,14 @@ export type RefundUpdateInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -439,6 +555,14 @@ export type RefundUncheckedUpdateInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -455,6 +579,14 @@ export type RefundCreateManyInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   performedByUserId: number
   createdAt?: Date | string
@@ -468,6 +600,14 @@ export type RefundUpdateManyMutationInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -483,6 +623,14 @@ export type RefundUncheckedUpdateManyInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -514,6 +662,14 @@ export type RefundCountOrderByAggregateInput = {
   provider?: Prisma.SortOrder
   providerReference?: Prisma.SortOrder
   refundIdempotencyKey?: Prisma.SortOrder
+  clientRequestKey?: Prisma.SortOrder
+  providerPaymentReference?: Prisma.SortOrder
+  submissionStartedAt?: Prisma.SortOrder
+  resolutionCode?: Prisma.SortOrder
+  reviewRequired?: Prisma.SortOrder
+  reconciliationAttempts?: Prisma.SortOrder
+  providerOutcome?: Prisma.SortOrder
+  reviewEvidence?: Prisma.SortOrder
   reason?: Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -525,6 +681,7 @@ export type RefundAvgOrderByAggregateInput = {
   orderId?: Prisma.SortOrder
   paymentId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
+  reconciliationAttempts?: Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
 }
 
@@ -538,6 +695,12 @@ export type RefundMaxOrderByAggregateInput = {
   provider?: Prisma.SortOrder
   providerReference?: Prisma.SortOrder
   refundIdempotencyKey?: Prisma.SortOrder
+  clientRequestKey?: Prisma.SortOrder
+  providerPaymentReference?: Prisma.SortOrder
+  submissionStartedAt?: Prisma.SortOrder
+  resolutionCode?: Prisma.SortOrder
+  reviewRequired?: Prisma.SortOrder
+  reconciliationAttempts?: Prisma.SortOrder
   reason?: Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -554,6 +717,12 @@ export type RefundMinOrderByAggregateInput = {
   provider?: Prisma.SortOrder
   providerReference?: Prisma.SortOrder
   refundIdempotencyKey?: Prisma.SortOrder
+  clientRequestKey?: Prisma.SortOrder
+  providerPaymentReference?: Prisma.SortOrder
+  submissionStartedAt?: Prisma.SortOrder
+  resolutionCode?: Prisma.SortOrder
+  reviewRequired?: Prisma.SortOrder
+  reconciliationAttempts?: Prisma.SortOrder
   reason?: Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -565,6 +734,7 @@ export type RefundSumOrderByAggregateInput = {
   orderId?: Prisma.SortOrder
   paymentId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
+  reconciliationAttempts?: Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
 }
 
@@ -709,6 +879,14 @@ export type RefundCreateWithoutPerformedByUserInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -726,6 +904,14 @@ export type RefundUncheckedCreateWithoutPerformedByUserInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -770,6 +956,14 @@ export type RefundScalarWhereInput = {
   provider?: Prisma.EnumRefundProviderFilter<"Refund"> | $Enums.RefundProvider
   providerReference?: Prisma.StringFilter<"Refund"> | string
   refundIdempotencyKey?: Prisma.StringNullableFilter<"Refund"> | string | null
+  clientRequestKey?: Prisma.StringNullableFilter<"Refund"> | string | null
+  providerPaymentReference?: Prisma.StringNullableFilter<"Refund"> | string | null
+  submissionStartedAt?: Prisma.DateTimeNullableFilter<"Refund"> | Date | string | null
+  resolutionCode?: Prisma.StringNullableFilter<"Refund"> | string | null
+  reviewRequired?: Prisma.BoolFilter<"Refund"> | boolean
+  reconciliationAttempts?: Prisma.IntFilter<"Refund"> | number
+  providerOutcome?: Prisma.JsonNullableFilter<"Refund">
+  reviewEvidence?: Prisma.JsonNullableFilter<"Refund">
   reason?: Prisma.StringNullableFilter<"Refund"> | string | null
   performedByUserId?: Prisma.IntFilter<"Refund"> | number
   createdAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
@@ -783,6 +977,14 @@ export type RefundCreateWithoutOrderInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -799,6 +1001,14 @@ export type RefundUncheckedCreateWithoutOrderInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   performedByUserId: number
   createdAt?: Date | string
@@ -838,6 +1048,14 @@ export type RefundCreateWithoutPaymentInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -854,6 +1072,14 @@ export type RefundUncheckedCreateWithoutPaymentInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   performedByUserId: number
   createdAt?: Date | string
@@ -896,6 +1122,14 @@ export type RefundCreateManyPerformedByUserInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -908,6 +1142,14 @@ export type RefundUpdateWithoutPerformedByUserInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -925,6 +1167,14 @@ export type RefundUncheckedUpdateWithoutPerformedByUserInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -940,6 +1190,14 @@ export type RefundUncheckedUpdateManyWithoutPerformedByUserInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -954,6 +1212,14 @@ export type RefundCreateManyOrderInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   performedByUserId: number
   createdAt?: Date | string
@@ -967,6 +1233,14 @@ export type RefundUpdateWithoutOrderInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -983,6 +1257,14 @@ export type RefundUncheckedUpdateWithoutOrderInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -998,6 +1280,14 @@ export type RefundUncheckedUpdateManyWithoutOrderInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1013,6 +1303,14 @@ export type RefundCreateManyPaymentInput = {
   provider?: $Enums.RefundProvider
   providerReference: string
   refundIdempotencyKey?: string | null
+  clientRequestKey?: string | null
+  providerPaymentReference?: string | null
+  submissionStartedAt?: Date | string | null
+  resolutionCode?: string | null
+  reviewRequired?: boolean
+  reconciliationAttempts?: number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
   performedByUserId: number
   createdAt?: Date | string
@@ -1026,6 +1324,14 @@ export type RefundUpdateWithoutPaymentInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1042,6 +1348,14 @@ export type RefundUncheckedUpdateWithoutPaymentInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1057,6 +1371,14 @@ export type RefundUncheckedUpdateManyWithoutPaymentInput = {
   provider?: Prisma.EnumRefundProviderFieldUpdateOperationsInput | $Enums.RefundProvider
   providerReference?: Prisma.StringFieldUpdateOperationsInput | string
   refundIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1075,6 +1397,14 @@ export type RefundSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   provider?: boolean
   providerReference?: boolean
   refundIdempotencyKey?: boolean
+  clientRequestKey?: boolean
+  providerPaymentReference?: boolean
+  submissionStartedAt?: boolean
+  resolutionCode?: boolean
+  reviewRequired?: boolean
+  reconciliationAttempts?: boolean
+  providerOutcome?: boolean
+  reviewEvidence?: boolean
   reason?: boolean
   performedByUserId?: boolean
   createdAt?: boolean
@@ -1094,6 +1424,14 @@ export type RefundSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   provider?: boolean
   providerReference?: boolean
   refundIdempotencyKey?: boolean
+  clientRequestKey?: boolean
+  providerPaymentReference?: boolean
+  submissionStartedAt?: boolean
+  resolutionCode?: boolean
+  reviewRequired?: boolean
+  reconciliationAttempts?: boolean
+  providerOutcome?: boolean
+  reviewEvidence?: boolean
   reason?: boolean
   performedByUserId?: boolean
   createdAt?: boolean
@@ -1113,6 +1451,14 @@ export type RefundSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   provider?: boolean
   providerReference?: boolean
   refundIdempotencyKey?: boolean
+  clientRequestKey?: boolean
+  providerPaymentReference?: boolean
+  submissionStartedAt?: boolean
+  resolutionCode?: boolean
+  reviewRequired?: boolean
+  reconciliationAttempts?: boolean
+  providerOutcome?: boolean
+  reviewEvidence?: boolean
   reason?: boolean
   performedByUserId?: boolean
   createdAt?: boolean
@@ -1132,13 +1478,21 @@ export type RefundSelectScalar = {
   provider?: boolean
   providerReference?: boolean
   refundIdempotencyKey?: boolean
+  clientRequestKey?: boolean
+  providerPaymentReference?: boolean
+  submissionStartedAt?: boolean
+  resolutionCode?: boolean
+  reviewRequired?: boolean
+  reconciliationAttempts?: boolean
+  providerOutcome?: boolean
+  reviewEvidence?: boolean
   reason?: boolean
   performedByUserId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type RefundOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orderId" | "paymentId" | "amount" | "currency" | "status" | "provider" | "providerReference" | "refundIdempotencyKey" | "reason" | "performedByUserId" | "createdAt" | "updatedAt", ExtArgs["result"]["refund"]>
+export type RefundOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orderId" | "paymentId" | "amount" | "currency" | "status" | "provider" | "providerReference" | "refundIdempotencyKey" | "clientRequestKey" | "providerPaymentReference" | "submissionStartedAt" | "resolutionCode" | "reviewRequired" | "reconciliationAttempts" | "providerOutcome" | "reviewEvidence" | "reason" | "performedByUserId" | "createdAt" | "updatedAt", ExtArgs["result"]["refund"]>
 export type RefundInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
   payment?: boolean | Prisma.PaymentDefaultArgs<ExtArgs>
@@ -1172,6 +1526,14 @@ export type $RefundPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     provider: $Enums.RefundProvider
     providerReference: string
     refundIdempotencyKey: string | null
+    clientRequestKey: string | null
+    providerPaymentReference: string | null
+    submissionStartedAt: Date | null
+    resolutionCode: string | null
+    reviewRequired: boolean
+    reconciliationAttempts: number
+    providerOutcome: runtime.JsonValue | null
+    reviewEvidence: runtime.JsonValue | null
     reason: string | null
     performedByUserId: number
     createdAt: Date
@@ -1611,6 +1973,14 @@ export interface RefundFieldRefs {
   readonly provider: Prisma.FieldRef<"Refund", 'RefundProvider'>
   readonly providerReference: Prisma.FieldRef<"Refund", 'String'>
   readonly refundIdempotencyKey: Prisma.FieldRef<"Refund", 'String'>
+  readonly clientRequestKey: Prisma.FieldRef<"Refund", 'String'>
+  readonly providerPaymentReference: Prisma.FieldRef<"Refund", 'String'>
+  readonly submissionStartedAt: Prisma.FieldRef<"Refund", 'DateTime'>
+  readonly resolutionCode: Prisma.FieldRef<"Refund", 'String'>
+  readonly reviewRequired: Prisma.FieldRef<"Refund", 'Boolean'>
+  readonly reconciliationAttempts: Prisma.FieldRef<"Refund", 'Int'>
+  readonly providerOutcome: Prisma.FieldRef<"Refund", 'Json'>
+  readonly reviewEvidence: Prisma.FieldRef<"Refund", 'Json'>
   readonly reason: Prisma.FieldRef<"Refund", 'String'>
   readonly performedByUserId: Prisma.FieldRef<"Refund", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Refund", 'DateTime'>

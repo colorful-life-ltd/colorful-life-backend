@@ -9,6 +9,7 @@ dotenvConfig();
 
 // Schema for configuration validation
 const configSchema = z.object({
+  REFUND_RECONCILIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   CARRIER_TRACKING_POLLING_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   PAYMENT_RESOLUTION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   PORT: z

@@ -26,9 +26,10 @@ export async function reserveRefundCapacity(paymentId: number, requestedAmount: 
 async function moveReserved(paymentId: number, requestedAmount: Decimal | number, finalize: boolean, tx?: RefundTransaction): Promise<void> {
   const requested = parseAmount(requestedAmount);
   const work = async (tx: RefundTransaction) => {
-    const rows = await tx.$queryRaw<Array<{ id: number; reservedRefundAmount: Decimal }>>`SELECT "id", "reservedRefundAmount" FROM "Payment" WHERE "id" = ${paymentId} FOR UPDATE`;
+    const rows = await tx.$queryRaw<Array<{ id: number; amount: Decimal; refundedAmount: Decimal; reservedRefundAmount: Decimal }>>`SELECT "id", "amount", "refundedAmount", "reservedRefundAmount" FROM "Payment" WHERE "id" = ${paymentId} FOR UPDATE`;
     const payment = rows[0];
     if (!payment || new Decimal(payment.reservedRefundAmount).lt(requested)) throw new RefundCapacityNotReservedError();
+    if (finalize && new Decimal(payment.refundedAmount).add(requested).gt(payment.amount)) throw new RefundCapacityExceededError();
     await tx.payment.update({ where: { id: paymentId }, data: finalize ? { reservedRefundAmount: { decrement: requested }, refundedAmount: { increment: requested } } : { reservedRefundAmount: { decrement: requested } } });
   };
   if (tx) await work(tx); else await prisma.$transaction(work);

@@ -1,3 +1,4 @@
+import { processRefundWebhookReceipt } from "../refunds/refundWebhookService.js";
 import { recordManagedFailure } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { z } from "zod";
@@ -71,6 +72,7 @@ export type PayPalReceiptOutcome = { handled: boolean; processed: boolean };
 export async function processPayPalWebhookReceipt(receiptId: number): Promise<PayPalReceiptOutcome> {
   const snapshot = await prisma.paymentWebhookEvent.findUnique({ where: { id: receiptId } });
   if (!snapshot || snapshot.provider !== PaymentProvider.PAYPAL) return { handled: false, processed: false };
+  if(snapshot.evidence && typeof snapshot.evidence==="object" && !Array.isArray(snapshot.evidence) && snapshot.evidence.kind==="refund")return processRefundWebhookReceipt(receiptId);
   const decoded = evidenceSchema.safeParse(snapshot.evidence);
   const event = decoded.success && decoded.data.id === snapshot.providerEventId && decoded.data.eventType === snapshot.eventType
     ? decoded.data : null;
