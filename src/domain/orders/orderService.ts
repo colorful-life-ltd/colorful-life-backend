@@ -1,3 +1,4 @@
+import { listingAvailability } from "../inventory/listingAvailability.js";
 import { config } from "../../config/index.js";
 import { initializePaymentResolution, databaseNow } from "../payments/paymentResolutionService.js";
 import { lockCustomerCart, settleCartReconciliation, prepareOrderCartAllocation, allocateOrderCart } from "../cart/cartProvenanceService.js";
@@ -181,11 +182,9 @@ export async function createOrder(
     }
     // Validate active status; offers of unpublished products are not purchasable.
     for (const l of listings) {
-      if (!l.active || !l.legoProduct.isPublished) {
-        throw new ProductListingInactiveError(l.id);
-      }
-      if (l.condition === "USED_LIKE_NEW" && l.usedLifecycle !== "AVAILABLE") {
-        throw new InsufficientAvailableStockError(l.id, 1);
+      const availability = listingAvailability(l, 1);
+      if (availability.status === "UNAVAILABLE") {
+        throw new ProductListingInactiveError(l.id, availability.reason!);
       }
     }
     const listingMap = new Map<number, typeof listings[0]>();
@@ -214,6 +213,10 @@ export async function createOrder(
     const cartAllocation = await prepareOrderCartAllocation(tx, userId, input.items);
     const createdAt = config.PAYMENT_RESOLUTION_ENABLED ? await databaseNow(tx) : now;
     for (const item of orderItemCreateData) {
+      const availability = listingAvailability(listingMap.get(item.productListingId)!, item.quantity);
+      if (availability.status !== "AVAILABLE") {
+        throw new InsufficientAvailableStockError(item.productListingId, item.quantity, availability.availableQuantity);
+      }
       const reservationResult = await tx.$executeRaw`
         UPDATE "ProductListing"
         SET "reservedStock" = "reservedStock" + ${item.quantity}
@@ -227,7 +230,7 @@ export async function createOrder(
           ))
       `;
       if (reservationResult === 0) {
-        throw new InsufficientAvailableStockError(item.productListingId, item.quantity);
+        throw new InsufficientAvailableStockError(item.productListingId, item.quantity, availability.availableQuantity);
       }
     }
 

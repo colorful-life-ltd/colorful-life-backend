@@ -104,7 +104,19 @@ export const createOrderHandler = async (req: Request, res: Response) => {
     const { creationIdempotencyKey: _key, creationRequestHash: _hash, ...response } = order;
     return res.status(201).json(response);
   } catch (err: unknown) {
-      if (err instanceof CartQuantityAllocatedError) return sendApiError(res, 409, "CART_QUANTITY_UNAVAILABLE", err.message);
+      if (err instanceof CartQuantityAllocatedError) return sendApiError(res, 409, "CART_QUANTITY_UNAVAILABLE", err.message, { productListingId: err.productListingId });
+      if (err instanceof ProductListingNotFoundError) return sendApiError(res, 409, "LISTING_UNAVAILABLE", err.message, { productListingId: err.productListingId, reason: "LISTING_NOT_FOUND", availableQuantity: 0 });
+      if (err instanceof ProductListingInactiveError) return sendApiError(res, 409, "LISTING_UNAVAILABLE", "This listing is no longer available", { productListingId: err.productListingId, reason: err.reason, availableQuantity: 0 });
+      if (err instanceof InsufficientAvailableStockError) {
+        // A failed conditional update can also mean managed reservation coverage is inconsistent.
+        // Keep that guard fail-closed rather than reporting that otherwise visible stock is sold out.
+        const code = err.availableQuantity === undefined || err.availableQuantity >= err.requestedQuantity
+          ? "LISTING_UNAVAILABLE" : err.availableQuantity === 0 ? "OUT_OF_STOCK" : "INSUFFICIENT_STOCK";
+        return sendApiError(res, 409, code, code === "LISTING_UNAVAILABLE" ? "Inventory is temporarily unavailable" : err.message,
+          { productListingId: err.productListingId, requestedQuantity: err.requestedQuantity,
+            availableQuantity: code === "LISTING_UNAVAILABLE" ? 0 : err.availableQuantity,
+            reason: code === "LISTING_UNAVAILABLE" ? "INVENTORY_RESERVATION_CONFLICT" : code });
+      }
       if (err instanceof OrderIdempotencyMismatchError) return sendApiError(res, 409, "ORDER_IDEMPOTENCY_MISMATCH", err.message);
       if (err instanceof InvalidOrderIdempotencyKeyError) return sendApiError(res, 400, "INVALID_IDEMPOTENCY_KEY", err.message);
       if (err instanceof EmailVerificationRequiredError) {
@@ -116,10 +128,7 @@ export const createOrderHandler = async (req: Request, res: Response) => {
       if (
         err instanceof NoDefaultBillingAddressError ||
         err instanceof MultipleDefaultBillingAddressesError ||
-        err instanceof ProductListingNotFoundError ||
-        err instanceof ProductListingInactiveError ||
         err instanceof DuplicateProductListingError
-        || err instanceof InsufficientAvailableStockError
     ) {
       return res.status(400).json({ error: err.message });
     }

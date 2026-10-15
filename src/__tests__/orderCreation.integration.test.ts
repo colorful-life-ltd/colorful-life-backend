@@ -212,7 +212,7 @@ describe("durable order creation idempotency", () => {
   it("rolls back a failed request so the same key can be retried", async () => {
     const customer = await makeCustomer(); const listing = await makeListing(); const key = randomUUID();
     const payload = { items: [{ productListingId: listing.id, quantity: 8 }] };
-    assert.equal((await keyedCreate(customer, payload, key)).status, 400);
+    assert.equal((await keyedCreate(customer, payload, key)).status, 409);
     assert.equal(await prisma.order.count({ where: { userId: customer.id } }), 0);
     await prisma.productListing.update({ where: { id: listing.id }, data: { currentStock: 8 } });
     const result = await keyedCreate(customer, payload, key); assert.equal(result.status, 201);
