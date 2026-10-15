@@ -1,3 +1,5 @@
+import { readCustomerPaymentWindow, type CustomerPaymentWindow } from "../payments/customerPaymentWindow.js";
+import type { Prisma } from "../../generated/prisma-client/client.js";
 import { listingAvailability } from "../inventory/listingAvailability.js";
 import { config } from "../../config/index.js";
 import { initializePaymentResolution, databaseNow } from "../payments/paymentResolutionService.js";
@@ -53,11 +55,17 @@ function requestHash(input: CreateOrderInput) {
  * @param input   The validated order payload.
  * @returns The created Order record with its OrderItems.
  */
+type CreatedOrder = Prisma.OrderGetPayload<{ include: { orderItems: true } }>;
+export function createOrder(userId: number, input: CreateOrderInput, idempotencyKey: string | undefined, includePaymentWindow: true): Promise<CreatedOrder & { paymentWindow: CustomerPaymentWindow }>;
+export function createOrder(userId: number, input: CreateOrderInput, idempotencyKey?: string): Promise<CreatedOrder>;
 export async function createOrder(
   userId: number,
   input: CreateOrderInput,
   idempotencyKey?: string,
+  includePaymentWindow = false,
 ){
+  const present = async (tx: Prisma.TransactionClient, order: CreatedOrder) => includePaymentWindow
+    ? { ...order, paymentWindow: await readCustomerPaymentWindow(tx, userId, order.id) } : order;
   if (idempotencyKey !== undefined && !/^[\x21-\x7e]{1,128}$/.test(idempotencyKey)) {
     throw new InvalidOrderIdempotencyKeyError();
   }
@@ -89,7 +97,12 @@ export async function createOrder(
     });
     if (existing) {
       if (existing.creationRequestHash !== hash) throw new OrderIdempotencyMismatchError();
-      return existing;
+      if (!includePaymentWindow) return existing;
+      // An idempotent replay creates no reservation. Read its current response in
+      // one snapshot; fresh creations project before their transaction commits.
+      return prisma.$transaction(async tx => present(tx, await tx.order.findUniqueOrThrow({
+        where: { id: existing.id, userId }, include: { orderItems: true },
+      })), { isolationLevel: "RepeatableRead" });
     }
   }
 
@@ -129,7 +142,7 @@ export async function createOrder(
       });
       if (existing) {
         if (existing.creationRequestHash !== hash) throw new OrderIdempotencyMismatchError();
-        return existing;
+        return present(tx, existing);
       }
     }
 
@@ -267,6 +280,6 @@ export async function createOrder(
     });
     await initializePaymentResolution(tx, order);
     await allocateOrderCart(tx, order.id, cartAllocation);
-    return order;
+    return present(tx, order);
   });
 }

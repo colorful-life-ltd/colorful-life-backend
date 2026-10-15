@@ -241,7 +241,10 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     assert.equal(body.payments, undefined); assert.equal(body.refunds, undefined); assert.equal(body.clientSecret, undefined);
     assert.equal(JSON.stringify(body).includes(f.payment.providerReference), false);
     const read = await fetch(`${url}/orders/${f.order.id}`, { headers: { Authorization: `Bearer ${token(f)}` } });
-    assert.deepEqual(await read.json(), body); assert.equal(stripe.calls(), 1); await assertConfirmed(f);
+    const refreshed = await read.json();
+    assert.ok(Date.parse(refreshed.paymentWindow.evaluatedAt) >= Date.parse(body.paymentWindow.evaluatedAt));
+    refreshed.paymentWindow.evaluatedAt = body.paymentWindow.evaluatedAt;
+    assert.deepEqual(refreshed, body); assert.equal(stripe.calls(), 1); await assertConfirmed(f);
   });
 
   it("HTTP non-success stays pending and normal GETs never retrieve Stripe", async () => {
