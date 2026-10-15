@@ -1,3 +1,4 @@
+import { assertReturnInventoryEligible, lockReturnScope } from "./returnInventorySafety.js";
 import { prisma } from "../../prisma/runtime.js";
 import {
   ReturnReason,
@@ -172,6 +173,7 @@ export async function requestOrderReturn(
   }
 
   return prisma.$transaction(async (tx) => {
+    await lockReturnScope(tx, orderId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
       select: { id: true },
@@ -192,6 +194,9 @@ export async function requestOrderReturn(
     if (!orderItem) {
       throw new OrderItemNotFoundError(orderItemId, orderId);
     }
+
+    await tx.$queryRaw`SELECT id FROM "OrderItem" WHERE id=${orderItem.id} FOR UPDATE`;
+    await assertReturnInventoryEligible(tx, orderId, orderItem.id);
 
     const reservationResult = await tx.$executeRaw`
       UPDATE "OrderItem"
@@ -231,6 +236,7 @@ export async function requestOrderReturn(
 
 export async function cancelOrderReturn(orderId: number, returnId: number) {
   return prisma.$transaction(async (tx) => {
+    await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
       select: { id: true },
@@ -282,6 +288,7 @@ export async function authorizeOrderReturn(
   returnId: number,
 ) {
   return prisma.$transaction(async (tx) => {
+    await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
       select: { id: true },
@@ -355,6 +362,7 @@ export async function receiveOrderReturn(
   returnId: number,
 ) {
   return prisma.$transaction(async (tx) => {
+    await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
       select: { id: true },
@@ -444,6 +452,7 @@ export async function inspectOrderReturn(
   }
 
   return prisma.$transaction(async (tx) => {
+    await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
       select: { id: true },
@@ -533,6 +542,7 @@ export async function completeOrderReturn(
   performedByUserId: number,
 ) {
   return prisma.$transaction(async (tx) => {
+    await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
       select: { id: true },
@@ -574,6 +584,11 @@ export async function completeOrderReturn(
     if (listing.condition === "USED_LIKE_NEW" && orderReturn.restockQuantity > 0) {
       throw new InvalidInspectionRestockConditionError();
     }
+
+    await assertReturnInventoryEligible(tx, orderId, orderItem.id);
+    if (!Number.isInteger(orderReturn.quantity) || orderReturn.quantity <= 0
+      || !Number.isInteger(orderReturn.restockQuantity) || orderReturn.restockQuantity < 0 || orderReturn.restockQuantity > orderReturn.quantity) throw new InvalidInspectionRestockQuantityError();
+    if (orderReturn.restockQuantity > 0 && orderReturn.condition !== "AS_NEW") throw new InvalidInspectionRestockConditionError();
 
     const claimResult = await tx.$executeRaw`
       UPDATE "OrderItem"

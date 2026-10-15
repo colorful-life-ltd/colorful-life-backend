@@ -1,3 +1,4 @@
+import { hasBlockingOrderReturns, warnBlockedReturnReservation } from "../orders/returnInventorySafety.js";
 import type Stripe from "stripe";
 import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "../../prisma/runtime.js";
@@ -143,6 +144,10 @@ export async function markManagedConsumed(tx: Prisma.TransactionClient, orderId:
 export async function releaseManagedReservation(tx: Prisma.TransactionClient, orderId: number, abandonment = false, initiator: "CUSTOMER" | "SELLER" = "CUSTOMER") {
   const r = await managedResolution(tx, orderId);
   if (!r || r.reservationDisposition !== "HELD") return false;
+  if (await hasBlockingOrderReturns(tx, orderId)) {
+    await warnBlockedReturnReservation(tx, orderId, "MANAGED_RELEASE");
+    return false;
+  }
   const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
   const now = await databaseNow(tx);
   if (order.status !== "PENDING" || (!abandonment && now < (r.retryDeadline ?? r.initialPaymentDeadline))) return false;
