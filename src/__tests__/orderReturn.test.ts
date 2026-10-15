@@ -1,3 +1,4 @@
+import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import assert from "node:assert";
 import { afterEach, describe, it } from "node:test";
 import { randomUUID } from "node:crypto";
@@ -100,6 +101,7 @@ async function createFixture(quantity = 3) {
   const order = await createOrder(customer.id, {
     items: [{ productListingId: listing.id, quantity }],
   });
+  await confirmOrder(customer.id, order.id);
   orderIds.push(order.id);
   return { customer, listing, order, orderItem: order.orderItems[0] };
 }
@@ -616,7 +618,7 @@ describe("Order return domain service", () => {
     const item = await prisma.orderItem.findUnique({ where: { id: orderItem.id } });
     const listingAfter = await prisma.productListing.findUnique({ where: { id: listing.id } });
     assert.strictEqual(item?.returnedQuantity, 1);
-    assert.strictEqual(listingAfter?.currentStock, 11);
+    assert.strictEqual(listingAfter?.currentStock, listing.currentStock - orderItem.quantity + 1);
     assert.strictEqual(await prisma.inventoryMovement.count({ where: { listingId: listing.id, type: InventoryMovementType.ORDER_RETURN } }), 1);
   });
 

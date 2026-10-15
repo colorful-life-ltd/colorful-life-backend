@@ -1,3 +1,4 @@
+import { hasBlockingOrderReturns, warnBlockedReturnReservation } from "./returnInventorySafety.js";
 import { config } from "../../config/index.js";
 import { attemptManagedRelease } from "../payments/paymentResolutionService.js";
 import { queueCartReconciliation } from "../cart/cartProvenanceService.js";
@@ -19,6 +20,11 @@ export async function expireOrderReservation(orderId: number, asOf = new Date())
       WHERE id = ${orderId}
       FOR UPDATE
     `;
+
+    if (await hasBlockingOrderReturns(tx, orderId)) {
+      await warnBlockedReturnReservation(tx, orderId, "EXPIRY");
+      return null;
+    }
 
     const resolution = await tx.paymentResolution.findUnique({ where: { orderId } });
     if (resolution) {

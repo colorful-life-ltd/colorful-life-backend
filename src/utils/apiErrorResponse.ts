@@ -1,6 +1,8 @@
 import type { Response } from "express";
 
 export type ApiErrorCode =
+  | "ORDER_RETURN_INELIGIBLE"
+  | "ORDER_RETURN_CONFLICT"
   | "PAYMENT_ADMISSION_CLOSED"
   | "PAYMENT_OUTCOME_UNRESOLVED"
   | "ORDER_ALREADY_PAID"

@@ -1,3 +1,4 @@
+import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import assert from "node:assert";
 import type { Server } from "node:http";
 import { after, afterEach, before, describe, it } from "node:test";
@@ -97,6 +98,7 @@ async function createOrderFixture(customerId: number, quantity = 3) {
   const order = await createOrder(customerId, {
     items: [{ productListingId: listing.id, quantity }],
   });
+  await confirmOrder(customerId, order.id);
   orderIdsForCleanup.push(order.id);
   return { listing, order, orderItem: order.orderItems[0] };
 }

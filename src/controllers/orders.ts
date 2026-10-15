@@ -1,3 +1,4 @@
+import { OrderReturnEligibilityError, OrderCancellationReturnConflictError } from "../domain/orders/returnInventorySafety.js";
 import { CartQuantityAllocatedError } from "../domain/cart/cartProvenanceService.js";
 import { Request, Response } from "express";
 import { CreateOrderSchema } from "../domain/orders/orderValidator.js";
@@ -147,6 +148,7 @@ export const cancelOrderBySellerHandler = async (req: Request, res: Response) =>
     const order = await cancelOrderByAdmin(orderId, parseResult.data.reason, (req.user as { id: number }).id);
     return res.status(200).json(order);
   } catch (err: unknown) {
+    if (err instanceof OrderCancellationReturnConflictError) return sendApiError(res, 409, "ORDER_RETURN_CONFLICT", err.message);
     if (err instanceof OrderCancellationPaymentError) {
       return sendApiError(res, 409, err.paid ? "ORDER_ALREADY_PAID" : "ORDER_PAYMENT_UNRESOLVED", err.message);
     }
@@ -231,6 +233,7 @@ export const cancelOrderHandler = async (req: Request, res: Response) => {
     const order = await cancelOrder(userId, orderId, parseResult.data.reason);
     return res.status(200).json(order);
   } catch (err: unknown) {
+    if (err instanceof OrderCancellationReturnConflictError) return sendApiError(res, 409, "ORDER_RETURN_CONFLICT", err.message);
     if (err instanceof OrderCancellationPaymentError) {
       return sendApiError(res, 409, err.paid ? "ORDER_ALREADY_PAID" : "ORDER_PAYMENT_UNRESOLVED", err.message);
     }
@@ -285,6 +288,7 @@ export const processOrderReturnHandler = async (req: Request, res: Response) => 
     );
     return res.status(201).json(orderReturn);
   } catch (err: unknown) {
+    if (err instanceof OrderReturnEligibilityError) return sendApiError(res, 409, "ORDER_RETURN_INELIGIBLE", err.message);
     if (
       err instanceof InvalidReturnQuantityError ||
       err instanceof InvalidReturnReasonError ||
@@ -471,6 +475,7 @@ export const completeOrderReturnHandler = async (req: Request, res: Response) =>
     );
     return res.status(200).json(orderReturn);
   } catch (err: unknown) {
+    if (err instanceof OrderReturnEligibilityError) return sendApiError(res, 409, "ORDER_RETURN_INELIGIBLE", err.message);
     if (
       err instanceof OrderReturnOrderNotFoundError ||
       err instanceof OrderReturnNotFoundError
@@ -479,6 +484,8 @@ export const completeOrderReturnHandler = async (req: Request, res: Response) =>
     }
     if (
       err instanceof OrderReturnNotCompletableError ||
+      err instanceof InvalidInspectionRestockQuantityError ||
+      err instanceof InvalidInspectionRestockConditionError ||
       err instanceof OrderReturnQuantityExceededError ||
       err instanceof OrderReturnProductListingMissingError
     ) {

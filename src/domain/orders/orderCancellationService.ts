@@ -1,3 +1,4 @@
+import { hasBlockingOrderReturns, OrderCancellationReturnConflictError } from "./returnInventorySafety.js";
 import { managedResolution, attemptManagedRelease } from "../payments/paymentResolutionService.js";
 import { queueCartReconciliation } from "../cart/cartProvenanceService.js";
 import { prisma } from "../../prisma/runtime.js";
@@ -41,6 +42,8 @@ export async function cancelOrder(
     if ((order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CONFIRMED) || order.cancelledAt) {
       throw new OrderNotCancellableError(orderId, order.status);
     }
+    if (await hasBlockingOrderReturns(tx, orderId)) throw new OrderCancellationReturnConflictError();
+
     // Payment existence is checked under the same order lock as initiation.
     // Even FAILED/CANCELED attempts may be reused or have delayed provider I/O.
     const payment = await tx.payment.findUnique({ where: { orderId } });
@@ -141,6 +144,8 @@ export async function cancelOrderByAdmin(
     if (!cancellableStatuses.includes(order.status as "PENDING" | "CONFIRMED") || order.cancelledAt) {
       throw new OrderNotCancellableError(orderId, order.status);
     }
+    if (await hasBlockingOrderReturns(tx, orderId)) throw new OrderCancellationReturnConflictError();
+
     // The order lock is shared with payment initiation and authoritative outcomes.
     // FAILED is retryable; placeholders and CANCELED attempts cannot be safely
     // cleared while initiation/retrieval or delayed notifications may be in flight.
