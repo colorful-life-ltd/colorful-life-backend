@@ -100,7 +100,7 @@ export const createOrderHandler = async (req: Request, res: Response) => {
   }
   const userId = (req.user as { id: number }).id;
   try {
-    const order = await createOrder(userId, parseResult.data, req.get("Idempotency-Key"));
+    const order = await createOrder(userId, parseResult.data, req.get("Idempotency-Key"), true);
     const { creationIdempotencyKey: _key, creationRequestHash: _hash, ...response } = order;
     return res.status(201).json(response);
   } catch (err: unknown) {

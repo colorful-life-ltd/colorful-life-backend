@@ -1,6 +1,6 @@
-import { prisma } from "../prisma/runtime.js";
+import { getCustomerPaymentStatus } from "../domain/orders/orderReadService.js";
 import { abandonPaymentReservation } from "../domain/payments/stripeResolutionService.js";
-import { PaymentResolutionOwnershipError, PaymentResolutionUnavailableError, databaseNow } from "../domain/payments/paymentResolutionService.js";
+import { PaymentResolutionOwnershipError, PaymentResolutionUnavailableError } from "../domain/payments/paymentResolutionService.js";
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail.js";
@@ -43,12 +43,9 @@ router.get("/:orderId/payment-resolution", authMiddleware, requireVerifiedEmail,
   const id = Number(req.params.orderId);
   if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid order identifier" }); return; }
   try {
-    const order = await prisma.order.findFirst({ where: { id, userId: req.user!.id }, select: { paymentResolution: { select: {
-      state: true, reservationDisposition: true, initialPaymentDeadline: true, firstFailureVerifiedAt: true,
-      retryDeadline: true, paymentAdmissionClosedAt: true,
-    } } } });
-    if (!order) { res.status(404).json({ error: "Order not found" }); return; }
-    res.json({ serverTime: await prisma.$transaction(databaseNow), paymentResolution: order.paymentResolution });
+    const result = await getCustomerPaymentStatus(req.user!.id, id);
+    if (!result) { res.status(404).json({ error: "Order not found" }); return; }
+    res.json(result);
   } catch { res.status(503).json({ error: "Payment resolution unavailable" }); }
 });
 router.post("/:orderId/abandon", authMiddleware, requireVerifiedEmail, async (req, res) => {

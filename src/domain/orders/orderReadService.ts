@@ -1,3 +1,4 @@
+import { readCustomerPaymentWindow, readCustomerPaymentWindows } from "../payments/customerPaymentWindow.js";
 import { prisma } from "../../prisma/runtime.js";
 import { customerShipmentSelect, presentFulfilment } from "../fulfilment/fulfilmentPresenter.js";
 
@@ -42,32 +43,47 @@ function withFulfilment<T extends Parameters<typeof presentFulfilment>[0]>(order
 }
 
 export async function listCustomerOrders(userId: number) {
-  const orders = await prisma.order.findMany({
-    where: { userId },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: orderReadSelect,
-  });
-  return orders.map(withFulfilment);
+  return prisma.$transaction(async tx => {
+    const orders = await tx.order.findMany({
+      where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: orderReadSelect,
+    });
+    const windows = await readCustomerPaymentWindows(tx, userId, orders.map(order => order.id));
+    return orders.map(order => ({ ...withFulfilment(order), paymentWindow: windows.get(order.id)! }));
+  }, { isolationLevel: "RepeatableRead" });
 }
 
 export async function getCustomerOrder(userId: number, orderId: number) {
-  const order = await prisma.order.findFirst({
-    where: { id: orderId, userId },
-    select: {
-      ...orderReadSelect,
-      reservationExpiresAt: true,
-      billingRecipientName: true, billingLine1: true, billingLine2: true,
-      billingCity: true, billingCounty: true, billingPostcode: true,
-      billingCountryCode: true, billingPhone: true,
-      deliveryRecipientName: true, deliveryLine1: true, deliveryLine2: true,
-      deliveryCity: true, deliveryCounty: true, deliveryPostcode: true,
-      deliveryCountryCode: true, deliveryPhone: true,
-      payments: { select: { status: true, paidAt: true } },
-    },
-  });
-  if (!order) return null;
-  const { payments, ...safeOrder } = order;
-  return { ...withFulfilment(safeOrder), payment: payments[0] ?? null };
+  return prisma.$transaction(async tx => {
+    const order = await tx.order.findFirst({
+      where: { id: orderId, userId },
+      select: {
+        ...orderReadSelect,
+        reservationExpiresAt: true,
+        billingRecipientName: true, billingLine1: true, billingLine2: true,
+        billingCity: true, billingCounty: true, billingPostcode: true,
+        billingCountryCode: true, billingPhone: true,
+        deliveryRecipientName: true, deliveryLine1: true, deliveryLine2: true,
+        deliveryCity: true, deliveryCounty: true, deliveryPostcode: true,
+        deliveryCountryCode: true, deliveryPhone: true,
+        payments: { select: { status: true, paidAt: true } },
+      },
+    });
+    if (!order) return null;
+    const { payments, ...safeOrder } = order;
+    return { ...withFulfilment(safeOrder), payment: payments[0] ?? null, paymentWindow: await readCustomerPaymentWindow(tx, userId, order.id) };
+  }, { isolationLevel: "RepeatableRead" });
+}
+
+export async function getCustomerPaymentStatus(userId: number, orderId: number) {
+  return prisma.$transaction(async tx => {
+    const order = await tx.order.findFirst({ where: { id: orderId, userId }, select: { paymentResolution: { select: {
+      state: true, reservationDisposition: true, initialPaymentDeadline: true, firstFailureVerifiedAt: true,
+      retryDeadline: true, paymentAdmissionClosedAt: true,
+    } } } });
+    if (!order) return null;
+    const paymentWindow = await readCustomerPaymentWindow(tx, userId, orderId);
+    return { serverTime: paymentWindow.evaluatedAt, paymentResolution: order.paymentResolution, paymentWindow };
+  }, { isolationLevel: "RepeatableRead" });
 }
 
 // Explicit projections keep provider references, idempotency keys and credentials private.
