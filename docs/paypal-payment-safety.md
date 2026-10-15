@@ -1,5 +1,17 @@
 # PayPal payment safety — Issue #153
 
+## Unsupported checkout — Issue #175
+
+Customer initiation through `POST /orders/:orderId/payments/paypal` is unconditionally disabled. After authentication, verified-email and order-ID syntax checks, it returns HTTP 503 with:
+
+```json
+{"error":{"code":"PAYPAL_INITIATION_DISABLED","message":"PayPal checkout is currently unavailable"}}
+```
+
+The handler does not access the initiation service, create/reuse a Payment, call PayPal or change order/inventory state. Credentials and payment-resolution settings cannot enable it. Repeated requests have the same result. The generic payment creation endpoint remains ADMIN-only. Re-enabling customer checkout requires a deliberate code change and safety review.
+
+Existing PayPal records, customer order/status reads, capture of existing payments, webhooks, reconciliation and refunds remain supported under their existing rules. The internal initiation service remains for legacy lifecycle tests; it is not exposed by another customer route. The initiation behavior below describes the retained internal service and historical implementation, not an available customer checkout API.
+
 ## Intended transitions (defined before implementation)
 
 | Operation | Before | Required behavior |
@@ -69,7 +81,7 @@ The additive migration adds nullable `PaymentWebhookEvent.evidence JSONB` and th
 
 Existing routes, authenticated/verified-email middleware, payloads and response shapes remain:
 
-- `POST /orders/:orderId/payments/paypal`: 201 `{paypalOrderId, approvalUrl?}`. Server-owned GBP amount and persisted create key; successful payments cannot be initiated again.
+- `POST /orders/:orderId/payments/paypal`: disabled with HTTP 503 `PAYPAL_INITIATION_DISABLED` as documented above.
 - `POST /orders/:orderId/payments/paypal/capture`: 200 `{paypalOrderId,captureId}`. Authorized completed capture replay now returns the stored result without contacting PayPal.
 - Invalid IDs: 400. Missing/foreign orders: generic 404. Ineligible/terminal orders or mismatched provider results: 409. Provider unavailable/ambiguous response: 503. Webhook database processing failure: 500, without internal error details.
 
