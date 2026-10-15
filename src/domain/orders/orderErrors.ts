@@ -1,3 +1,5 @@
+import type { AvailabilityReason } from "../inventory/listingAvailability.js";
+
 // Custom domain error classes for Order creation
 // Follow the style used in the existing purchase error module
 
@@ -36,21 +38,21 @@ export class OrderUserNotFoundError extends Error {
 // Product listing related errors
 // -----------------------------------------------------------------------------
 export class ProductListingNotFoundError extends Error {
-  constructor(productListingId: number) {
+  constructor(public readonly productListingId: number) {
     super(`Product listing with id ${productListingId} does not exist`);
     this.name = "ProductListingNotFoundError";
   }
 }
 
 export class ProductListingInactiveError extends Error {
-  constructor(productListingId: number) {
+  constructor(public readonly productListingId: number, public readonly reason: AvailabilityReason = "LISTING_INACTIVE") {
     super(`Product listing with id ${productListingId} is inactive`);
     this.name = "ProductListingInactiveError";
   }
 }
 
 export class InsufficientAvailableStockError extends Error {
-  constructor(productListingId: number, requestedQuantity: number) {
+  constructor(public readonly productListingId: number, public readonly requestedQuantity: number, public readonly availableQuantity?: number) {
     super(`Insufficient available stock for product listing ${productListingId} (requested ${requestedQuantity})`);
     this.name = "InsufficientAvailableStockError";
   }

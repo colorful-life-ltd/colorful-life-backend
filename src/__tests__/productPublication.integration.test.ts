@@ -173,8 +173,8 @@ describe("product publication HTTP integration", () => {
     assert.deepEqual([body.isPublished, body.availability, body.offers], [true, "OUT_OF_STOCK", []]);
     const customer = await makeUser();
     assert.equal((await call("/cart/items", { method: "POST", token: customer.token, body: JSON.stringify({ productListingId: listing.id, quantity: 1 }) })).status, 409);
-    // Existing order-creation contract: unavailable listings are a 400.
-    assert.equal((await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 1 }] }) })).status, 400);
+    // Availability conflicts use the actionable Issue #173 checkout envelope.
+    assert.equal((await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 1 }] }) })).status, 409);
   });
 
   it("rejects cart and order purchases of unpublished products without reserving stock", async () => {
@@ -185,8 +185,11 @@ describe("product publication HTTP integration", () => {
     await setPublished(listing.legoProductId, false);
     assert.equal((await call("/cart/items", { method: "POST", token: customer.token, body: JSON.stringify({ productListingId: listing.id, quantity: 1 }) })).status, 409);
     const order = await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 1 }] }) });
-    assert.equal(order.status, 400);
-    assert.match((await order.json()).error, /inactive/);
+    assert.equal(order.status, 409);
+    const error = (await order.json()).error;
+    assert.equal(error.code, "LISTING_UNAVAILABLE");
+    assert.equal(error.reason, "PRODUCT_UNPUBLISHED");
+    assert.equal(error.productListingId, listing.id);
     const persisted = await prisma.productListing.findUniqueOrThrow({ where: { id: listing.id } });
     assert.deepEqual([persisted.currentStock, persisted.reservedStock], [5, 0]);
     assert.equal(await prisma.order.count({ where: { userId: customer.id } }), 0);

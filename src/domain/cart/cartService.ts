@@ -1,3 +1,4 @@
+import { listingAvailability } from "../inventory/listingAvailability.js";
 import { prisma } from "../../prisma/runtime.js";
 import { lockCustomerCart, settleCartReconciliation, allocatedQuantity, reduceAllocations } from "./cartProvenanceService.js";
 import { CartReconciliationState as State } from "../../generated/prisma-client/enums.js";
@@ -22,7 +23,14 @@ const cartInclude = { items: { include: {
 function present(cart: any) {
   return { ...cart, items: cart.items.map(({ orderAllocations, ...item }: any) => {
     const allocatedQuantity = orderAllocations.reduce((sum: number, row: { visibleQuantity: number }) => sum + row.visibleQuantity, 0);
-    return { ...item, allocatedQuantity, unallocatedQuantity: item.quantity - allocatedQuantity,
+    const unallocatedQuantity = item.quantity - allocatedQuantity;
+    const availability = listingAvailability(item.productListing, unallocatedQuantity);
+    // Existing order allocations are never counted as stock available to a new order.
+    if (unallocatedQuantity <= 0 && availability.status !== "UNAVAILABLE") {
+      availability.status = "UNAVAILABLE";
+      availability.reason = "CART_QUANTITY_ALLOCATED";
+    }
+    return { ...item, allocatedQuantity, unallocatedQuantity, availability,
       productListing: { ...item.productListing, availableStock: Math.max(0, item.productListing.currentStock - item.productListing.reservedStock), effectivePrice: item.productListing.salePrice ?? item.productListing.originalPrice } };
   }) };
 }

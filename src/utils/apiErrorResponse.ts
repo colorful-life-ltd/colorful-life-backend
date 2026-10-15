@@ -1,6 +1,9 @@
 import type { Response } from "express";
 
 export type ApiErrorCode =
+  | "LISTING_UNAVAILABLE"
+  | "OUT_OF_STOCK"
+  | "INSUFFICIENT_STOCK"
   | "ORDER_RETURN_INELIGIBLE"
   | "ORDER_RETURN_CONFLICT"
   | "PAYMENT_ADMISSION_CLOSED"
@@ -30,6 +33,7 @@ export type ApiErrorCode =
   | "NOT_FOUND";
 
 /** Sends a stable machine-readable API error envelope. */
-export function sendApiError(res: Response, status: number, code: ApiErrorCode, message: string) {
-  return res.status(status).json({ error: { code, message } });
+export function sendApiError(res: Response, status: number, code: ApiErrorCode, message: string,
+  details?: { productListingId: number; reason?: string; availableQuantity?: number; requestedQuantity?: number }) {
+  return res.status(status).json({ error: { code, message, ...details } });
 }
