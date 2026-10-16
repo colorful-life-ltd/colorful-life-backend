@@ -106,7 +106,8 @@ describe("per-customer address default serialization", { concurrency: 1 }, () =>
     assert.ok(responses.every((r) => r.status === 201));
     const state = await defaults(user, 2);
     assert.equal(state.shipping.id, state.billing.id);
-    assert.ok(state.rows.every((row) => row.countryCode === "United Kingdom"));
+    // The storefront submits "United Kingdom"; addresses persist the ISO code invoices require.
+    assert.ok(state.rows.every((row) => row.countryCode === "GB"));
   });
 
   it("serializes concurrent creates requesting both default roles", async () => {
@@ -159,7 +160,7 @@ describe("per-customer address default serialization", { concurrency: 1 }, () =>
   it("preserves first-address defaults, sequential role replacement, edits and country representation", async () => {
     const user = await customer(); const first = await create(user, "First", { isDefaultShipping: false, isDefaultBilling: false });
     assert.equal(first.isDefaultShipping, true); assert.equal(first.isDefaultBilling, true);
-    assert.equal(first.country, "United Kingdom"); await defaults(user, 1);
+    assert.equal(first.country, "GB"); await defaults(user, 1);
     const delivery = await create(user, "Delivery", { isDefaultShipping: true });
     let state = await defaults(user, 2); assert.equal(state.shipping.id, delivery.id); assert.equal(state.billing.id, first.id);
     const billing = await create(user, "Billing");
@@ -167,7 +168,7 @@ describe("per-customer address default serialization", { concurrency: 1 }, () =>
     assert.equal((await request(user, "PATCH", delivery.id, { city: "Cambridge" })).status, 200);
     state = await defaults(user, 3);
     assert.equal(state.shipping.id, delivery.id); assert.equal(state.shipping.city, "Cambridge");
-    assert.equal(state.billing.id, billing.id); assert.equal(state.billing.countryCode, "United Kingdom");
+    assert.equal(state.billing.id, billing.id); assert.equal(state.billing.countryCode, "GB");
     assert.equal((await request(user, "PATCH", first.id, { isDefaultShipping: true, isDefaultBilling: true })).status, 200);
     state = await defaults(user, 3); assert.equal(state.shipping.id, first.id); assert.equal(state.billing.id, first.id);
   });

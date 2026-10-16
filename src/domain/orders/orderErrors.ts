@@ -20,6 +20,13 @@ export class MultipleDefaultBillingAddressesError extends Error {
   }
 }
 
+export class InvalidBillingAddressCountryError extends Error {
+  constructor() {
+    super("The default billing address country is not recognised. Please update your billing address");
+    this.name = "InvalidBillingAddressCountryError";
+  }
+}
+
 export class EmailVerificationRequiredError extends Error {
   constructor() {
     super("Email verification is required before creating an order");

@@ -6,6 +6,7 @@ import { config } from "../../config/index.js";
 import { initializePaymentResolution, databaseNow } from "../payments/paymentResolutionService.js";
 import { lockCustomerCart, settleCartReconciliation, prepareOrderCartAllocation, allocateOrderCart } from "../cart/cartProvenanceService.js";
 import { createHash } from "node:crypto";
+import { normalizeCountryCode } from "../addresses/countryCode.js";
 // Order creation service. Implements the domain rules for creating a
 // customer order without touching the database outside a single Prisma
 // transaction. The service is intentionally lightweight and returns the
@@ -17,6 +18,7 @@ import type { CreateOrderInput } from "./orderValidator.js";
 import {
   NoDefaultBillingAddressError,
   MultipleDefaultBillingAddressesError,
+  InvalidBillingAddressCountryError,
   ProductListingInactiveError,
   ProductListingNotFoundError,
   DuplicateProductListingError,
@@ -178,7 +180,11 @@ export async function createOrder(
     if (defaultBillingAddrs.length > 1) {
       throw new MultipleDefaultBillingAddressesError();
     }
-    const billing = defaultBillingAddrs[0];
+    // Saved addresses written before ISO normalisation hold display names such as
+    // "United Kingdom". Snapshot the ISO code; never freeze an unrecognised country.
+    const billingCountryCode = normalizeCountryCode(defaultBillingAddrs[0].countryCode);
+    if (!billingCountryCode) throw new InvalidBillingAddressCountryError();
+    const billing = { ...defaultBillingAddrs[0], countryCode: billingCountryCode };
 
     // 2b. Delivery snapshot – use billing if not provided
     const delivery = input.deliveryAddress ?? billing;

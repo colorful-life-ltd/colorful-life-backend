@@ -7,6 +7,7 @@ import { applyStripePaymentOutcome, validateStripePaymentOutcome, replayManagedS
 import { finalizeManagedStripeRetrieval, databaseNow, journalResolutionOperation, managedResolution, PaymentResolutionOwnershipError,
   PaymentResolutionUnavailableError, recordManagedFailure, attemptManagedRelease } from "./paymentResolutionService.js";
 import { randomUUID } from "node:crypto";
+import { expireUnledgeredUnpaidReservations } from "../orders/orderExpiryService.js";
 
 export type StripeResolutionClient = { paymentIntents: Pick<Stripe["paymentIntents"], "retrieve" | "cancel"> };
 const LEASE_MS = 60_000;
@@ -209,6 +210,9 @@ export function startPaymentResolutionWorker(intervalMs = 15_000) {
     running = true;
     try { await runPaymentResolutionSweep(resolvePaymentReservation, () => stopped);
     } catch { console.error("Payment resolution sweep failed; durable records retained"); }
+    // Orders from before managed enrolment have no ledger for the sweep above.
+    try { if (!stopped) await expireUnledgeredUnpaidReservations();
+    } catch { console.error("Unledgered reservation expiry failed; reservations retained"); }
     finally { running = false; }
   };
   const timer = setInterval(() => { void tick(); }, intervalMs); timer.unref(); void tick();
