@@ -62,7 +62,6 @@ import {
   ProductListingNotFoundError as ConfirmationProductListingNotFoundError,
 } from "../domain/orders/orderConfirmationErrors.js";
 import { OrderNotFoundError as OrderNotFoundErrorDispatch, OrderNotDispatchableError } from "../domain/orders/orderDispatchErrors.js";
-import { sendDispatchNotification } from "../services/emailService.js";
 import { FulfilmentPaymentNotVerifiedError } from "../domain/fulfilment/fulfilmentErrors.js";
 import { getCustomerOrder, listCustomerOrders } from "../domain/orders/orderReadService.js";
 import { sendApiError } from "../utils/apiErrorResponse.js";
@@ -526,20 +525,6 @@ export const completeOrderReturnHandler = async (req: Request, res: Response) =>
         parseResult.data.trackingNumber,
         (req.user as { id: number }).id,
       );
-      try {
-        await sendDispatchNotification({
-          customerEmail: order.user.email,
-          orderId: order.id,
-          shippingCarrier: order.shippingCarrier!,
-          trackingNumber: order.trackingNumber,
-          dispatchedAt: order.dispatchedAt!,
-        });
-      } catch (notificationError) {
-        console.error(
-          "Dispatch notification error",
-          notificationError instanceof Error ? notificationError.message : "Unknown notification failure",
-        );
-      }
       // Omit actualShippingCost from the response as it's an internal field
       const { actualShippingCost, user: _user, ...rest } = order;
       return res.status(200).json(rest);

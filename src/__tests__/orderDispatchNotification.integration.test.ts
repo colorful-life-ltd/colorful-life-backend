@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { after, afterEach, before, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import app from "../app.js";
@@ -8,7 +8,10 @@ import { prisma } from "../prisma/runtime.js";
 import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { createOrder } from "../domain/orders/orderService.js";
 import { OrderStatus } from "../generated/prisma-client/enums.js";
-import { setDispatchNotificationSenderForTests, type DispatchNotification } from "../services/emailService.js";
+
+const originalDispatchActivation = config.DISPATCH_CONFIRMATION_EMAIL_ENABLED;
+beforeEach(() => { config.DISPATCH_CONFIRMATION_EMAIL_ENABLED = true; });
+afterEach(() => { config.DISPATCH_CONFIRMATION_EMAIL_ENABLED = originalDispatchActivation; });
 
 const users: number[] = [];
 const products: number[] = [];
@@ -16,7 +19,6 @@ const listings: number[] = [];
 const orders: number[] = [];
 let server: ReturnType<typeof app.listen>;
 let url: string;
-let restoreSender: (() => void) | undefined;
 
 before(async () => {
   server = app.listen(0);
@@ -32,8 +34,6 @@ after(async () => {
 });
 
 afterEach(async () => {
-  restoreSender?.();
-  restoreSender = undefined;
   if (orders.length) await prisma.order.deleteMany({ where: { id: { in: orders } } });
   if (listings.length) await prisma.productListing.deleteMany({ where: { id: { in: listings } } });
   if (products.length) await prisma.legoProduct.deleteMany({ where: { id: { in: products } } });
@@ -81,58 +81,36 @@ async function dispatch(token: string, orderId: number, trackingNumber?: string)
   });
 }
 
-describe("dispatch notification", () => {
-  it("sends exactly one notification with customer and dispatch data", async () => {
+describe("durable dispatch notification", () => {
+  const jobs = (orderId: number) => prisma.orderConfirmationJob.findMany({ where: { orderId, type: 'DISPATCH_CONFIRMATION' } });
+  it("queues exactly one notification with committed customer and dispatch data", async () => {
     const f = await makeFixture();
-    const sent: DispatchNotification[] = [];
-    restoreSender = setDispatchNotificationSenderForTests(async (notification) => { sent.push(notification); });
-    const response = await dispatch(f.admin.token, f.order.id, "TRACK-1");
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual(sent.length, 1);
-    assert.strictEqual(sent[0]!.customerEmail, f.customer.email);
-    assert.strictEqual(sent[0]!.orderId, f.order.id);
-    assert.strictEqual(sent[0]!.shippingCarrier, "UPS");
-    assert.strictEqual(sent[0]!.trackingNumber, "TRACK-1");
-    assert(sent[0]!.dispatchedAt instanceof Date);
-    const body = await response.json();
-    assert.equal("user" in body, false);
+    const response = await dispatch(f.admin.token, f.order.id, 'TRACK-1'); assert.equal(response.status, 200);
+    const queued = await jobs(f.order.id); assert.equal(queued.length, 1);
+    const source = queued[0].source as Record<string, unknown>;
+    assert.deepEqual([source.recipientEmail, source.orderId, source.carrierName, source.trackingNumber], [f.customer.email, f.order.id, 'UPS', 'TRACK-1']);
+    assert.equal(queued[0].state, 'PENDING'); assert.equal(queued[0].attempts, 0);
+    assert.equal('user' in await response.json(), false);
   });
-
-  it("sends a notification when tracking is absent", async () => {
-    const f = await makeFixture();
-    let notification: DispatchNotification | undefined;
-    restoreSender = setDispatchNotificationSenderForTests(async (value) => { notification = value; });
-    assert.strictEqual((await dispatch(f.admin.token, f.order.id)).status, 200);
-    assert.strictEqual(notification?.customerEmail, f.customer.email);
-    assert.strictEqual(notification?.trackingNumber, null);
+  it("queues honest missing tracking information", async () => {
+    const f = await makeFixture(); assert.equal((await dispatch(f.admin.token, f.order.id)).status, 200);
+    assert.equal(((await jobs(f.order.id))[0].source as Record<string, unknown>).trackingNumber, null);
   });
-
-  it("swallows notifier failure after the order is dispatched", async () => {
-    const f = await makeFixture();
-    restoreSender = setDispatchNotificationSenderForTests(async () => { throw new Error("SES unavailable"); });
-    const response = await dispatch(f.admin.token, f.order.id);
-    assert.strictEqual(response.status, 200);
-    assert.strictEqual((await prisma.order.findUnique({ where: { id: f.order.id } }))?.status, OrderStatus.DISPATCHED);
+  it("dispatch commits while outbound delivery is disabled and performs no email I/O", async () => {
+    const f = await makeFixture(); assert.equal((await dispatch(f.admin.token, f.order.id)).status, 200);
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, 'DISPATCHED');
+    assert.equal((await jobs(f.order.id))[0].attempts, 0);
   });
-
-  it("does not notify failed or repeated dispatches", async () => {
-    const f = await makeFixture();
-    const sent: DispatchNotification[] = [];
-    restoreSender = setDispatchNotificationSenderForTests(async (notification) => { sent.push(notification); });
-    const missing = await dispatch(f.admin.token, 2_147_483_647);
-    assert.strictEqual(missing.status, 404);
-    assert.strictEqual(sent.length, 0);
-    assert.strictEqual((await dispatch(f.admin.token, f.order.id)).status, 200);
-    assert.strictEqual((await dispatch(f.admin.token, f.order.id)).status, 400);
-    assert.strictEqual(sent.length, 1);
+  it("does not duplicate or queue failed dispatches", async () => {
+    const f = await makeFixture(); assert.equal((await dispatch(f.admin.token, 2147483647)).status, 404);
+    assert.equal((await jobs(f.order.id)).length, 0);
+    assert.equal((await dispatch(f.admin.token, f.order.id)).status, 200);
+    assert.equal((await dispatch(f.admin.token, f.order.id)).status, 400);
+    assert.equal((await jobs(f.order.id)).length, 1);
   });
-
-  it("does not notify non-ADMIN or unauthenticated callers", async () => {
-    const f = await makeFixture();
-    let calls = 0;
-    restoreSender = setDispatchNotificationSenderForTests(async () => { calls += 1; });
-    assert.strictEqual((await dispatch(f.customer.token, f.order.id)).status, 403);
-    assert.strictEqual((await fetch(`${url}/orders/${f.order.id}/dispatch`, { method: "POST", body: JSON.stringify({ actualShippingCost: 1, shippingCarrier: "UPS" }) })).status, 401);
-    assert.strictEqual(calls, 0);
+  it("queues nothing for non-ADMIN or unauthenticated callers", async () => {
+    const f = await makeFixture(); assert.equal((await dispatch(f.customer.token, f.order.id)).status, 403);
+    assert.equal((await fetch(`${url}/orders/${f.order.id}/dispatch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actualShippingCost: 1, shippingCarrier: 'UPS' }) })).status, 401);
+    assert.equal((await jobs(f.order.id)).length, 0);
   });
 });

@@ -10,7 +10,6 @@ import app from "../app.js";
 import jwt from "jsonwebtoken";
 import { config } from "../config/index.js";
 import { randomUUID } from "node:crypto";
-import { setDispatchNotificationSenderForTests } from "../services/emailService.js";
 
 // Arrays that will be used for cleanup; they need to be in module scope so that helper
 // functions defined above the `describe` block can push IDs into them.
@@ -136,7 +135,6 @@ describe("Order Dispatch HTTP Integration", () => {
   let adminToken: string;
   let customerToken: string;
   let customerId: number;
-  let restoreNotificationSender: (() => void) | undefined;
   before(async () => {
     const { server: srv, url: u } = await startServer();
     server = srv;
@@ -163,7 +161,6 @@ describe("Order Dispatch HTTP Integration", () => {
     });
     adminToken = signToken(admin.id, "ADMIN");
     recordUserIdFromToken(adminToken, userIdsForCleanup);
-    restoreNotificationSender = setDispatchNotificationSenderForTests(async () => {});
   });
 
   after(async () => {
@@ -175,7 +172,6 @@ describe("Order Dispatch HTTP Integration", () => {
     await prisma.productListing.deleteMany({ where: { id: { in: listingIdsForCleanup } } });
     await prisma.legoProduct.deleteMany({ where: { id: { in: legoProductIdsForCleanup } } });
     await prisma.user.deleteMany({ where: { id: { in: userIdsForCleanup } } });
-    restoreNotificationSender?.();
     await new Promise((resolve) => server.close(resolve));
   });
 

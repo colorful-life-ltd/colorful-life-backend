@@ -444,6 +444,10 @@ model Order {
   deliveryPostcode      String
   deliveryCountryCode   String
   deliveryPhone         String?
+  // Invoice-only handoff: a separate shipping feature must persist actual selection/charge.
+  confirmationDeliverySnapshot Json?
+  confirmationJobs OrderConfirmationJob[]
+  commercialInvoice CommercialInvoice?
   totalAmount           Decimal                @db.Decimal(12, 2)
   // Shipping details – only visible to admins
   actualShippingCost    Decimal?               @db.Decimal(10, 2)
@@ -598,6 +602,8 @@ model OrderItem {
   order                     Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productListingId          Int
   productListing            ProductListing    @relation(fields: [productListingId], references: [id], onDelete: Restrict)
+  invoiceDescriptionSnapshot String?
+  invoiceSetNumberSnapshot String?
   quantity                  Int
   returnedQuantity          Int               @default(0)
   reservedReturnQuantity    Int               @default(0)
@@ -933,6 +939,7 @@ model Shipment {
   trackingState   ShipmentTrackingState?
   trackingSync    ShipmentTrackingSync?
   trackingPolls   ShipmentTrackingPoll[]
+  dispatchEmail   OrderConfirmationJob?
 
   @@unique([orderId, sequence])
   @@index([createdByUserId])
@@ -1100,4 +1107,45 @@ model ShipmentCarrierEvidence {
   receivedAt DateTime @default(now()) @db.Timestamptz(3)
   evaluations ShipmentTrackingEvent[]
   @@unique([shipmentId, providerIdentity, providerEventId], map: "tracking_carrier_evidence_key")
+}
+
+
+// Source snapshot is frozen at verified Stripe confirmation. No historical backfill.
+model OrderConfirmationJob {
+  id String @id @default(uuid())
+  orderId Int
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type String @default("ORDER_CONFIRMATION")
+  deliveryRoute String @default("DURABLE")
+  backlogApprovedAt DateTime? @db.Timestamptz(3)
+  eventKey String @unique
+  shipmentId Int? @unique
+  shipment Shipment? @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  brandSnapshot Json?
+  source Json
+  state String @default("PENDING")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now()) @db.Timestamptz(3)
+  claimOwner String?
+  claimGeneration Int @default(0)
+  leaseExpiresAt DateTime? @db.Timestamptz(3)
+  sendStartedAt DateTime? @db.Timestamptz(3)
+  lastErrorCode String?
+  providerMessageId String?
+  sentAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@index([state, nextAttemptAt])
+  @@index([orderId])
+}
+
+model CommercialInvoice {
+  id Int @id @default(autoincrement())
+  orderId Int @unique
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  invoiceNumber String @unique
+  snapshot Json
+  pdfBytes Bytes?
+  pdfSha256 String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 }

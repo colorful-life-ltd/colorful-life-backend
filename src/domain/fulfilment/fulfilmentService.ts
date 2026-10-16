@@ -1,3 +1,5 @@
+import { notifyLegacyDispatch } from "../orderConfirmation/legacyDispatch.js";
+import { enqueueDispatchConfirmation } from "../orderConfirmation/dispatch.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import type { Prisma } from "../../generated/prisma-client/client.js";
 import { OrderStatus, type FulfilmentStage, type ShippingCarrier } from "../../generated/prisma-client/enums.js";
@@ -106,6 +108,7 @@ async function recordDispatch(tx: Prisma.TransactionClient, performedByUserId: n
   await tx.orderFulfilmentEvent.create({ data: {
     orderId, action: "DISPATCHED", fromStage, toStage: "DISPATCHED", shipmentId: shipment.id, performedByUserId, source,
   } });
+  await enqueueDispatchConfirmation(tx, shipment.id);
 }
 
 /**
@@ -114,7 +117,7 @@ async function recordDispatch(tx: Prisma.TransactionClient, performedByUserId: n
  * idempotent no-op; different details on a dispatched order are rejected.
  */
 export async function dispatchShipment(performedByUserId: number, orderId: number, input: ShipmentInput & { carrier: ShippingCarrier }) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
     if (order.dispatchedAt) {
       const existing = await tx.shipment.findUnique({ where: { orderId_sequence: { orderId, sequence: 1 } } });
@@ -129,6 +132,8 @@ export async function dispatchShipment(performedByUserId: number, orderId: numbe
     await recordDispatch(tx, performedByUserId, orderId, stage, input, "ADMIN_FULFILMENT_API");
     return { changed: true };
   });
+  if (result.changed) await notifyLegacyDispatch(orderId);
+  return result;
 }
 
 /**

@@ -437,7 +437,9 @@ export const ModelName = {
   TrackingCarrierBudget: 'TrackingCarrierBudget',
   ShipmentTrackingPoll: 'ShipmentTrackingPoll',
   ShipmentTrackingConflict: 'ShipmentTrackingConflict',
-  ShipmentCarrierEvidence: 'ShipmentCarrierEvidence'
+  ShipmentCarrierEvidence: 'ShipmentCarrierEvidence',
+  OrderConfirmationJob: 'OrderConfirmationJob',
+  CommercialInvoice: 'CommercialInvoice'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -453,7 +455,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence"
+    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence" | "orderConfirmationJob" | "commercialInvoice"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3491,6 +3493,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    OrderConfirmationJob: {
+      payload: Prisma.$OrderConfirmationJobPayload<ExtArgs>
+      fields: Prisma.OrderConfirmationJobFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.OrderConfirmationJobFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.OrderConfirmationJobFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>
+        }
+        findFirst: {
+          args: Prisma.OrderConfirmationJobFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.OrderConfirmationJobFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>
+        }
+        findMany: {
+          args: Prisma.OrderConfirmationJobFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>[]
+        }
+        create: {
+          args: Prisma.OrderConfirmationJobCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>
+        }
+        createMany: {
+          args: Prisma.OrderConfirmationJobCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.OrderConfirmationJobCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>[]
+        }
+        delete: {
+          args: Prisma.OrderConfirmationJobDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>
+        }
+        update: {
+          args: Prisma.OrderConfirmationJobUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>
+        }
+        deleteMany: {
+          args: Prisma.OrderConfirmationJobDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.OrderConfirmationJobUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.OrderConfirmationJobUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>[]
+        }
+        upsert: {
+          args: Prisma.OrderConfirmationJobUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OrderConfirmationJobPayload>
+        }
+        aggregate: {
+          args: Prisma.OrderConfirmationJobAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateOrderConfirmationJob>
+        }
+        groupBy: {
+          args: Prisma.OrderConfirmationJobGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OrderConfirmationJobGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.OrderConfirmationJobCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OrderConfirmationJobCountAggregateOutputType> | number
+        }
+      }
+    }
+    CommercialInvoice: {
+      payload: Prisma.$CommercialInvoicePayload<ExtArgs>
+      fields: Prisma.CommercialInvoiceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CommercialInvoiceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CommercialInvoiceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>
+        }
+        findFirst: {
+          args: Prisma.CommercialInvoiceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CommercialInvoiceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>
+        }
+        findMany: {
+          args: Prisma.CommercialInvoiceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>[]
+        }
+        create: {
+          args: Prisma.CommercialInvoiceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>
+        }
+        createMany: {
+          args: Prisma.CommercialInvoiceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CommercialInvoiceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>[]
+        }
+        delete: {
+          args: Prisma.CommercialInvoiceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>
+        }
+        update: {
+          args: Prisma.CommercialInvoiceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>
+        }
+        deleteMany: {
+          args: Prisma.CommercialInvoiceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CommercialInvoiceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CommercialInvoiceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>[]
+        }
+        upsert: {
+          args: Prisma.CommercialInvoiceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CommercialInvoicePayload>
+        }
+        aggregate: {
+          args: Prisma.CommercialInvoiceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCommercialInvoice>
+        }
+        groupBy: {
+          args: Prisma.CommercialInvoiceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CommercialInvoiceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CommercialInvoiceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CommercialInvoiceCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -3767,6 +3917,7 @@ export const OrderScalarFieldEnum = {
   deliveryPostcode: 'deliveryPostcode',
   deliveryCountryCode: 'deliveryCountryCode',
   deliveryPhone: 'deliveryPhone',
+  confirmationDeliverySnapshot: 'confirmationDeliverySnapshot',
   totalAmount: 'totalAmount',
   actualShippingCost: 'actualShippingCost',
   shippingCarrier: 'shippingCarrier',
@@ -3874,6 +4025,8 @@ export const OrderItemScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
   productListingId: 'productListingId',
+  invoiceDescriptionSnapshot: 'invoiceDescriptionSnapshot',
+  invoiceSetNumberSnapshot: 'invoiceSetNumberSnapshot',
   quantity: 'quantity',
   returnedQuantity: 'returnedQuantity',
   reservedReturnQuantity: 'reservedReturnQuantity',
@@ -4226,6 +4379,46 @@ export const ShipmentCarrierEvidenceScalarFieldEnum = {
 export type ShipmentCarrierEvidenceScalarFieldEnum = (typeof ShipmentCarrierEvidenceScalarFieldEnum)[keyof typeof ShipmentCarrierEvidenceScalarFieldEnum]
 
 
+export const OrderConfirmationJobScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  type: 'type',
+  deliveryRoute: 'deliveryRoute',
+  backlogApprovedAt: 'backlogApprovedAt',
+  eventKey: 'eventKey',
+  shipmentId: 'shipmentId',
+  brandSnapshot: 'brandSnapshot',
+  source: 'source',
+  state: 'state',
+  attempts: 'attempts',
+  nextAttemptAt: 'nextAttemptAt',
+  claimOwner: 'claimOwner',
+  claimGeneration: 'claimGeneration',
+  leaseExpiresAt: 'leaseExpiresAt',
+  sendStartedAt: 'sendStartedAt',
+  lastErrorCode: 'lastErrorCode',
+  providerMessageId: 'providerMessageId',
+  sentAt: 'sentAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type OrderConfirmationJobScalarFieldEnum = (typeof OrderConfirmationJobScalarFieldEnum)[keyof typeof OrderConfirmationJobScalarFieldEnum]
+
+
+export const CommercialInvoiceScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  invoiceNumber: 'invoiceNumber',
+  snapshot: 'snapshot',
+  pdfBytes: 'pdfBytes',
+  pdfSha256: 'pdfSha256',
+  createdAt: 'createdAt'
+} as const
+
+export type CommercialInvoiceScalarFieldEnum = (typeof CommercialInvoiceScalarFieldEnum)[keyof typeof CommercialInvoiceScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -4470,6 +4663,20 @@ export type ListEnumOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$
 
 
 /**
+ * Reference to a field of type 'Json'
+ */
+export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+
+
+
+/**
+ * Reference to a field of type 'QueryMode'
+ */
+export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+
+
+
+/**
  * Reference to a field of type 'CancellationInitiator'
  */
 export type EnumCancellationInitiatorFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CancellationInitiator'>
@@ -4536,20 +4743,6 @@ export type EnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$Pr
  * Reference to a field of type 'PaymentStatus[]'
  */
 export type ListEnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentStatus[]'>
-
-
-
-/**
- * Reference to a field of type 'Json'
- */
-export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-
-
-
-/**
- * Reference to a field of type 'QueryMode'
- */
-export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
 
 
 
@@ -4834,6 +5027,20 @@ export type ListEnumTrackingEventDispositionFieldRefInput<$PrismaModel> = FieldR
 
 
 /**
+ * Reference to a field of type 'Bytes'
+ */
+export type BytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes'>
+
+
+
+/**
+ * Reference to a field of type 'Bytes[]'
+ */
+export type ListBytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes[]'>
+
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -5038,6 +5245,8 @@ export type GlobalOmitConfig = {
   shipmentTrackingPoll?: Prisma.ShipmentTrackingPollOmit
   shipmentTrackingConflict?: Prisma.ShipmentTrackingConflictOmit
   shipmentCarrierEvidence?: Prisma.ShipmentCarrierEvidenceOmit
+  orderConfirmationJob?: Prisma.OrderConfirmationJobOmit
+  commercialInvoice?: Prisma.CommercialInvoiceOmit
 }
 
 /* Types for Logging */
@@ -5100,4 +5309,3 @@ export type PrismaAction =
  * `PrismaClient` proxy available in interactive transactions.
  */
 export type TransactionClient = Omit<DefaultPrismaClient, runtime.ITXClientDenyList>
-

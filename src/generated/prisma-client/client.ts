@@ -246,3 +246,13 @@ export type ShipmentTrackingConflict = Prisma.ShipmentTrackingConflictModel
  *
  */
 export type ShipmentCarrierEvidence = Prisma.ShipmentCarrierEvidenceModel
+/**
+ * Model OrderConfirmationJob
+ *
+ */
+export type OrderConfirmationJob = Prisma.OrderConfirmationJobModel
+/**
+ * Model CommercialInvoice
+ *
+ */
+export type CommercialInvoice = Prisma.CommercialInvoiceModel

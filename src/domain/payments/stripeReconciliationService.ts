@@ -1,3 +1,4 @@
+import { enqueueOrderConfirmation } from "../orderConfirmation/enqueue.js";
 import { reconcileRefundWebhook } from "../refunds/refundWebhookService.js";
 import { config } from "../../config/index.js";
 import { bindManagedProvider, recordManagedFailure, recordManagedSuccess, managedResolution } from "./paymentResolutionService.js";
@@ -79,6 +80,8 @@ export async function applyStripePaymentOutcome(tx: Prisma.TransactionClient, pa
       }
     } else await confirmOrderInTransaction(tx, payment.order.userId, payment.orderId);
   }
+  // Capture only the actual PENDING -> CONFIRMED transition; never backfill on re-observation.
+  if (event.type === "payment_intent.succeeded" && payment.order.status === OrderStatus.PENDING) await enqueueOrderConfirmation(tx, payment.orderId);
   return event.type === "payment_intent.succeeded" &&
     (payment.order.status === OrderStatus.EXPIRED || payment.order.status === OrderStatus.CANCELLED || payment.order.status === OrderStatus.RETURNED)
     ? `Captured payment for ${payment.order.status.toLowerCase()} order requires refund/reconciliation` : null;

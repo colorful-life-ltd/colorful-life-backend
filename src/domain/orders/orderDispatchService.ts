@@ -1,3 +1,4 @@
+import { notifyLegacyDispatch } from "../orderConfirmation/legacyDispatch.js";
 import { prisma } from "../../prisma/runtime.js";
 import {
   OrderNotFoundError,
@@ -29,7 +30,7 @@ export async function dispatchOrder(
   trackingNumber: string | undefined,
   performedByUserId: number,
 ): Promise<any> {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     let result;
     try {
       result = await dispatchLegacyOrder(tx, performedByUserId, orderId, {
@@ -53,4 +54,6 @@ export async function dispatchOrder(
     }
     return order;
   });
+  await notifyLegacyDispatch(orderId);
+  return result;
 }
