@@ -88,7 +88,7 @@ describe("order creation HTTP integration", () => {
     const response = await fetch(`${url}/orders`, {
       method: "POST",
       headers: { Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 2 }] }),
+      body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] }),
     });
     assert.strictEqual(response.status, 201);
     const body = await response.json();
@@ -105,7 +105,7 @@ describe("order creation HTTP integration", () => {
   });
 
   it("rejects unauthenticated order creation", async () => {
-    const response = await fetch(`${url}/orders`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: [] }) });
+    const response = await fetch(`${url}/orders`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [] }) });
     assert.strictEqual(response.status, 401);
   });
 
@@ -116,7 +116,7 @@ describe("order creation HTTP integration", () => {
     const response = await fetch(`${url}/orders`, {
       method: "POST",
       headers: { Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 1 }] }),
+      body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }),
     });
     assert.strictEqual(response.status, 403);
     assert.deepStrictEqual(await response.json(), { error: { code: "EMAIL_VERIFICATION_REQUIRED", message: "Email verification required" } });
@@ -130,7 +130,7 @@ describe("order creation HTTP integration", () => {
     const request = () => fetch(`${url}/orders`, {
       method: "POST",
       headers: { Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 1 }] }),
+      body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }),
     });
     assert.strictEqual((await request()).status, 403);
     await prisma.user.update({ where: { id: customer.id }, data: { emailVerified: true } });
@@ -153,7 +153,7 @@ describe("durable order creation idempotency", () => {
     const customer = await makeCustomer();
     const listing = await makeListing();
     const key = randomUUID();
-    const payload = { items: [{ productListingId: listing.id, quantity: 2 }] };
+    const payload = { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] };
     const responses = await Promise.all(Array.from({ length: 4 }, () => keyedCreate(customer, payload, key)));
     const bodies = await Promise.all(responses.map((r) => r.json()));
     orderIds.push(...new Set(bodies.map((b) => b.id)));
@@ -170,7 +170,7 @@ describe("durable order creation idempotency", () => {
     await prisma.address.updateMany({ where: { userId: customer.id }, data: { line1: "Changed saved address" } });
     const replay = await (await keyedCreate(customer, payload, key)).json();
     assert.equal(replay.id, bodies[0].id);
-    assert.equal(replay.totalAmount, "30");
+    assert.equal(replay.totalAmount, "33.99");
     assert.equal(replay.billingLine1, "1 Test Street");
     const other = await makeCustomer();
     const isolated = await keyedCreate(other, payload, key);
@@ -182,10 +182,10 @@ describe("durable order creation idempotency", () => {
 
   it("rejects changed quantity or delivery address and invalid keys", async () => {
     const customer = await makeCustomer(); const listing = await makeListing(); const key = randomUUID();
-    const payload = { items: [{ productListingId: listing.id, quantity: 1 }] };
+    const payload = { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] };
     const first = await (await keyedCreate(customer, payload, key)).json(); orderIds.push(first.id);
     for (const changed of [
-      { items: [{ productListingId: listing.id, quantity: 2 }] },
+      { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] },
       { ...payload, deliveryAddress: { recipientName: "Other", line1: "2 Street", city: "London", postcode: "T2", countryCode: "GB" } },
     ]) {
       const response = await keyedCreate(customer, changed, key);
@@ -203,15 +203,15 @@ describe("durable order creation idempotency", () => {
     const customer = await makeCustomer(); const a = await makeListing(); const b = await makeListing(); const key = randomUUID();
     const address = { recipientName: "Customer", line1: "3 Street", city: "London", postcode: "T3", countryCode: "GB" };
     const items = [{ productListingId: a.id, quantity: 1 }, { productListingId: b.id, quantity: 1 }];
-    const first = await (await keyedCreate(customer, { items, deliveryAddress: address }, key)).json(); orderIds.push(first.id);
-    const second = await keyedCreate(customer, { items: [...items].reverse(), deliveryAddress: { countryCode: "GB", postcode: "T3", city: "London", line1: "3 Street", recipientName: " Customer " } }, key);
+    const first = await (await keyedCreate(customer, { shippingMethod: "STANDARD", items, deliveryAddress: address }, key)).json(); orderIds.push(first.id);
+    const second = await keyedCreate(customer, { shippingMethod: "STANDARD" as const, items: [...items].reverse(), deliveryAddress: { countryCode: "GB", postcode: "T3", city: "London", line1: "3 Street", recipientName: " Customer " } }, key);
     assert.equal(second.status, 201);
     assert.equal((await second.json()).id, first.id);
   });
 
   it("rolls back a failed request so the same key can be retried", async () => {
     const customer = await makeCustomer(); const listing = await makeListing(); const key = randomUUID();
-    const payload = { items: [{ productListingId: listing.id, quantity: 8 }] };
+    const payload = { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 8 }] };
     assert.equal((await keyedCreate(customer, payload, key)).status, 409);
     assert.equal(await prisma.order.count({ where: { userId: customer.id } }), 0);
     await prisma.productListing.update({ where: { id: listing.id }, data: { currentStock: 8 } });

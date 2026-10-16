@@ -1,3 +1,4 @@
+import { orderFinancials, resolveShipping, shippingMethodSchema } from "./shipping.js";
 import { readCustomerPaymentWindow, type CustomerPaymentWindow } from "../payments/customerPaymentWindow.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
 import { listingAvailability } from "../inventory/listingAvailability.js";
@@ -38,6 +39,7 @@ function requestHash(input: CreateOrderInput) {
   const address = input.deliveryAddress;
   // Hash validated client intent, independent of prices and mutable saved addresses.
   return createHash("sha256").update(JSON.stringify({
+    shippingMethod: input.shippingMethod,
     items: [...input.items].sort((a, b) => a.productListingId - b.productListingId)
       .map(({ productListingId, quantity }) => ({ productListingId, quantity })),
     deliveryAddress: address ? {
@@ -56,7 +58,7 @@ function requestHash(input: CreateOrderInput) {
  * @returns The created Order record with its OrderItems.
  */
 type CreatedOrder = Prisma.OrderGetPayload<{ include: { orderItems: true } }>;
-export function createOrder(userId: number, input: CreateOrderInput, idempotencyKey: string | undefined, includePaymentWindow: true): Promise<CreatedOrder & { paymentWindow: CustomerPaymentWindow }>;
+export function createOrder(userId: number, input: CreateOrderInput, idempotencyKey: string | undefined, includePaymentWindow: true): Promise<CreatedOrder & { financials: ReturnType<typeof orderFinancials>; paymentWindow: CustomerPaymentWindow }>;
 export function createOrder(userId: number, input: CreateOrderInput, idempotencyKey?: string): Promise<CreatedOrder>;
 export async function createOrder(
   userId: number,
@@ -65,7 +67,8 @@ export async function createOrder(
   includePaymentWindow = false,
 ){
   const present = async (tx: Prisma.TransactionClient, order: CreatedOrder) => includePaymentWindow
-    ? { ...order, paymentWindow: await readCustomerPaymentWindow(tx, userId, order.id) } : order;
+    ? { ...order, financials: orderFinancials(order), paymentWindow: await readCustomerPaymentWindow(tx, userId, order.id) } : order;
+  shippingMethodSchema.parse(input.shippingMethod); // Validate before lazy expiry or any database mutation.
   if (idempotencyKey !== undefined && !/^[\x21-\x7e]{1,128}$/.test(idempotencyKey)) {
     throw new InvalidOrderIdempotencyKeyError();
   }
@@ -249,6 +252,9 @@ export async function createOrder(
       }
     }
 
+    const deliveryOffer = resolveShipping(input.shippingMethod);
+    totalAmount = totalAmount.add(new Decimal(deliveryOffer.chargePence).div(100));
+
     // 2e. Persist the order with items
     const order = await tx.order.create({
       data: {
@@ -272,6 +278,7 @@ export async function createOrder(
         deliveryCountryCode: delivery.countryCode,
         deliveryPhone: delivery.phone ?? undefined,
         totalAmount,
+        confirmationDeliverySnapshot: deliveryOffer,
         createdAt,
         reservationExpiresAt: new Date(createdAt.getTime() + 30 * 60 * 1000),
         orderItems: {

@@ -22,7 +22,7 @@ async function fixture(confirmed=true,paid=false,used=false){
  const user=await prisma.user.create({data:{email:`${randomUUID()}@return-safety.test`,passwordHash:"fixture",emailVerified:true,role:"ADMIN",addresses:{create:{recipientName:"Fixture",line1:"Fixture",city:"Fixture",postcode:"T1",countryCode:"GB",isDefaultBilling:true}}}});
  const product=await prisma.legoProduct.create({data:{setNumber:randomUUID(),title:"Return safety",theme:"TEST",ageRecommendation:"8+",pieceCount:1}});
  const listing=await prisma.productListing.create({data:{legoProductId:product.id,condition:used?"USED_LIKE_NEW":"NEW",originalPrice:10,currentStock:used?1:10,...(used?{usedLifecycle:"AVAILABLE",damageDescription:"Fixture wear",usedConditionPhotos:{create:{url:"https://example.test/fixture.jpg",publicId:randomUUID(),sortOrder:0}}}:{})}});
- const order=await createOrder(user.id,{items:[{productListingId:listing.id,quantity:used?1:3}]});
+ const order=await createOrder(user.id,{ shippingMethod: "STANDARD" as const,items:[{productListingId:listing.id,quantity:used?1:3}]});
  if(paid)await prisma.payment.create({data:{orderId:order.id,provider:"MANUAL",providerReference:randomUUID(),status:"SUCCEEDED",paidAt:new Date(),amount:order.totalAmount,currency:"GBP"}});
  if(confirmed)await confirmOrder(user.id,order.id);
  return {user,listing,order,item:order.orderItems[0]};
@@ -84,7 +84,7 @@ it("legacy expiry and lazy checkout expiry retain inventory with historical acti
  const f=await fixture(false);await prisma.order.update({where:{id:f.order.id},data:{reservationExpiresAt:new Date(0)}});
  await prisma.orderReturn.create({data:{orderItemId:f.item.id,quantity:1,reason:"OTHER",performedByUserId:f.user.id}});const before=await snapshot(f);
  assert.equal(await expireOrderReservation(f.order.id),null);assert.deepEqual(await snapshot(f),before);
- const next=await createOrder(f.user.id,{items:[{productListingId:f.listing.id,quantity:1}]});
+ const next=await createOrder(f.user.id,{ shippingMethod: "STANDARD" as const,items:[{productListingId:f.listing.id,quantity:1}]});
  assert.equal((await prisma.order.findUniqueOrThrow({where:{id:f.order.id}})).status,"PENDING");assert.equal((await snapshot(f)).listing.reservedStock,4);assert.ok(next.id);
 });
 it("managed release is blocked by historical return activity even without return counters",async()=>{

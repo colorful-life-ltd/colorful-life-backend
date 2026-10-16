@@ -95,7 +95,7 @@ async function createListing() {
 
 async function createOrderFixture(customerId: number, quantity = 3) {
   const listing = await createListing();
-  const order = await createOrder(customerId, {
+  const order = await createOrder(customerId, { shippingMethod: "STANDARD" as const,
     items: [{ productListingId: listing.id, quantity }],
   });
   await confirmOrder(customerId, order.id);

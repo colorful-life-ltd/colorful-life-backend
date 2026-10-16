@@ -88,7 +88,7 @@ it("no new payment admission after the initial window",async()=>{
 });
 it("unresolved payment prevents expiry and lazy expiry in another customer's checkout",async()=>{
  const f=await fixture(31);await admitted(f);assert.equal(await expireOrderReservation(f.order.id),null);
- await assert.rejects(createOrder(f.u.id,{items:[{productListingId:f.listing.id,quantity:1}]}));assert.equal((await state(f)).stock.reservedStock,2);
+ await assert.rejects(createOrder(f.u.id,{ shippingMethod: "STANDARD" as const,items:[{productListingId:f.listing.id,quantity:1}]}));assert.equal((await state(f)).stock.reservedStock,2);
 });
 it("days-late first verified failure grants exactly 30m and duplicates cannot extend it",async()=>{
  const f=await fixture(3*24*60);const p=await admitted(f);
@@ -293,7 +293,7 @@ it("managed inventory mismatch retains verified success and durable exception wi
  assert.equal((await state(f)).order.status,"PENDING");assert.equal((await state(f)).resolution.state,"PAID");assert.equal((await state(f)).stock.currentStock,2);
  const receipt=await prisma.paymentWebhookEvent.findUniqueOrThrow({where:{provider_providerEventId:{provider:"STRIPE",providerEventId:event.id}}});assert.match(receipt.processingError!,/manual inventory reconciliation/);assert.ok(await prisma.financialEvidence.findFirst({where:{orderId:f.order.id,kind:"SUCCESS"}}));
  await assert.rejects(abandonPaymentReservation(f.order.id,f.u.id));
- await assert.rejects(createOrder(f.u.id,{items:[{productListingId:f.listing.id,quantity:1}]}),InsufficientAvailableStockError);
+ await assert.rejects(createOrder(f.u.id,{ shippingMethod: "STANDARD" as const,items:[{productListingId:f.listing.id,quantity:1}]}),InsufficientAvailableStockError);
 });
 
 it("release commit rechecks provider inbox evidence arriving after proof creation",async()=>{

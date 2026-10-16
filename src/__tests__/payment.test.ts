@@ -69,7 +69,7 @@ before(async () => {
 
 // Helper to create a basic order with one item and a totalAmount
 async function createTestOrder() {
-  const order = await createOrder(userId, {
+  const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
     items: [{ productListingId, quantity: 1 }],
   });
   createdOrderIds.push(order.id);
@@ -254,8 +254,10 @@ describe("Payment Service", () => {
     const { productId, listingId } = await createZeroPriceListing();
     zeroPriceProductId = productId;
     zeroPriceListingId = listingId;
-    const order = await createOrder(userId, { items: [{ productListingId: listingId, quantity: 1 }] });
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 1 }] });
     createdOrderIds.push(order.id);
+    // Model a historical zero-total row: new checkout now includes a delivery charge.
+    await prisma.order.update({ where: { id: order.id }, data: { totalAmount: 0 } });
     await assert.rejects(() => createPayment(order.id, { providerReference: "zero-total" }));
   })
 

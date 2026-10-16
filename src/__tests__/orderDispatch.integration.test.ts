@@ -124,7 +124,7 @@ async function createCustomerWithBillingAddress(url: string) {
 
 /** Create an order for the test customer */
 async function createTestOrder(customerId: number, listingId: number) {
-  const order = await createOrder(customerId, { items: [{ productListingId: listingId, quantity: 1 }] });
+  const order = await createOrder(customerId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 1 }] });
   orderIdsForCleanup.push(order.id);
   return order;
 }

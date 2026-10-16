@@ -118,7 +118,7 @@ describe("Order completion workflow", () => {
    * `createdOrderIds` for cleanup.
    */
   async function prepareDispatchedOrder(): Promise<number> {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId: listingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -158,20 +158,20 @@ describe("Order completion workflow", () => {
   });
 
   it("PENDING order cannot be completed", async () => {
-    const order = await createOrder(userId, { items: [{ productListingId: listingId, quantity: 1 }] });
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 1 }] });
     createdOrderIds.push(order.id);
     await assert.rejects(() => completeOrder(order.id), (err) => err instanceof OrderNotCompletableError);
   });
 
   it("CONFIRMED order cannot be completed", async () => {
-    const order = await createOrder(userId, { items: [{ productListingId: listingId, quantity: 1 }] });
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 1 }] });
     createdOrderIds.push(order.id);
     await confirmOrder(adminId, order.id);
     await assert.rejects(() => completeOrder(order.id), (err) => err instanceof OrderNotCompletableError);
   });
 
   it("CANCELLED order cannot be completed", async () => {
-    const order = await createOrder(userId, { items: [{ productListingId: listingId, quantity: 1 }] });
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 1 }] });
     createdOrderIds.push(order.id);
      // Use a valid CancellationReason value (e.g., OTHER)
      await cancelOrder(userId, order.id, "OTHER");

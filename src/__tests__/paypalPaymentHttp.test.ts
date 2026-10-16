@@ -38,7 +38,7 @@ describe("PayPal customer payment HTTP", { concurrency: 1 }, () => {
         const product = await prisma.legoProduct.create({ data: { setNumber: randomUUID(), title: "Disabled PayPal", theme: "TEST", ageRecommendation: "8+", pieceCount: 10 } });
         const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: "NEW", originalPrice: 10, currentStock: 10 } });
         try {
-          const order = await createOrder(f.u.id, { items: [{ productListingId: listing.id, quantity: 2 }] });
+          const order = await createOrder(f.u.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] });
           orders.push(order.id);
           const snapshot = async () => ({
             order: await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: { orderItems: true, payments: true, paymentAttempts: { include: { operations: true } }, paymentResolution: true } }),

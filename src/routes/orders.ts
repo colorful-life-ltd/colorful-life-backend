@@ -1,3 +1,4 @@
+import { shippingOptions } from "../domain/orders/shipping.js";
 import { getCustomerPaymentStatus } from "../domain/orders/orderReadService.js";
 import { abandonPaymentReservation } from "../domain/payments/stripeResolutionService.js";
 import { PaymentResolutionOwnershipError, PaymentResolutionUnavailableError } from "../domain/payments/paymentResolutionService.js";
@@ -35,6 +36,7 @@ import { createPayPalOrderHandler, capturePayPalOrderHandler } from "../controll
 
 const router = Router();
 
+router.get("/shipping-options", (_req, res) => { res.json(shippingOptions()); });
 router.post("/", authMiddleware, requireVerifiedEmail, createOrderHandler);
 router.get("/", authMiddleware, requireVerifiedEmail, listCustomerOrdersHandler);
 router.get("/:orderId", authMiddleware, requireVerifiedEmail, getCustomerOrderHandler);

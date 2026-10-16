@@ -64,7 +64,7 @@ async function makeOrder(customerId: number, { paid = true, status = "CONFIRMED"
   productIds.push(product.id);
   const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: "NEW", originalPrice: new Decimal(20), currentStock: 5 } });
   listingIds.push(listing.id);
-  const order = await createOrder(customerId, { items: [{ productListingId: listing.id, quantity: 1 }] });
+  const order = await createOrder(customerId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
   orderIds.push(order.id);
   await prisma.order.update({ where: { id: order.id }, data: { status } });
   if (paid) await recordVerifiedPayment(order.id);

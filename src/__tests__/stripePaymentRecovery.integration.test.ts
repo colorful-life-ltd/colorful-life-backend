@@ -40,7 +40,7 @@ async function fixture() {
     addresses: { create: { recipientName: "Recovery Buyer", line1: "1 Test Street", city: "London", postcode: "T1", countryCode: "GB", isDefaultBilling: true } } } }); users.push(user.id);
   const product = await prisma.legoProduct.create({ data: { setNumber: `REC-${randomUUID()}`, title: "Recovery Product", theme: "TEST", ageRecommendation: "8+", pieceCount: 10 } }); products.push(product.id);
   const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: "NEW", originalPrice: 10, currentStock: 10 } }); listings.push(listing.id);
-  const order = await createOrder(user.id, { items: [{ productListingId: listing.id, quantity: 2 }] }); orders.push(order.id);
+  const order = await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] }); orders.push(order.id);
   const payment = await prisma.payment.create({ data: { orderId: order.id, amount: order.totalAmount, provider: "STRIPE", providerReference: `pi_${randomUUID()}`, status: "PROCESSING", idempotencyKey: `order-${order.id}-stripe` } });
   recoveryEvidenceIds.push(`recovery:${payment.id}:${payment.providerReference}:succeeded`);
   return { user, listing, order, payment };
@@ -48,7 +48,7 @@ async function fixture() {
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 function provider(f: Fixture, overrides: Partial<Stripe.PaymentIntent> = {}, onRetrieve?: () => Promise<void>) {
   let calls = 0;
-  const intent = { id: f.payment.providerReference, amount: 2000, amount_received: 2000, currency: "gbp", metadata: { orderId: String(f.order.id) }, status: "succeeded", client_secret: "must-not-leak", ...overrides } as Stripe.PaymentIntent;
+  const intent = { id: f.payment.providerReference, amount: f.payment.amount.mul(100).toNumber(), amount_received: f.payment.amount.mul(100).toNumber(), currency: "gbp", metadata: { orderId: String(f.order.id) }, status: "succeeded", client_secret: "must-not-leak", ...overrides } as Stripe.PaymentIntent;
   const client = { paymentIntents: { retrieve: async (reference: string) => {
     calls++; assert.equal(reference, f.payment.providerReference);
     await onRetrieve?.();
@@ -58,7 +58,7 @@ function provider(f: Fixture, overrides: Partial<Stripe.PaymentIntent> = {}, onR
 }
 function success(f: Fixture) {
   const id = `evt_${randomUUID()}`; eventIds.push(id);
-  return { id, type: "payment_intent.succeeded" as const, paymentIntentId: f.payment.providerReference, amount: 2000, currency: "gbp", metadata: { orderId: String(f.order.id) } };
+  return { id, type: "payment_intent.succeeded" as const, paymentIntentId: f.payment.providerReference, amount: f.payment.amount.mul(100).toNumber(), currency: "gbp", metadata: { orderId: String(f.order.id) } };
 }
 async function state(f: Fixture) {
   return { order: await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } }), payment: await prisma.payment.findUniqueOrThrow({ where: { id: f.payment.id } }),
@@ -89,7 +89,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     assert.equal(stripe.calls(), 1); await assertConfirmed(f);
     assert.equal(result.status, "CONFIRMED"); assert.equal(result.payment?.status, "SUCCEEDED"); assert.ok(result.payment?.paidAt);
     assert.deepEqual(Object.keys(result.payment!).sort(), ["paidAt", "status"]);
-    assert.equal(result.totalAmount.toString(), "20"); assert.equal(result.billingLine1, "1 Test Street");
+    assert.equal(result.totalAmount.toString(), "23.99"); assert.equal(result.billingLine1, "1 Test Street");
     assert.equal(JSON.stringify(result).includes("must-not-leak"), false);
     const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: "STRIPE", providerEventId: `recovery:${f.payment.id}:${f.payment.providerReference}:succeeded` } } });
     assert.equal(receipt.eventType, "payment_intent.recovered"); assert.equal(receipt.processingError, null);
@@ -138,7 +138,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     const f = await fixture();
     await prisma.order.update({ where: { id: f.order.id }, data: { totalAmount: 21 } });
     await assert.rejects(() => recoverStripePayment(f.order.id, f.user.id, provider(f).client), StripeRecoveryMismatchError);
-    await prisma.order.update({ where: { id: f.order.id }, data: { totalAmount: 20 } });
+    await prisma.order.update({ where: { id: f.order.id }, data: { totalAmount: f.order.totalAmount } });
     await prisma.payment.update({ where: { id: f.payment.id }, data: { currency: "USD" } });
     await assert.rejects(() => recoverStripePayment(f.order.id, f.user.id, provider(f).client), StripeRecoveryMismatchError);
     await assertUnchanged(f);

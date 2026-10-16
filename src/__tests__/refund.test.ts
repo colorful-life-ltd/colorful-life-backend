@@ -26,7 +26,7 @@ async function fixture(quantity = 1) {
   const product = await prisma.legoProduct.create({ data: { setNumber: `REFUND-${randomUUID()}`, title: "Refund Product", theme: "TEST", ageRecommendation: "8+", pieceCount: 100, productListings: { create: {
             condition: "NEW", originalPrice: new Decimal("50.00"), salePrice: new Decimal("50.00"), currentStock: 10, active: true } } }, include: { productListings: true } });
   productIds.push(product.id); const listing = product.productListings[0]; listingIds.push(listing.id);
-  const order = await createOrder(user.id, { items: [{ productListingId: listing.id, quantity }] }); orderIds.push(order.id);
+  const order = await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity }] }); orderIds.push(order.id);
   const payment = await createPayment(order.id, { providerReference: `payment-${randomUUID()}` }); paymentIds.push(payment.id);
   return { user, product, listing, order, payment };
 }
@@ -85,7 +85,7 @@ describe("Refund domain service", () => {
     const g = await fixture();
     await refund(g.order.id, g.payment.id, 40);
     const failedReference = `failed-${randomUUID()}`;
-    await assert.rejects(createRefund(g.order.id, g.payment.id, 11, failedReference, undefined, g.user.id), RefundAmountExceededError);
+    await assert.rejects(createRefund(g.order.id, g.payment.id, g.payment.amount.minus(40).add("0.01"), failedReference, undefined, g.user.id), RefundAmountExceededError);
     const payment = await prisma.payment.findUnique({ where: { id: g.payment.id } });
     assert.strictEqual(payment?.refundedAmount.toString(), "40");
     assert.strictEqual(await prisma.refund.count({ where: { paymentId: g.payment.id } }), 1);

@@ -100,7 +100,7 @@ export const createOrderHandler = async (req: Request, res: Response) => {
   const userId = (req.user as { id: number }).id;
   try {
     const order = await createOrder(userId, parseResult.data, req.get("Idempotency-Key"), true);
-    const { creationIdempotencyKey: _key, creationRequestHash: _hash, ...response } = order;
+    const { creationIdempotencyKey: _key, creationRequestHash: _hash, actualShippingCost: _merchantCost, confirmationDeliverySnapshot: _deliverySnapshot, ...response } = order;
     return res.status(201).json(response);
   } catch (err: unknown) {
       if (err instanceof CartQuantityAllocatedError) return sendApiError(res, 409, "CART_QUANTITY_UNAVAILABLE", err.message, { productListingId: err.productListingId });

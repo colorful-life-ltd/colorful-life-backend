@@ -121,7 +121,7 @@ afterEach(async () => {
 
 describe("Order Creation Domain Integration Tests", () => {
   it("successful order creation", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 2 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 2 }] });
     assert.strictEqual(order.userId, userId);
     assert.strictEqual(order.billingRecipientName, "Test User");
     assert.strictEqual(order.deliveryRecipientName, "Test User");
@@ -129,7 +129,7 @@ describe("Order Creation Domain Integration Tests", () => {
   });
 
   it("multiple different product listings", async () => {
-    const order = await recordOrder({
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const,
       items: [
         { productListingId: productListingIds[0], quantity: 1 },
         { productListingId: productListingIds[1], quantity: 3 },
@@ -139,7 +139,7 @@ describe("Order Creation Domain Integration Tests", () => {
   });
 
   it("billing snapshot from default address", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const addr = await prisma.address.findUnique({ where: { id: defaultAddressId } });
     assert.strictEqual(order.billingRecipientName, addr?.recipientName);
     assert.strictEqual(order.billingLine1, addr?.line1);
@@ -148,7 +148,7 @@ describe("Order Creation Domain Integration Tests", () => {
   it("no default address throws error", async () => {
     await prisma.address.updateMany({ where: { userId }, data: { isDefaultBilling: false } });
     await assert.rejects(
-      async () => recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
+      async () => recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
       (e) => e instanceof NoDefaultBillingAddressError
     );
     const count = await prisma.order.count({ where: { userId } });
@@ -170,7 +170,7 @@ describe("Order Creation Domain Integration Tests", () => {
     });
     extraAddressIds.push(second.id);
     await assert.rejects(
-      async () => recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
+      async () => recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
       (e) => e instanceof MultipleDefaultBillingAddressesError
     );
   });
@@ -183,7 +183,7 @@ describe("Order Creation Domain Integration Tests", () => {
       postcode: "00000",
       countryCode: "US",
     };
-    const order = await recordOrder({
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const,
       items: [{ productListingId: productListingIds[0], quantity: 1 }],
       deliveryAddress: deliveryDto,
     });
@@ -195,7 +195,7 @@ describe("Order Creation Domain Integration Tests", () => {
 
   it("nonexistent product listing throws error", async () => {
     await assert.rejects(
-      async () => recordOrder({ items: [{ productListingId: 999999, quantity: 1 }] }),
+      async () => recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: 999999, quantity: 1 }] }),
       (e) => e instanceof ProductListingNotFoundError
     );
   });
@@ -213,7 +213,7 @@ describe("Order Creation Domain Integration Tests", () => {
     });
     inactiveListingId = inactive.id;
     await assert.rejects(
-      async () => recordOrder({ items: [{ productListingId: inactive.id, quantity: 1 }] }),
+      async () => recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: inactive.id, quantity: 1 }] }),
       (e) => e instanceof ProductListingInactiveError
     );
   });
@@ -221,7 +221,7 @@ describe("Order Creation Domain Integration Tests", () => {
   it("duplicate productListingId in request throws error", async () => {
     await assert.rejects(
       async () =>
-        recordOrder({
+        recordOrder({ shippingMethod: "STANDARD" as const,
           items: [
             { productListingId: productListingIds[0], quantity: 1 },
             { productListingId: productListingIds[0], quantity: 2 },
@@ -239,7 +239,7 @@ describe("Order Creation Domain Integration Tests", () => {
     if (!listing) throw new Error("No listing with salePrice");
     const listingDetails = await prisma.productListing.findUnique({ where: { id: listing } });
     if (!listingDetails || listingDetails.salePrice === null) throw new Error("No salePrice present");
-    const order = await recordOrder({ items: [{ productListingId: listing, quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing, quantity: 1 }] });
     const item = order.orderItems[0];
     assert.strictEqual(new Decimal(item.unitPrice.toString()).eq(listingDetails.salePrice!), true);
   });
@@ -250,7 +250,7 @@ describe("Order Creation Domain Integration Tests", () => {
       where: { id: { in: productListingIds }, salePrice: null },
     });
     assert.ok(listing, "Expected a listing with null salePrice in the test data");
-    const order = await recordOrder({ items: [{ productListingId: listing.id, quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
     const item = order.orderItems[0];
     assert.strictEqual(new Decimal(item.unitPrice.toString()).eq(listing.originalPrice), true);
   });
@@ -258,7 +258,7 @@ describe("Order Creation Domain Integration Tests", () => {
   it("lineTotal and totalAmount calculations", async () => {
     const ids = productListingIds.slice(0, 2);
     const items: any[] = ids.map((id) => ({ productListingId: id, quantity: 2 }));
-    const order = await recordOrder({ items });
+    const order = await recordOrder({ shippingMethod: "STANDARD", items });
     const listings = await prisma.productListing.findMany({ where: { id: { in: ids } } });
     const listingsMap = new Map<number, any>();
     listings.forEach((l) => listingsMap.set(l.id, l));
@@ -268,7 +268,7 @@ describe("Order Creation Domain Integration Tests", () => {
       const unit = l.salePrice ?? l.originalPrice;
       expectedTotal = expectedTotal.add(new Decimal(unit).mul(itm.quantity));
     });
-    assert.strictEqual(new Decimal(order.totalAmount.toString()).eq(expectedTotal), true);
+    assert.strictEqual(new Decimal(order.totalAmount.toString()).eq(expectedTotal.add("3.99")), true);
     order.orderItems.forEach((oi: any) => {
       const l = listingsMap.get(oi.productListingId)!;
       const unit = l.salePrice ?? l.originalPrice;
@@ -280,7 +280,7 @@ describe("Order Creation Domain Integration Tests", () => {
   it("reserves available stock without changing physical stock and sets a 30-minute expiry", async () => {
     const listing = await prisma.productListing.findUnique({ where: { id: productListingIds[0] } });
     const before = new Date();
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 2 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 2 }] });
     const after = await prisma.productListing.findUnique({ where: { id: productListingIds[0] } });
     assert.strictEqual(after?.currentStock, listing?.currentStock);
     assert.strictEqual(after?.reservedStock, 2);
@@ -293,7 +293,7 @@ describe("Order Creation Domain Integration Tests", () => {
     await prisma.productListing.update({ where: { id: productListingIds[0] }, data: { currentStock: 2, reservedStock: 1 } });
     await prisma.productListing.update({ where: { id: productListingIds[1] }, data: { currentStock: 10, reservedStock: 0 } });
     await assert.rejects(
-      () => recordOrder({ items: [{ productListingId: productListingIds[1], quantity: 2 }, { productListingId: productListingIds[0], quantity: 2 }] }),
+      () => recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[1], quantity: 2 }, { productListingId: productListingIds[0], quantity: 2 }] }),
       InsufficientAvailableStockError,
     );
     assert.strictEqual((await prisma.order.count({ where: { userId } })), 0);
@@ -303,8 +303,8 @@ describe("Order Creation Domain Integration Tests", () => {
   it("allows only one concurrent order to reserve the final unit", async () => {
     await prisma.productListing.update({ where: { id: productListingIds[0] }, data: { currentStock: 1, reservedStock: 0 } });
     const results = await Promise.allSettled([
-      createOrder(userId, { items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
-      createOrder(userId, { items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
+      createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
+      createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
     ]);
     assert.strictEqual(results.filter((result) => result.status === "fulfilled").length, 1);
     assert.strictEqual(results.filter((result) => result.status === "rejected" && result.reason instanceof InsufficientAvailableStockError).length, 1);
@@ -316,7 +316,7 @@ describe("Order Creation Domain Integration Tests", () => {
   it("productListing currentStock remains unchanged", async () => {
     const listing = await prisma.productListing.findUnique({ where: { id: productListingIds[0] } });
     const stockBefore = listing!.currentStock;
-    await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const after = await prisma.productListing.findUnique({ where: { id: productListingIds[0] } });
     assert.strictEqual(after!.currentStock, stockBefore);
   });
@@ -326,7 +326,7 @@ describe("Order Creation Domain Integration Tests", () => {
     const countBefore = await prisma.inventoryMovement.count({
       where: { listingId: { in: productListingIds } },
     });
-    await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const countAfter = await prisma.inventoryMovement.count({
       where: { listingId: { in: productListingIds } },
     });
@@ -334,7 +334,7 @@ describe("Order Creation Domain Integration Tests", () => {
   });
 
   it("order status defaults to PENDING", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     assert.strictEqual(order.status, "PENDING");
   });
 
@@ -342,7 +342,7 @@ describe("Order Creation Domain Integration Tests", () => {
     const before = await prisma.order.count({ where: { userId } });
     await assert.rejects(
       async () =>
-        recordOrder({
+        recordOrder({ shippingMethod: "STANDARD" as const,
           items: [
             { productListingId: productListingIds[0], quantity: 1 },
             { productListingId: 999999, quantity: 1 },
@@ -356,10 +356,10 @@ describe("Order Creation Domain Integration Tests", () => {
 
   it("lazily releases an expired reservation before a new reservation", async () => {
     const stockBefore = (await prisma.productListing.findUnique({ where: { id: productListingIds[0] } }))!.currentStock;
-    const oldOrder = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const oldOrder = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     await prisma.order.update({ where: { id: oldOrder.id }, data: { reservationExpiresAt: new Date(Date.now() - 1000) } });
 
-    const newOrder = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const newOrder = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const oldState = await prisma.order.findUnique({ where: { id: oldOrder.id } });
     const listing = await prisma.productListing.findUnique({ where: { id: productListingIds[0] } });
     assert.strictEqual(oldState?.status, "EXPIRED");
@@ -371,7 +371,7 @@ describe("Order Creation Domain Integration Tests", () => {
   it("serializes reservation against a physical stock reduction", async () => {
     await prisma.productListing.update({ where: { id: productListingIds[0] }, data: { currentStock: 1, reservedStock: 0 } });
     const results = await Promise.allSettled([
-      createOrder(userId, { items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
+      createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] }),
       writeOffInventory({ sourceProductListingId: productListingIds[0], quantity: 1, reason: "WAREHOUSE_DAMAGE", performedByUserId: userId }),
     ]);
     const listing = await prisma.productListing.findUnique({ where: { id: productListingIds[0] } });

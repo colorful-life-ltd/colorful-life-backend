@@ -27,7 +27,7 @@ async function fixture(quantity = 2) {
   const listing = await prisma.productListing.create({ data: {
         legoProductId: product.id, condition: "NEW", originalPrice: new Decimal(10), currentStock: 5, active: true } });
   listingIds.push(listing.id);
-  const order = await createOrder(user.id, { items: [{ productListingId: listing.id, quantity }] });
+  const order = await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity }] });
   orderIds.push(order.id);
   return { user, listing, order };
 }

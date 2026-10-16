@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { shippingMethodSchema } from "./shipping.js";
 
 // -----------------------------------------------------------------------------
 // Delivery address validation
@@ -47,11 +48,12 @@ export const OrderItemSchema = z.object({
 // Full order creation validation
 // -----------------------------------------------------------------------------
 export const CreateOrderSchema = z.object({
+  shippingMethod: shippingMethodSchema,
   items: z
     .array(OrderItemSchema)
     .min(1, { message: "at least one order item is required" }),
   deliveryAddress: DeliveryAddressSchema.optional(),
-});
+}).strict();
 
 // Export the inferred input type for use in services
 export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
