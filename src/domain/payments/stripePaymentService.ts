@@ -1,6 +1,6 @@
 import { replayManagedStripeReceipts } from "./stripeReconciliationService.js";
 import { randomUUID } from "node:crypto";
-import { finalizeManagedStripeRetrieval, checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, journalManagedRetrieval, managedResolution } from "./paymentResolutionService.js";
+import { finalizeManagedStripeRetrieval, checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, journalManagedRetrieval } from "./paymentResolutionService.js";
 import Stripe from "stripe";
 import { Decimal } from "@prisma/client/runtime/client";
 import { PaymentProvider, PaymentStatus, OrderStatus } from "../../generated/prisma-client/enums.js";
@@ -69,7 +69,7 @@ export async function createOrReuseStripePaymentIntent(
       const retrieval = !existing.providerReference.startsWith("pending:") ? await journalManagedRetrieval(tx, existing) : null;
       return { payment: existing, amount, retrievalId: retrieval?.id };
     }
-    const idempotencyKey = `order-${orderId}-stripe`;
+    const idempotencyKey = `stripe-create-${randomUUID()}`;
     const payment = await tx.payment.create({ data: { orderId, amount: order.totalAmount, currency: "GBP", provider: PaymentProvider.STRIPE, providerReference: `pending:${idempotencyKey}`, idempotencyKey, status: PaymentStatus.PROCESSING } });
     const journal = await journalNewPayment(tx, payment, "CREATE");
     return { payment, amount, attemptId: journal?.attempt.id };
@@ -79,9 +79,20 @@ export async function createOrReuseStripePaymentIntent(
   try {
     const providerClient = client ?? testClient ?? createStripePaymentClient();
     const isPending = local.payment.providerReference.startsWith("pending:");
+    // Old predictable pending keys cannot safely be redispatched in a shared
+    // Stripe account. Keep ambiguous legacy operations for manual reconciliation.
+    if (isPending && (!local.payment.idempotencyKey || !/^stripe-(?:create|retry)-[0-9a-f-]{36}$/.test(local.payment.idempotencyKey))) {
+      throw new StripePaymentProviderError("Stripe payment identity requires reconciliation");
+    }
     intent = isPending
-      ? await providerClient.paymentIntents.create({ amount: local.amount, currency: "gbp", metadata: { orderId: String(orderId), ...(local.attemptId ? { attemptId: String(local.attemptId) } : {}) }, automatic_payment_methods: { enabled: true } }, { idempotencyKey: local.payment.idempotencyKey ?? `order-${orderId}-stripe` })
+      ? await providerClient.paymentIntents.create({ amount: local.amount, currency: "gbp", metadata: { orderId: String(orderId), paymentKey: local.payment.idempotencyKey!, ...(local.attemptId ? { attemptId: String(local.attemptId) } : {}) }, automatic_payment_methods: { enabled: true } }, { idempotencyKey: local.payment.idempotencyKey! })
       : await providerClient.paymentIntents.retrieve(local.payment.providerReference);
+    if (!intent.id?.startsWith("pi_") || intent.amount !== local.amount || intent.currency !== "gbp"
+      || intent.metadata?.orderId !== String(orderId)
+      || (isPending ? intent.metadata?.paymentKey !== local.payment.idempotencyKey : intent.id !== local.payment.providerReference)
+      || (local.attemptId !== undefined && intent.metadata?.attemptId !== String(local.attemptId))) {
+      throw new StripePaymentProviderError("Stripe payment identity mismatch");
+    }
   } catch (error) {
     throw new StripePaymentProviderError("Stripe payment operation failed");
   }
@@ -90,6 +101,11 @@ export async function createOrReuseStripePaymentIntent(
   // Verified webhook/reconciliation processing owns SUCCEEDED and paidAt.
   const payment = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+    const beforeBinding = await tx.payment.findUniqueOrThrow({ where: { id: local.payment.id } });
+    if (beforeBinding.idempotencyKey !== local.payment.idempotencyKey
+      || ![local.payment.providerReference, intent.id].includes(beforeBinding.providerReference)) {
+      throw new StripePaymentProviderError("Stripe payment identity changed");
+    }
     await bindManagedProvider(tx, local.payment.id, intent.id);
     // A webhook may have finalized payment while the network request was in flight.
     await tx.payment.updateMany({
@@ -102,7 +118,7 @@ export async function createOrReuseStripePaymentIntent(
   });
   await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${orderId} FOR UPDATE`;
-    if (await managedResolution(tx, orderId)) await replayManagedStripeReceipts(tx, orderId, intent.id);
+    await replayManagedStripeReceipts(tx, orderId, intent.id);
   });
   const latest = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
   if (latest.status === PaymentStatus.SUCCEEDED) throw new StripePaymentAlreadyCompletedError();

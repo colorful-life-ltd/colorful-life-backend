@@ -292,7 +292,7 @@ describe("durable order cart provenance", { concurrency: 1 }, () => {
   it("Stripe initiation observes no authoritative success and cannot consume provenance", async () => {
     const f = await fixture(); await addCartItem(f.userId, f.a, 1); const o = await order(f);
     const intent = { id: `pi_test_${randomUUID()}`, status: "succeeded", client_secret: "test_only" };
-    const client = { paymentIntents: { create: async () => intent } } as unknown as StripePaymentClient;
+    const client = { paymentIntents: { create: async (input: {amount:number; currency:string; metadata:Record<string,string>}) => ({...intent,...input}) } } as unknown as StripePaymentClient;
     await createOrReuseStripePaymentIntent(o.id, f.userId, client); await reconcilePendingCarts();
     assert.equal((await provenance(o.id)).state, "ACTIVE"); assert.deepEqual(await quantities(f), { a: 1, b: 0 });
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: o.id } })).status, "PENDING");

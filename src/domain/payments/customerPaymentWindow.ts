@@ -109,7 +109,7 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
       SELECT o.id FROM "Order" o WHERE o.id IN (${PrismaSql.join(orders.map(o => o.id))})
       AND EXISTS (SELECT 1 FROM "PaymentWebhookEvent" w
         WHERE (w."processedAt" IS NULL OR w."processingError" IS NOT NULL)
-        AND (w.evidence->>'orderId'=o.id::text OR EXISTS (
+        AND ((w.provider <> 'STRIPE' AND w.evidence->>'orderId'=o.id::text) OR EXISTS (
           SELECT 1 FROM "PaymentAttempt" a WHERE a."orderId"=o.id AND a.provider=w.provider
           AND (w.evidence->>'paymentIntentId'=a."providerReference"
             OR w.evidence->>'paypalOrderId'=a."providerReference"

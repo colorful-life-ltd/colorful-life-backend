@@ -19,16 +19,30 @@ export type StripePaymentIntentEvent = {
 type StripePaymentWithOrder = Prisma.PaymentGetPayload<{ include: { order: true } }>;
 export type StripePaymentOutcome = Omit<StripePaymentIntentEvent, "id">;
 
+/** Environment-independent ownership: never use sequential order/attempt IDs alone. */
+export function ownsPendingStripePayment(payment: { providerReference: string; idempotencyKey: string | null; orderId: number }, metadata?: Record<string, string>) {
+  return !!payment.idempotencyKey && /^stripe-(?:create|retry)-[0-9a-f-]{36}$/.test(payment.idempotencyKey)
+    && payment.providerReference === `pending:${payment.idempotencyKey}`
+    && metadata?.paymentKey === payment.idempotencyKey && metadata.orderId === String(payment.orderId);
+}
+
 /** Financial/correlation checks shared by verified webhooks and server retrieval. */
 export function validateStripePaymentOutcome(payment: StripePaymentWithOrder, event: StripePaymentOutcome): string | null {
   const expectedAmount = new Decimal(payment.amount).mul(100).toNumber();
-  if (payment.providerReference !== event.paymentIntentId && !payment.providerReference.startsWith("pending:")) {
+  // Only our unguessable, persisted creation key can associate an early webhook.
+  // Numeric metadata IDs are not ownership evidence across databases/environments.
+  const pending = payment.providerReference.startsWith("pending:");
+  if (pending ? !ownsPendingStripePayment(payment, event.metadata) : payment.providerReference !== event.paymentIntentId) {
     return "Stripe payment reference mismatch";
+  }
+  if (event.metadata?.paymentKey !== undefined && event.metadata.paymentKey !== payment.idempotencyKey) {
+    return "Stripe creation correlation mismatch";
   }
   if (event.metadata?.orderId && event.metadata.orderId !== String(payment.orderId)) {
     return "Stripe order correlation mismatch";
   }
-  if (event.amount !== expectedAmount || event.currency.toLowerCase() !== "gbp") {
+  if (payment.provider !== PaymentProvider.STRIPE || !new Decimal(payment.amount).equals(payment.order.totalAmount)
+    || payment.currency.toUpperCase() !== "GBP" || event.amount !== expectedAmount || event.currency.toLowerCase() !== "gbp") {
     return "Stripe payment amount or currency mismatch";
   }
   return null;
@@ -74,36 +88,37 @@ export async function reconcileStripePaymentEvent(event: StripePaymentIntentEven
   try {
     return await prisma.$transaction(async (tx) => {
       const metadataId = Number(event.metadata?.orderId);
-      const firstCandidate = await tx.payment.findFirst({ where: { provider: PaymentProvider.STRIPE, OR: [
-        { providerReference: event.paymentIntentId }, ...(Number.isSafeInteger(metadataId) && metadataId > 0 ? [{ orderId: metadataId }] : [])] } });
-      if (firstCandidate) await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${firstCandidate.orderId} FOR UPDATE`;
+      const candidate = await tx.payment.findFirst({ where: { provider: PaymentProvider.STRIPE, OR: [
+        { providerReference: event.paymentIntentId },
+        ...(Number.isSafeInteger(metadataId) && metadataId > 0 && event.metadata?.paymentKey
+          ? [{ orderId: metadataId, idempotencyKey: event.metadata.paymentKey, providerReference: `pending:${event.metadata.paymentKey}` }] : []),
+      ] }, include: { order: true } });
       const receipt = await tx.paymentWebhookEvent.create({ data: { provider: PaymentProvider.STRIPE, providerEventId: event.id, eventType: event.type,
         evidence: { version: 1, paymentIntentId: event.paymentIntentId, amount: event.amount, currency: event.currency,
-          ...(event.metadata?.orderId ? { orderId: event.metadata.orderId } : {}), ...(event.metadata?.attemptId ? { attemptId: event.metadata.attemptId } : {}) } } });
-      // Correlate a verified event arriving before initiation persists the provider
-      // reference using the server-authored orderId metadata and pending attempt.
-      const metadataOrderId = Number(event.metadata?.orderId);
-      const candidate = await tx.payment.findFirst({ where: {
-        provider: PaymentProvider.STRIPE,
-        OR: [
-          { providerReference: event.paymentIntentId },
-          ...(Number.isSafeInteger(metadataOrderId) && metadataOrderId > 0 ? [{ orderId: metadataOrderId, providerReference: { startsWith: "pending:" } }] : []),
-        ],
-      } });
-      if (candidate) await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${candidate.orderId} FOR UPDATE`;
-      const payment = candidate ? await tx.payment.findUnique({ where: { id: candidate.id }, include: { order: true } }) : null;
-      if (!payment) {
-        await tx.paymentWebhookEvent.update({ where: { id: receipt.id }, data: { processedAt: new Date(), processingError: "Unknown Stripe payment" } });
+          ...(event.metadata?.orderId ? { orderId: event.metadata.orderId } : {}), ...(event.metadata?.attemptId ? { attemptId: event.metadata.attemptId } : {}), ...(event.metadata?.paymentKey ? { paymentKey: event.metadata.paymentKey } : {}) } } });
+      // Validate ownership before acquiring any local order lock. Foreign events
+      // remain auditable receipts, but cannot lock, bind or block an order.
+      const validate = async (payment: StripePaymentWithOrder) => {
+        const error = validateStripePaymentOutcome(payment, event);
+        if (error) return error;
+        const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, historical: false,
+          ...(payment.providerReference.startsWith("pending:") ? {} : { providerReference: event.paymentIntentId }) }, orderBy: { id: "desc" } });
+        return (attempt && (payment.providerReference.startsWith("pending:") || event.metadata?.attemptId !== undefined)
+          && event.metadata?.attemptId !== String(attempt.id)) ? "Stripe attempt correlation mismatch" : null;
+      };
+      let validationError = candidate ? await validate(candidate) : "Unknown Stripe payment";
+      if (!candidate || validationError) {
+        await tx.paymentWebhookEvent.update({ where: { id: receipt.id }, data: { processedAt: new Date(), processingError: validationError } });
         return { duplicate: false, handled: false };
       }
-      const pendingAttempt = payment.providerReference.startsWith("pending:") ? await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, historical: false }, orderBy: { id: "desc" } }) : null;
-      const validationError = pendingAttempt && event.metadata?.attemptId !== String(pendingAttempt.id)
-        ? "Stripe attempt correlation mismatch" : validateStripePaymentOutcome(payment, event);
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${candidate.orderId} FOR UPDATE`;
+      const payment = await tx.payment.findUniqueOrThrow({ where: { id: candidate.id }, include: { order: true } });
+      validationError = await validate(payment);
       if (validationError) {
         await tx.paymentWebhookEvent.update({ where: { id: receipt.id }, data: { processedAt: new Date(), processingError: validationError } });
         return { duplicate: false, handled: false };
       }
-      if (pendingAttempt) {
+      if (payment.providerReference.startsWith("pending:")) {
         await bindManagedProvider(tx, payment.id, event.paymentIntentId);
         await tx.payment.update({ where: { id: payment.id }, data: { providerReference: event.paymentIntentId } });
         payment.providerReference = event.paymentIntentId;
@@ -137,7 +152,7 @@ export async function reconcileStripeRefundEvent(event: StripeRefundEvent): Prom
 /** Replay only the allowlisted evidence persisted by verified Stripe processing, under Order first. */
 export async function replayManagedStripeReceipts(tx: Prisma.TransactionClient, orderId: number, reference: string) {
   const receipts = await tx.paymentWebhookEvent.findMany({ where: { provider: PaymentProvider.STRIPE,
-    OR: [{ evidence: { path: ["orderId"], equals: String(orderId) } }, { evidence: { path: ["paymentIntentId"], equals: reference } }],
+    evidence: { path: ["paymentIntentId"], equals: reference },
     AND: [{ OR: [{ processedAt: null }, { processingError: { not: null } }] }] }, orderBy: { id: "asc" }, take: 100 });
   for (const row of receipts) {
     await tx.$queryRaw`SELECT id FROM "PaymentWebhookEvent" WHERE id=${row.id} FOR UPDATE`;
@@ -151,7 +166,7 @@ export async function replayManagedStripeReceipts(tx: Prisma.TransactionClient, 
     const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, providerReference: reference, historical: false } });
     if (data.attemptId !== undefined && (!attempt || data.attemptId !== String(attempt.id))) continue;
     const event: StripePaymentOutcome = { type: receipt.eventType as StripePaymentOutcome["type"], paymentIntentId: reference,
-      amount: data.amount as number, currency: data.currency, metadata: typeof data.orderId === "string" ? { orderId: data.orderId } : undefined };
+      amount: data.amount as number, currency: data.currency, metadata: { ...(typeof data.orderId === "string" ? { orderId: data.orderId } : {}), ...(typeof data.paymentKey === "string" ? { paymentKey: data.paymentKey } : {}) } };
     if (validateStripePaymentOutcome(payment, event)) continue;
     const error = await applyStripePaymentOutcome(tx, payment, event);
     await tx.paymentWebhookEvent.update({ where: { id: receipt.id }, data: { processedAt: new Date(), processingError: error } });
