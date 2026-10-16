@@ -1,5 +1,4 @@
 import { hasBlockingOrderReturns, warnBlockedReturnReservation } from "./returnInventorySafety.js";
-import { config } from "../../config/index.js";
 import { attemptManagedRelease } from "../payments/paymentResolutionService.js";
 import { queueCartReconciliation } from "../cart/cartProvenanceService.js";
 import { prisma } from "../../prisma/runtime.js";
@@ -32,7 +31,9 @@ export async function expireOrderReservation(orderId: number, asOf = new Date())
       const released = await attemptManagedRelease(tx, orderId);
       return released ? tx.order.findUnique({ where: { id: orderId } }) : null;
     }
-    if (config.PAYMENT_RESOLUTION_ENABLED) return null; // Missing ledger coverage is not reconstructed automatically.
+    // Orders created before managed enrolment have no ledger, and none is reconstructed.
+    // A payment-free one carries no provider risk, so the legacy rule below may expire it
+    // in either mode; any payment row still retains the reservation for review.
     const claim = await tx.order.updateMany({
       where: {
         id: orderId,
@@ -70,4 +71,15 @@ export async function expireOrderReservation(orderId: number, asOf = new Date())
     await queueCartReconciliation(tx, orderId, false);
     return tx.order.findUnique({ where: { id: orderId } });
   });
+}
+
+/** Bounded expiry for payment-free orders without a ledger (created before managed enrolment). */
+export async function expireUnledgeredUnpaidReservations(asOf = new Date(), limit = 25) {
+  const due = await prisma.order.findMany({
+    where: { status: OrderStatus.PENDING, paymentResolution: { is: null }, payments: { none: {} }, reservationExpiresAt: { not: null, lte: asOf } },
+    select: { id: true }, orderBy: [{ reservationExpiresAt: "asc" }, { id: "asc" }], take: limit,
+  });
+  let expired = 0;
+  for (const order of due) if (await expireOrderReservation(order.id, asOf)) expired++;
+  return expired;
 }

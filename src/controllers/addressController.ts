@@ -5,6 +5,7 @@ import { z } from "zod";
 import { lookupUkAddresses, AddressLookupProviderError } from "../services/addressLookupService.js";
 import { AddressLookupQuerySchema } from "../utils/addressValidation.js";
 import { consumeAddressLookupAllowance } from "../services/addressLookupRateLimiter.js";
+import { INVALID_COUNTRY_MESSAGE, normalizeCountryCode } from "../domain/addresses/countryCode.js";
 
 // ---------------------------------------------------------------------------
 // Address API shapes and helpers
@@ -62,12 +63,19 @@ async function lockAddressOwner(tx: Prisma.TransactionClient, userId: number): P
 // ---------------------------------------------------------------------------
 // Validation schemas
 // ---------------------------------------------------------------------------
+// Stored as an ISO code: order snapshots and invoices reject display names.
+const CountrySchema = z.string().trim().min(1, { message: "country cannot be empty" }).transform((value, ctx) => {
+  const code = normalizeCountryCode(value);
+  if (!code) { ctx.addIssue({ code: z.ZodIssueCode.custom, message: INVALID_COUNTRY_MESSAGE }); return z.NEVER; }
+  return code;
+});
+
 const CreateAddressSchema = z.object({
   recipientName: z.string().trim().min(1, { message: "recipientName cannot be empty" }),
   line1: z.string().trim().min(1, { message: "line1 cannot be empty" }),
   city: z.string().trim().min(1, { message: "city cannot be empty" }),
   postcode: z.string().trim().min(1, { message: "postcode cannot be empty" }),
-  country: z.string().trim().min(1, { message: "country cannot be empty" }),
+  country: CountrySchema,
   line2: z.string().trim().nullable().optional(),
   phone: z.string().trim().nullable().optional(),
   isDefaultShipping: z.boolean().optional(),
@@ -79,7 +87,7 @@ const PatchAddressSchema = z.object({
   line1: z.string().trim().min(1).optional(),
   city: z.string().trim().min(1).optional(),
   postcode: z.string().trim().min(1).optional(),
-  country: z.string().trim().min(1).optional(),
+  country: CountrySchema.optional(),
   line2: z.string().trim().nullable().optional(),
   phone: z.string().trim().nullable().optional(),
   isDefaultShipping: z.boolean().optional(),

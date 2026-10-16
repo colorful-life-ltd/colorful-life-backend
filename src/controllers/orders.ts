@@ -10,6 +10,7 @@ import { OrderNotFoundError as OrderNotFoundErrorComplete } from "../domain/orde
 import {
   NoDefaultBillingAddressError,
   MultipleDefaultBillingAddressesError,
+  InvalidBillingAddressCountryError,
   ProductListingNotFoundError,
   ProductListingInactiveError,
   DuplicateProductListingError,
@@ -124,6 +125,7 @@ export const createOrderHandler = async (req: Request, res: Response) => {
       if (err instanceof OrderUserNotFoundError) {
         return res.status(404).json({ error: err.message });
       }
+      if (err instanceof InvalidBillingAddressCountryError) return sendApiError(res, 400, "BILLING_ADDRESS_COUNTRY_INVALID", err.message);
       if (
         err instanceof NoDefaultBillingAddressError ||
         err instanceof MultipleDefaultBillingAddressesError ||

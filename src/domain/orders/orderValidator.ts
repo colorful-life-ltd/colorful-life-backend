@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { shippingMethodSchema } from "./shipping.js";
+import { normalizeCountryCode } from "../addresses/countryCode.js";
 
 // -----------------------------------------------------------------------------
 // Delivery address validation
@@ -23,10 +24,15 @@ export const DeliveryAddressSchema = z.object({
     .string()
     .trim()
     .min(1, { message: "postcode cannot be empty" }),
+  // Snapshots must hold an ISO code: commercial invoices reject anything else.
   countryCode: z
     .string()
     .trim()
-    .length(2, { message: "countryCode must be exactly 2 characters" }),
+    .transform((value, ctx) => {
+      const code = value.length === 2 ? normalizeCountryCode(value) : null;
+      if (!code) { ctx.addIssue({ code: z.ZodIssueCode.custom, message: "countryCode must be a valid two-letter ISO country code" }); return z.NEVER; }
+      return code;
+    }),
   phone: z.string().optional(),
 });
 
