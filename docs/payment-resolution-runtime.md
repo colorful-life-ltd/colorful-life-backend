@@ -51,7 +51,7 @@ Inventory release requires unpaid status, same-order proof, permanent admission 
 
 Savepoints isolate failed release/fulfillment from durable provider observations. Verified managed financial success is retained as SUCCEEDED with paidAt even if inventory cannot be converted. Such an order remains paid and unfulfilled with a durable diagnostic for manual reconciliation; it is not released or silently fulfilled. Historical/quarantined late success similarly retains evidence without automatic fulfillment. Operator intervention is required.
 
-Stripe receipts now retain normalized allowlisted evidence for delayed correlation. Binding and resolution replay relevant receipts with exact validation under the Order lock. Unknown/mismatched evidence blocks admission and release. PayPal continues using the existing durable inbox and replay from #153. #151 seller cancellation and #154 customer/expiry guards remain; ordinary cancellation with payment records is not broadened. Provider-backed abandonment uses the dedicated resolution path.
+Stripe receipts now retain normalized allowlisted evidence for delayed correlation. Binding and resolution replay relevant receipts with exact validation under the Order lock. Unresolved evidence correlated to a locally owned provider reference blocks admission and release. Stripe order-ID metadata alone does not establish ownership or block unrelated orders (Issue #66). PayPal continues using the existing durable inbox and replay from #153. #151 seller cancellation and #154 customer/expiry guards remain; ordinary cancellation with payment records is not broadened. Provider-backed abandonment uses the dedicated resolution path.
 
 Prisma PostgreSQL sessions explicitly use UTC. Admission/deadline/failure acceptance uses database time, avoiding host-clock drift and adapter timestamptz offset loss. Legacy stored Order timestamps are interpreted explicitly as UTC when enrolling only newly created orders; historical rows are not rewritten.
 
@@ -81,7 +81,7 @@ Owner reconciliation and initiation retrievals now journal definitive authentica
 
 The resolver recovers unfinished reads even with existing finality and an open retry window. Failed release attempts, including false/no-op eligibility results, receive a future check time so overdue blocked records yield to newer worker jobs. The bounded sweep is tested against a 25-record PostgreSQL backlog. Shutdown still stops admission of subsequent jobs in the current sweep; it does not drain provider calls already in flight.
 
-Verified early Stripe failures/cancellations bind an unbound Payment and its exact pending PaymentAttempt under the Order lock only after amount, currency, order metadata and attempt metadata checks. A lost create response is not redispatched. The recorded identity permits safe retrieval and preserves the independent immutable retry window. Manual-payment admission conflicts now return HTTP 409 rather than HTTP 500.
+Verified early Stripe failures/cancellations bind an unbound Payment and its exact pending PaymentAttempt under the Order lock only after validating the persisted random creation key (`paymentKey`), amount, currency, order metadata and attempt metadata. Sequential order/attempt IDs alone are insufficient across environments. A lost create response is not redispatched. The recorded identity permits safe retrieval and preserves the independent immutable retry window. Manual-payment admission conflicts now return HTTP 409 rather than HTTP 500.
 
 ## Validation
 
@@ -131,3 +131,11 @@ Final remediation validation: 1,087 full-suite tests passed, 3 external sandbox 
 - `src/prisma/runtime.ts`
 - `src/routes/orders.ts`
 - `src/utils/apiErrorResponse.ts`
+
+## Stripe ownership hardening — Issue #66
+
+Fresh Stripe create idempotency keys use a persisted random UUID (`stripe-create-…`), rather than an account-wide sequential order key. The same key is sent as creation metadata `paymentKey`; replacement attempts retain their own random `stripe-retry-…` key. Unbound early webhooks must match that local key and pending reference, order metadata, financial identity, and the managed attempt when present. Validation precedes the order lock and is repeated under it. Bound payments use the exact persisted PaymentIntent ID; existing bound intents remain compatible with older metadata.
+
+Authenticated initiation validates Stripe create/retrieve response identity, amount/currency and creation metadata before binding a reference or returning a secret. Asynchronous responses cannot overwrite a newer local attempt. Early receipt replay is scoped to the exact locally bound provider reference, in both legacy and managed initiation. Unknown Stripe receipts remain auditable but do not become order ownership evidence through numeric order metadata. Application admission/window predicates and database release guards apply this same boundary. PayPal behavior is unchanged.
+
+Deploy the new `20261016120000_stripe_owned_inbox_correlation` migration together with the backend fix. No historical business rows are rewritten. Old **unbound** predictable pending references lack secure remote ownership proof: do not rotate them or redispatch them automatically; they require independent operational reconciliation. Already-bound delayed webhooks/recovery remain supported. Stripe signatures and ordinary customer ownership checks are unchanged.

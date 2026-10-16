@@ -288,7 +288,7 @@ describe("authoritative customer payment windows", { concurrency: 1 }, () => {
     await recoverStripePayment(f.order.id, f.user.id, { paymentIntents: { retrieve: async () => canceled } } as unknown as NonNullable<Parameters<typeof recoverStripePayment>[2]>);
     const w = await read(f); assert.equal(w.state, "RETRY_AVAILABLE"); assert.equal(w.initiationEligibility, "ELIGIBLE");
     const replacement = intent(f);
-    await createOrReuseStripePaymentIntent(f.order.id, f.user.id, { paymentIntents: { create: async () => replacement } } as unknown as StripePaymentClient);
+    await createOrReuseStripePaymentIntent(f.order.id, f.user.id, { paymentIntents: { create: async (input: { metadata: Record<string, string> }) => ({...replacement, metadata:input.metadata}) } } as unknown as StripePaymentClient);
     assert.equal((await read(f)).state, "RETRY_REQUIRES_PROVIDER_CHECK");
   });
   it("expired retry remains unresolved until provider finality without changing the deadline", async () => {
@@ -312,8 +312,8 @@ describe("authoritative customer payment windows", { concurrency: 1 }, () => {
     await assert.rejects(createOrReuseStripePaymentIntent(f.order.id, f.user.id, { paymentIntents: { create: async () => { throw Error("timeout"); } } } as unknown as StripePaymentClient));
     assert.equal((await read(f)).state, "OUTCOME_UNRESOLVED");
     await assert.rejects(createOrReuseStripePaymentIntent(f.order.id, f.user.id), PaymentResolutionUnavailableError);
-    const second = await fixture(true); await start(second);
-    await prisma.paymentWebhookEvent.create({ data: { provider: "STRIPE", providerEventId: randomUUID(), eventType: "payment_intent.succeeded", evidence: { orderId: String(second.order.id) } } });
+    const second = await fixture(true); const started = await start(second);
+    await prisma.paymentWebhookEvent.create({ data: { provider: "STRIPE", providerEventId: randomUUID(), eventType: "payment_intent.succeeded", evidence: { orderId: String(second.order.id), paymentIntentId: started.remote.id } } });
     assert.equal((await read(second)).state, "OUTCOME_UNRESOLVED");
     await assert.rejects(createOrReuseStripePaymentIntent(second.order.id, second.user.id), PaymentResolutionUnavailableError);
   });
@@ -343,4 +343,12 @@ describe("authoritative customer payment windows", { concurrency: 1 }, () => {
     assert.equal(listed.some((o: { id: number }) => o.id === f.order.id), false);
     assert.equal((await fetch(`${base}/orders`)).status, 401);
   });
+});
+
+for (const existing of [false,true]) it(`foreign Stripe metadata cannot block a managed ${existing?"existing":"initial"} checkout`,async()=>{
+ const f=await fixture(true);if(existing)await start(f);
+ await reconcileStripePaymentEvent({id:randomUUID(),type:"payment_intent.succeeded",paymentIntentId:`pi_foreign_${randomUUID()}`,amount:2000,currency:"gbp",metadata:{orderId:String(f.order.id)}});
+ const window=await read(f);assert.equal(window.state,existing?"CHECKOUT_RESUMABLE":"INITIAL_PAYMENT");
+ assert.equal(existing?window.resumeEligibility:window.initiationEligibility,"ELIGIBLE");
+ if(!existing)await start(f);
 });

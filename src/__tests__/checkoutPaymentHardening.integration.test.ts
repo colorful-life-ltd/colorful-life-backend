@@ -150,7 +150,7 @@ describe("checkout payment hardening", () => {
     let release!: () => void, started!: () => void;
     const entered = new Promise<void>((resolve) => { started = resolve; }); const gate = new Promise<void>((resolve) => { release = resolve; });
     let creates = 0;
-    const client = { paymentIntents: { create: async () => { creates++; throw new Error("Unexpected create"); }, retrieve: async () => { started(); await gate; return { id: f.payment.providerReference, client_secret: "secret", status: "processing" }; } } } as unknown as StripePaymentClient;
+    const client = { paymentIntents: { create: async () => { creates++; throw new Error("Unexpected create"); }, retrieve: async () => { started(); await gate; return { id: f.payment.providerReference, amount:2000, currency:"gbp", metadata:{orderId:String(f.order.id)}, client_secret: "secret", status: "processing" }; } } } as unknown as StripePaymentClient;
     const initiation = createOrReuseStripePaymentIntent(f.order.id, f.user.id, client);
     const rejected = assert.rejects(initiation, StripePaymentAlreadyCompletedError);
     await entered; await reconcileStripePaymentEvent(event(f)); const first = await assertConfirmed(f); release(); await rejected;
@@ -158,8 +158,10 @@ describe("checkout payment hardening", () => {
   });
 
   it("correlates success received before initiation persists its provider reference", async () => {
-    const f = await fixture(); await prisma.payment.update({ where: { id: f.payment.id }, data: { providerReference: `pending:order-${f.order.id}-stripe` } });
-    await reconcileStripePaymentEvent(event(f)); const s = await assertConfirmed(f); assert.equal(s.payment.providerReference, f.payment.providerReference);
+    const f = await fixture(); const key=`stripe-create-${randomUUID()}`;
+    await prisma.payment.update({ where: { id: f.payment.id }, data: { providerReference: `pending:${key}`, idempotencyKey:key } });
+    const early={...event(f),metadata:{orderId:String(f.order.id),paymentKey:key}};
+    await reconcileStripePaymentEvent(early); const s = await assertConfirmed(f); assert.equal(s.payment.providerReference, f.payment.providerReference);
   });
 
   it("rejects every non-payable status and already-paid pending orders without provider calls", async () => {
@@ -182,4 +184,24 @@ describe("checkout payment hardening", () => {
     }
     const s = await state(f); assert.equal(s.order.status, "PENDING"); assert.equal(s.payment.status, "PROCESSING"); assert.equal(s.movements, 0); assert.equal(s.listing.reservedStock, 2);
   });
+});
+
+it("validly signed foreign success cannot claim pending stock using coincident order IDs and amounts", async () => {
+  const f=await fixture(); const key=`stripe-create-${randomUUID()}`;
+  await prisma.payment.update({where:{id:f.payment.id},data:{providerReference:`pending:${key}`,idempotencyKey:key}});
+  const stripe=new Stripe("sk_test_fake");
+  const deliver=async(e:StripePaymentIntentEvent)=>{
+    const payload=JSON.stringify({id:e.id,type:e.type,data:{object:{id:e.paymentIntentId,amount:e.amount,currency:e.currency,metadata:e.metadata}}});
+    const signature=stripe.webhooks.generateTestHeaderString({payload,secret:config.STRIPE_WEBHOOK_SECRET!});
+    return fetch(`${url}/payments/stripe/webhook`,{method:"POST",headers:{"Content-Type":"application/json","stripe-signature":signature},body:payload});
+  };
+  const foreignMetadata:Record<string,string>[]=[{orderId:String(f.order.id)},{orderId:String(f.order.id),paymentKey:`stripe-create-${randomUUID()}`}];
+  for(const metadata of foreignMetadata){
+    const foreign={...event(f),paymentIntentId:`pi_foreign_${randomUUID()}`,metadata};
+    assert.equal((await deliver(foreign)).status,200);
+    const current=await state(f);assert.equal(current.payment.status,"PROCESSING");assert.equal(current.order.status,"PENDING");assert.equal(current.listing.currentStock,10);assert.equal(current.listing.reservedStock,2);
+  }
+  const legitimate={...event(f),metadata:{orderId:String(f.order.id),paymentKey:key}};
+  assert.equal((await deliver(legitimate)).status,200);await assertConfirmed(f);
+  assert.equal((await deliver(legitimate)).status,200);await assertConfirmed(f);
 });

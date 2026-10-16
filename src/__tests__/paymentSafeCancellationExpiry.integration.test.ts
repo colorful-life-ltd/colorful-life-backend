@@ -161,7 +161,8 @@ describe("payment-safe customer cancellation and expiry", () => {
 
   it("retains placeholders during paused Stripe initiation and provider timeout", async () => {
     const f = await fixture(); const entered = gate(), release = gate();
-    const client = { paymentIntents: { create: async () => { entered.resolve(); await release.promise; throw new Error("timeout"); } } } as unknown as StripePaymentClient;
+    let metadata:Record<string,string>={};
+    const client = { paymentIntents: { create: async (input:{metadata:Record<string,string>}) => { metadata=input.metadata; entered.resolve(); await release.promise; throw new Error("timeout"); } } } as unknown as StripePaymentClient;
     const initiation = createOrReuseStripePaymentIntent(f.order.id, f.owner.id, client);
     const rejected = assert.rejects(initiation, StripePaymentProviderError);
     try {
@@ -172,7 +173,7 @@ describe("payment-safe customer cancellation and expiry", () => {
       assert.equal(await expireOrderReservation(f.order.id), null);
     } finally { release.resolve(); await rejected; }
     assert.equal(await expireOrderReservation(f.order.id), null); await inventory(f, 10, 2);
-    const delayed = event(f, `pi_${randomUUID()}`); await reconcileStripePaymentEvent(delayed);
+    const delayed = {...event(f, `pi_${randomUUID()}`),metadata}; await reconcileStripePaymentEvent(delayed);
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CONFIRMED"); await inventory(f, 8, 0, 1);
   });
 
@@ -196,7 +197,7 @@ describe("payment-safe customer cancellation and expiry", () => {
 
   it("observes real lock contention between cancellation and Stripe initiation", async () => {
     const f = await fixture(); let calls = 0;
-    const client = { paymentIntents: { create: async () => { calls++; return { id: `pi_${randomUUID()}`, status: "requires_payment_method", client_secret: "local" }; } } } as unknown as StripePaymentClient;
+    const client = { paymentIntents: { create: async (input: {amount:number; currency:string; metadata:Record<string,string>}) => { calls++; return { ...input, id: `pi_${randomUUID()}`, status: "requires_payment_method", client_secret: "local" }; } } } as unknown as StripePaymentClient;
     const results = await contend(f.order.id, [() => cancelOrder(f.owner.id, f.order.id, "CHANGED_MIND"), () => createOrReuseStripePaymentIntent(f.order.id, f.owner.id, client)]);
     assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
     const final = await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } });
@@ -229,7 +230,7 @@ describe("payment-safe customer cancellation and expiry", () => {
         ? createPayment(f.order.id, { providerReference: randomUUID() })
         : provider === "PAYPAL"
           ? createOrReusePayPalOrder(f.order.id, f.owner.id, { createOrder: async () => { calls++; return { id: `PP_${randomUUID()}` }; } })
-          : createOrReuseStripePaymentIntent(f.order.id, f.owner.id, { paymentIntents: { create: async () => { calls++; return { id: `pi_${randomUUID()}`, client_secret: "local", status: "requires_payment_method" }; } } } as unknown as StripePaymentClient);
+          : createOrReuseStripePaymentIntent(f.order.id, f.owner.id, { paymentIntents: { create: async (input: {amount:number; currency:string; metadata:Record<string,string>}) => { calls++; return { ...input, id: `pi_${randomUUID()}`, client_secret: "local", status: "requires_payment_method" }; } } } as unknown as StripePaymentClient);
       const results = await contend(f.order.id, [() => expireOrderReservation(f.order.id, asOf), initiate]);
       assert.equal(results[0].status, "fulfilled");
       const order = await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } });

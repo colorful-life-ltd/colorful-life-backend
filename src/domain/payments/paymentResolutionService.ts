@@ -39,7 +39,7 @@ export async function checkPaymentAdmission(tx: Prisma.TransactionClient, orderI
   const now = await databaseNow(tx);
   const [inbox] = await tx.$queryRaw<Array<{ unresolved: boolean }>>`
     SELECT EXISTS (SELECT 1 FROM "PaymentWebhookEvent" w WHERE (w."processedAt" IS NULL OR w."processingError" IS NOT NULL)
-      AND (w.evidence->>'orderId'=${String(orderId)} OR EXISTS (SELECT 1 FROM "PaymentAttempt" a WHERE a."orderId"=${orderId} AND a.provider=w.provider
+      AND ((w.provider <> 'STRIPE' AND w.evidence->>'orderId'=${String(orderId)}) OR EXISTS (SELECT 1 FROM "PaymentAttempt" a WHERE a."orderId"=${orderId} AND a.provider=w.provider
         AND (w.evidence->>'paymentIntentId'=a."providerReference" OR w.evidence->>'paypalOrderId'=a."providerReference" OR w.evidence->>'captureId'=a."providerCaptureReference")))) AS unresolved`;
   if (inbox.unresolved) throw new PaymentResolutionUnavailableError();
   const terminating = await tx.paymentOperation.findFirst({ where: { type: "TERMINATE", state: { not: "RESULT_RECORDED" }, attempt: { orderId } } });

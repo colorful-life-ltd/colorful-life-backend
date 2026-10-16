@@ -196,7 +196,7 @@ it("expired worker lease can be reclaimed and the stale worker is fenced",async(
 });
 it("abandonment racing provider initiation keeps binding durable but withholds the client secret",async()=>{
  const f=await fixture();const remote=intent(f);const entered=deferred(),gate=deferred();
- const client={paymentIntents:{create:async()=>{entered.release();await gate.promise;return remote;}}} as unknown as StripePaymentClient;
+ const client={paymentIntents:{create:async(input:{metadata:Record<string,string>})=>{entered.release();await gate.promise;return {...remote,metadata:input.metadata};}}} as unknown as StripePaymentClient;
  const create=createOrReuseStripePaymentIntent(f.order.id,f.u.id,client);const rejected=assert.rejects(create,PaymentAdmissionClosedError);await entered.promise;
  await abandonPaymentReservation(f.order.id,f.u.id);gate.release();await rejected;
  assert.equal((await prisma.payment.findUniqueOrThrow({where:{orderId:f.order.id}})).providerReference,remote.id);
@@ -205,7 +205,8 @@ it("abandonment racing provider initiation keeps binding durable but withholds t
 it("database rejects cross-order release proofs and relevant unresolved provider evidence",async()=>{
  const a=await fixture(31);await expireOrderReservation(a.order.id);const proof=(await state(a)).resolution.releaseProofId!;const b=await fixture(31);
  await assert.rejects(prisma.$transaction(async tx=>{await tx.paymentResolution.update({where:{orderId:b.order.id},data:{state:"CLOSED_RESOLVING",paymentAdmissionClosedAt:await databaseNow(tx),closureReason:"WINDOW_EXPIRED"}});await tx.paymentResolution.update({where:{orderId:b.order.id},data:{state:"RELEASED",reservationDisposition:"RELEASED",releaseProofId:proof}});}),error=>String(error).includes("23514"));
- await prisma.paymentWebhookEvent.create({data:{provider:"STRIPE",providerEventId:randomUUID(),eventType:"payment_intent.succeeded",evidence:{orderId:String(b.order.id)}}});
+ const p=await admitted(b);
+ await prisma.paymentWebhookEvent.create({data:{provider:"STRIPE",providerEventId:randomUUID(),eventType:"payment_intent.succeeded",evidence:{orderId:String(b.order.id),paymentIntentId:p.remote.id}}});
  assert.equal(await expireOrderReservation(b.order.id),null);assert.equal((await state(b)).stock.reservedStock,2);
 });
 it("PayPal provider lookup recovers late success but preserves paid-but-unconfirmed behavior",async()=>{
@@ -359,7 +360,7 @@ it("verified failure binds a lost initiation identity and leaves retry usable",a
  const f=await fixture();const remote=intent(f);let creates=0;
  await assert.rejects(createOrReuseStripePaymentIntent(f.order.id,f.u.id,{paymentIntents:{create:async()=>{creates++;throw Error("lost response");}}} as unknown as StripePaymentClient));
  const a=await prisma.paymentAttempt.findFirstOrThrow({where:{orderId:f.order.id}});
- await reconcileStripePaymentEvent({id:randomUUID(),type:"payment_intent.payment_failed",paymentIntentId:remote.id,amount:2000,currency:"gbp",metadata:{orderId:String(f.order.id),attemptId:String(a.id)}});
+ await reconcileStripePaymentEvent({id:randomUUID(),type:"payment_intent.payment_failed",paymentIntentId:remote.id,amount:2000,currency:"gbp",metadata:{orderId:String(f.order.id),attemptId:String(a.id),paymentKey:a.creationKey!}});
  const payment=await prisma.payment.findUniqueOrThrow({where:{orderId:f.order.id}});assert.equal(payment.providerReference,remote.id);
  assert.equal((await prisma.paymentAttempt.findUniqueOrThrow({where:{id:a.id}})).providerReference,remote.id);
  const r=(await state(f)).resolution;assert.equal(r.retryDeadline!.getTime()-r.firstFailureVerifiedAt!.getTime(),30*60_000);
@@ -371,7 +372,15 @@ it("manual-payment endpoint maps closed and unresolved admission to HTTP 409",as
  const f=await fixture(31);await prisma.user.update({where:{id:f.u.id},data:{role:"ADMIN"}});
  const token=jwt.sign({id:f.u.id,role:"ADMIN"},config.JWT_SECRET);const headers={Authorization:`Bearer ${token}`,"Content-Type":"application/json"};
  assert.equal((await fetch(`${base}/orders/${f.order.id}/payments`,{method:"POST",headers,body:JSON.stringify({providerReference:randomUUID()})})).status,409);
- const other=await fixture();await prisma.paymentWebhookEvent.create({data:{provider:"STRIPE",providerEventId:randomUUID(),eventType:"payment_intent.succeeded",evidence:{orderId:String(other.order.id)}}});
+ const other=await fixture();const pending=await admitted(other);await prisma.paymentWebhookEvent.create({data:{provider:"STRIPE",providerEventId:randomUUID(),eventType:"payment_intent.succeeded",evidence:{orderId:String(other.order.id),paymentIntentId:pending.remote.id}}});
  assert.equal((await fetch(`${base}/orders/${other.order.id}/payments`,{method:"POST",headers,body:JSON.stringify({providerReference:randomUUID()})})).status,409);
- assert.equal(await prisma.payment.count({where:{orderId:{in:[f.order.id,other.order.id]}}}),0);
+ assert.equal(await prisma.payment.count({where:{orderId:{in:[f.order.id,other.order.id]}}}),1);
+});
+
+it("foreign metadata-only Stripe success cannot block a MANAGED no-payment release",async()=>{
+ const f=await fixture(31);
+ await reconcileStripePaymentEvent({id:randomUUID(),type:"payment_intent.succeeded",paymentIntentId:`pi_foreign_${randomUUID()}`,amount:2000,currency:"gbp",metadata:{orderId:String(f.order.id)}});
+ assert.ok(await expireOrderReservation(f.order.id));
+ assert.equal((await state(f)).resolution.reservationDisposition,"RELEASED");
+ assert.equal((await state(f)).stock.reservedStock,0);
 });

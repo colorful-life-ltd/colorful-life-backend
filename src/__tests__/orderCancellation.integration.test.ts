@@ -222,7 +222,7 @@ describe("payment-safe seller cancellation", () => {
   it("blocks cancellation while Stripe initiation is paused at the provider boundary", async () => {
     const owner = await makeCustomer(); const admin = await makeAdmin(); const order = await makeOrder(owner.id);
     const entered = gate(); const release = gate(); const intentId = `pi_${randomUUID()}`;
-    const client = { paymentIntents: { create: async () => { entered.resolve(); await release.promise; return { id: intentId, status: "requires_payment_method", client_secret: "test-secret" }; } } } as unknown as Pick<Stripe, "paymentIntents">;
+    const client = { paymentIntents: { create: async (input: {amount:number; currency:string; metadata:Record<string,string>}) => { entered.resolve(); await release.promise; return { ...input, id: intentId, status: "requires_payment_method", client_secret: "test-secret" }; } } } as unknown as Pick<Stripe, "paymentIntents">;
     const initiation = createOrReuseStripePaymentIntent(order.id, owner.id, client);
     try {
       await entered.promise;
@@ -245,7 +245,7 @@ describe("payment-safe seller cancellation", () => {
       locked.resolve(); await release.promise;
     });
     await locked.promise;
-    const client = { paymentIntents: { create: async () => { calls++; return { id: `pi_${randomUUID()}`, status: "requires_payment_method", client_secret: "test" }; } } } as unknown as Pick<Stripe, "paymentIntents">;
+    const client = { paymentIntents: { create: async (input: {amount:number; currency:string; metadata:Record<string,string>}) => { calls++; return { ...input, id: `pi_${randomUUID()}`, status: "requires_payment_method", client_secret: "test" }; } } } as unknown as Pick<Stripe, "paymentIntents">;
     const resultsPromise = Promise.allSettled([
       cancelOrderByAdmin(order.id, "OUT_OF_STOCK", admin.id),
       createOrReuseStripePaymentIntent(order.id, owner.id, client),
