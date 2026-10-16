@@ -7,8 +7,18 @@ import { parsePublicSiteOrigin } from "../domain/seo/publicSiteOrigin.js";
 // Load environment variables from .env if present
 dotenvConfig();
 
+// Fixed epoch: future email cutoffs remain invalid for this process until a reviewed restart.
+export const emailConfigurationLoadedAt = Date.now();
+
 // Schema for configuration validation
 const configSchema = z.object({
+  DISPATCH_CONFIRMATION_EMAIL_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
+  // Email cutoff validation is worker-local; invalid cutoffs must not terminate the API.
+  DISPATCH_CONFIRMATION_EMAIL_ACTIVE_FROM: z.string().optional(),
+  ORDER_CONFIRMATION_EMAIL_ACTIVE_FROM: z.string().optional(),
+  ORDER_CONFIRMATION_EMAIL_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
+  // Approval bundle is separately validated by the confirmation worker; invalid/missing data blocks delivery.
+  ORDER_CONFIRMATION_BUSINESS_JSON: z.string().optional(),
   REFUND_RECONCILIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   CARRIER_TRACKING_POLLING_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   PAYMENT_RESOLUTION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),

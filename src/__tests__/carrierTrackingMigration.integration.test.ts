@@ -42,7 +42,14 @@ it("historical orders, shipments, payment and stock survive with no fabricated t
   const tables=['Order','Shipment','Payment','ProductListing','OrderItem'];const before=[];
   for(const table of tables)before.push((await s.c.query(`SELECT row_to_json(t) AS data FROM "${table}" t`)).rows);
   for(const name of names.filter(name=>name>=migration))await s.c.query(sql(name));
-  for(let i=0;i<tables.length;i++)assert.deepEqual((await s.c.query(`SELECT row_to_json(t) AS data FROM "${tables[i]}" t`)).rows,before[i]);
+  for(let i=0;i<tables.length;i++){
+   const after=(await s.c.query(`SELECT row_to_json(t) AS data FROM "${tables[i]}" t`)).rows;
+   // Issue #180 adds nullable purchase-snapshot columns; never fabricate history.
+   const added=tables[i]==="Order"?["confirmationDeliverySnapshot"]:tables[i]==="OrderItem"?["invoiceDescriptionSnapshot","invoiceSetNumberSnapshot"]:[];
+   for(const row of after)for(const column of added){assert.equal(row.data[column],null);delete row.data[column];}
+   assert.deepEqual(after,before[i]);
+  }
+  for(const table of ["OrderConfirmationJob","CommercialInvoice"])assert.equal((await s.c.query(`SELECT count(*)::int AS n FROM "${table}"`)).rows[0].n,0);
   for(const table of ['ShipmentTrackingEvent','ShipmentTrackingState','ShipmentTrackingSync','ShipmentTrackingPoll','TrackingCarrierBudget','ShipmentTrackingConflict','ShipmentCarrierEvidence'])assert.equal((await s.c.query(`SELECT count(*)::int AS n FROM "${table}"`)).rows[0].n,0);
  }finally{await s.close();}
 });

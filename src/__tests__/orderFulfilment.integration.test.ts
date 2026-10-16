@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { Server } from "node:http";
-import { after, afterEach, before, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import pg from "pg";
@@ -9,22 +9,22 @@ import app from "../app.js";
 import { prisma } from "../prisma/runtime.js";
 import { config } from "../config/index.js";
 import { createOrder } from "../domain/orders/orderService.js";
-import { setDispatchNotificationSenderForTests, type DispatchNotification } from "../services/emailService.js";
 import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { startPreparing } from "../domain/fulfilment/fulfilmentService.js";
 import { FulfilmentPaymentNotVerifiedError } from "../domain/fulfilment/fulfilmentErrors.js";
+
+const originalDispatchActivation = config.DISPATCH_CONFIRMATION_EMAIL_ENABLED;
+beforeEach(() => { config.DISPATCH_CONFIRMATION_EMAIL_ENABLED = true; });
+afterEach(() => { config.DISPATCH_CONFIRMATION_EMAIL_ENABLED = originalDispatchActivation; });
 
 const userIds: number[] = [];
 const productIds: number[] = [];
 const listingIds: number[] = [];
 const orderIds: number[] = [];
-const notifications: DispatchNotification[] = [];
-let restoreSender: () => void;
 let server: Server;
 let url: string;
 
 before(async () => {
-  restoreSender = setDispatchNotificationSenderForTests(async (notification) => { notifications.push(notification); });
   server = app.listen(0);
   await new Promise<void>((done) => server.once("listening", done));
   const address = server.address();
@@ -44,10 +44,10 @@ afterEach(async () => {
     await prisma.address.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   }
-  orderIds.length = listingIds.length = productIds.length = userIds.length = notifications.length = 0;
+  orderIds.length = listingIds.length = productIds.length = userIds.length = 0;
 });
 
-after(async () => { restoreSender(); server.close(); await prisma.$disconnect(); });
+after(async () => { server.close(); await prisma.$disconnect(); });
 
 async function makeUser(role: "ADMIN" | "CUSTOMER") {
   const user = await prisma.user.create({ data: {
@@ -115,7 +115,9 @@ describe("admin fulfilment workflow", () => {
       ["DISPATCHED", "PREPARING", "DISPATCHED", admin.id, "ADMIN_FULFILMENT_API"],
     ]);
     assert.equal(body.fulfilmentEvents[1].shipmentId, body.shipments[0].id);
-    assert.deepEqual(notifications.map((n) => [n.orderId, n.customerEmail, n.shippingCarrier, n.trackingNumber]), [[order.id, customer.email, "Royal Mail", "AB123456789GB"]]);
+    const notification = await prisma.orderConfirmationJob.findUniqueOrThrow({ where: { eventKey: `shipment:${body.shipments[0].id}` } });
+    const source = notification.source as Record<string, unknown>;
+    assert.deepEqual([source.orderId, source.recipientEmail, source.carrierName, source.trackingNumber], [order.id, customer.email, "Royal Mail", "AB123456789GB"]);
 
     const customerView = await (await call(`/orders/${order.id}`, customer.token)).json();
     assert.deepEqual(customerView.fulfilment, {
@@ -195,7 +197,7 @@ describe("payment eligibility", () => {
       assert.equal(await prisma.shipment.count({ where: { orderId: order.id } }), 0);
       assert.equal((await events(order.id)).length, 0);
     }
-    assert.equal(notifications.length, 0);
+    assert.equal(await prisma.orderConfirmationJob.count({ where: { orderId: { in: orderIds }, type: "DISPATCH_CONFIRMATION" } }), 0);
   });
 
   it("requires managed payment resolutions to be PAID while historical rows defer to the verified payment", async () => {
@@ -308,7 +310,7 @@ describe("repeated and concurrent dispatch", () => {
     assert.deepEqual(responses.map((r) => r.status), [200, 200, 200]);
     assert.equal(await prisma.shipment.count({ where: { orderId: order.id } }), 1);
     assert.deepEqual((await events(order.id)).map((e) => e.action), ["DISPATCHED"]);
-    assert.equal(notifications.length, 1);
+    assert.equal(await prisma.orderConfirmationJob.count({ where: { orderId: order.id, type: "DISPATCH_CONFIRMATION" } }), 1);
   });
 
   it("never overwrites shipment details when concurrent or later requests differ", async () => {

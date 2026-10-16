@@ -91,7 +91,9 @@ export const ModelName = {
   TrackingCarrierBudget: 'TrackingCarrierBudget',
   ShipmentTrackingPoll: 'ShipmentTrackingPoll',
   ShipmentTrackingConflict: 'ShipmentTrackingConflict',
-  ShipmentCarrierEvidence: 'ShipmentCarrierEvidence'
+  ShipmentCarrierEvidence: 'ShipmentCarrierEvidence',
+  OrderConfirmationJob: 'OrderConfirmationJob',
+  CommercialInvoice: 'CommercialInvoice'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -347,6 +349,7 @@ export const OrderScalarFieldEnum = {
   deliveryPostcode: 'deliveryPostcode',
   deliveryCountryCode: 'deliveryCountryCode',
   deliveryPhone: 'deliveryPhone',
+  confirmationDeliverySnapshot: 'confirmationDeliverySnapshot',
   totalAmount: 'totalAmount',
   actualShippingCost: 'actualShippingCost',
   shippingCarrier: 'shippingCarrier',
@@ -454,6 +457,8 @@ export const OrderItemScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
   productListingId: 'productListingId',
+  invoiceDescriptionSnapshot: 'invoiceDescriptionSnapshot',
+  invoiceSetNumberSnapshot: 'invoiceSetNumberSnapshot',
   quantity: 'quantity',
   returnedQuantity: 'returnedQuantity',
   reservedReturnQuantity: 'reservedReturnQuantity',
@@ -806,6 +811,46 @@ export const ShipmentCarrierEvidenceScalarFieldEnum = {
 export type ShipmentCarrierEvidenceScalarFieldEnum = (typeof ShipmentCarrierEvidenceScalarFieldEnum)[keyof typeof ShipmentCarrierEvidenceScalarFieldEnum]
 
 
+export const OrderConfirmationJobScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  type: 'type',
+  deliveryRoute: 'deliveryRoute',
+  backlogApprovedAt: 'backlogApprovedAt',
+  eventKey: 'eventKey',
+  shipmentId: 'shipmentId',
+  brandSnapshot: 'brandSnapshot',
+  source: 'source',
+  state: 'state',
+  attempts: 'attempts',
+  nextAttemptAt: 'nextAttemptAt',
+  claimOwner: 'claimOwner',
+  claimGeneration: 'claimGeneration',
+  leaseExpiresAt: 'leaseExpiresAt',
+  sendStartedAt: 'sendStartedAt',
+  lastErrorCode: 'lastErrorCode',
+  providerMessageId: 'providerMessageId',
+  sentAt: 'sentAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type OrderConfirmationJobScalarFieldEnum = (typeof OrderConfirmationJobScalarFieldEnum)[keyof typeof OrderConfirmationJobScalarFieldEnum]
+
+
+export const CommercialInvoiceScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  invoiceNumber: 'invoiceNumber',
+  snapshot: 'snapshot',
+  pdfBytes: 'pdfBytes',
+  pdfSha256: 'pdfSha256',
+  createdAt: 'createdAt'
+} as const
+
+export type CommercialInvoiceScalarFieldEnum = (typeof CommercialInvoiceScalarFieldEnum)[keyof typeof CommercialInvoiceScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -852,4 +897,3 @@ export const JsonNullValueFilter = {
 } as const
 
 export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
-

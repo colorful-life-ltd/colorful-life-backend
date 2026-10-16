@@ -11,7 +11,6 @@ import {
   FulfilmentTransitionError,
   OrderAlreadyDispatchedError,
 } from "../domain/fulfilment/fulfilmentErrors.js";
-import { sendDispatchNotification } from "../services/emailService.js";
 
 const router = Router();
 router.use(authMiddleware, (req, res, next) => {
@@ -71,18 +70,8 @@ router.post("/:orderId/fulfilment/dispatch", async (req: Request, res: Response)
   const body = DispatchShipmentSchema.safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: body.error.format() });
   try {
-    const { changed } = await dispatchShipment(req.user!.id, id.data, body.data);
+    await dispatchShipment(req.user!.id, id.data, body.data);
     const order = await getAdminOrder(id.data);
-    if (changed && order?.dispatchedAt) {
-      try {
-        await sendDispatchNotification({
-          customerEmail: order.user.email, orderId: order.id, shippingCarrier: body.data.carrierName,
-          trackingNumber: body.data.trackingNumber, dispatchedAt: order.dispatchedAt,
-        });
-      } catch (notificationError) {
-        console.error("Dispatch notification error", notificationError instanceof Error ? notificationError.message : "Unknown notification failure");
-      }
-    }
     return res.json(order);
   } catch (error) {
     return sendFulfilmentError(res, error, "dispatch");

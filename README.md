@@ -1199,3 +1199,7 @@ Next:
 - Sandbox deployment
 - Public PayPal Sandbox webhook verification
 - Production deployment
+
+## Order and dispatch confirmation email and commercial invoice
+
+See [Issue #180 configuration, rollout, dependencies and test boundaries](docs/order-confirmation-email.md). The new durable order and dispatch senders are independently disabled by default. Existing best-effort dispatch notifications remain available until durable dispatch is explicitly activated. Missing shipping/business facts block invoice issuance; SES readiness failures pause durable workers without blocking API startup.
