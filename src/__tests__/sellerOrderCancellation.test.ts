@@ -62,8 +62,8 @@ async function createProductAndListings(count: number) {
   };
 }
 
-async function recordOrder(input: { items: { productListingId: number; quantity: number }[] }) {
-  const order = await createOrder(buyerId, { items: input.items });
+async function recordOrder(input: { shippingMethod: "STANDARD"; items: { productListingId: number; quantity: number }[] }) {
+  const order = await createOrder(buyerId, { shippingMethod: "STANDARD" as const, items: input.items });
   createdOrderIds.push(order.id);
   return order;
 }
@@ -94,7 +94,7 @@ after(async () => {
 
 describe("Seller Order Cancellation Domain Tests", () => {
   it("seller can cancel a customer's PENDING order", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const cancelled = await cancelOrderByAdmin(order.id, CancellationReason.OUT_OF_STOCK, buyerId);
     assert.strictEqual(cancelled.status, "CANCELLED");
     assert.ok(cancelled.cancelledAt);
@@ -103,14 +103,14 @@ describe("Seller Order Cancellation Domain Tests", () => {
   });
 
   it("seller can cancel a customer's CONFIRMED order", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED" } });
     const cancelled = await cancelOrderByAdmin(order.id, CancellationReason.PRICING_ERROR, buyerId);
     assert.strictEqual(cancelled.status, "CANCELLED");
   });
 
   it("cannot cancel an already CANCELLED order", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     await cancelOrderByAdmin(order.id, CancellationReason.FULFILMENT_ISSUE, buyerId);
     await assert.rejects(
       async () => cancelOrderByAdmin(order.id, CancellationReason.PRODUCT_UNAVAILABLE, buyerId),
@@ -121,7 +121,7 @@ describe("Seller Order Cancellation Domain Tests", () => {
   const nonCancellableStatuses = ["DISPATCHED", "COMPLETED", "RETURNED"] as const;
   nonCancellableStatuses.forEach((status) => {
     it(`${status} order cannot be cancelled by seller`, async () => {
-      const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+      const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
       await prisma.order.update({ where: { id: order.id }, data: { status } });
       await assert.rejects(
         async () => cancelOrderByAdmin(order.id, CancellationReason.OTHER, buyerId),
@@ -131,7 +131,7 @@ describe("Seller Order Cancellation Domain Tests", () => {
   });
 
   it("no InventoryMovement and stock unchanged on seller cancellation", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const initialStock = (await prisma.productListing.findUnique({ where: { id: productListingIds[0] } }))?.currentStock;
     await cancelOrderByAdmin(order.id, CancellationReason.OTHER, buyerId);
     const afterStock = (await prisma.productListing.findUnique({ where: { id: productListingIds[0] } }))?.currentStock;
@@ -141,7 +141,7 @@ describe("Seller Order Cancellation Domain Tests", () => {
   });
 
   it("concurrent seller cancellation: exactly one succeeds", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const promise1 = cancelOrderByAdmin(order.id, CancellationReason.OTHER, buyerId);
     const promise2 = cancelOrderByAdmin(order.id, CancellationReason.FULFILMENT_ISSUE, buyerId);
     const results = await Promise.allSettled([promise1, promise2]);

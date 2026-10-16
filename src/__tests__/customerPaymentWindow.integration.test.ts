@@ -90,7 +90,7 @@ describe("authoritative customer payment windows", { concurrency: 1 }, () => {
     it(`exposes initial eligibility consistently on create, list, detail, status and idempotent replay (managed=${managed})`, async () => {
       const f = await fixture(managed);
       const key = randomUUID();
-      const post = () => fetch(`${base}/orders`, { method: "POST", headers: { ...headers(f), "Idempotency-Key": key }, body: JSON.stringify({ items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
+      const post = () => fetch(`${base}/orders`, { method: "POST", headers: { ...headers(f), "Idempotency-Key": key }, body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
       const response = await post(); assert.equal(response.status, 201); const created = await response.json(); orderIds.push(created.id);
       assert.equal(created.paymentWindow.state, "INITIAL_PAYMENT"); assert.equal(created.paymentWindow.initiationEligibility, "ELIGIBLE");
       assert.ok(created.reservationExpiresAt); assert.ok(created.orderItems);
@@ -248,7 +248,7 @@ describe("authoritative customer payment windows", { concurrency: 1 }, () => {
       } });
       return callback(failing);
     }, options)) as typeof prisma.$transaction;
-    const post = () => fetch(`${base}/orders`, { method: "POST", headers: headers(f), body: JSON.stringify({ items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
+    const post = () => fetch(`${base}/orders`, { method: "POST", headers: headers(f), body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
     try { assert.equal((await post()).status, 500); } finally { prisma.$transaction = originalTransaction; }
     assert.equal(await prisma.order.count({ where: { userId: f.user.id } }), 1);
     assert.deepEqual(await snapshot(f), before);

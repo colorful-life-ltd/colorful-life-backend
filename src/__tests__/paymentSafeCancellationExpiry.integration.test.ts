@@ -54,7 +54,7 @@ async function fixture(multi = false) {
     const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: "NEW", originalPrice: 10, currentStock: 10 } });
     listings.push(listing.id); offers.push(listing);
   }
-  const order = await createOrder(owner.id, { items: offers.map((listing) => ({ productListingId: listing.id, quantity: 2 })) }); orders.push(order.id);
+  const order = await createOrder(owner.id, { shippingMethod: "STANDARD" as const, items: offers.map((listing) => ({ productListingId: listing.id, quantity: 2 })) }); orders.push(order.id);
   return { owner, order, offers };
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
@@ -266,7 +266,7 @@ describe("payment-safe customer cancellation and expiry", () => {
     events.push(`recovery:${p.id}:${p.providerReference}:succeeded`);
     const recovery = recoverStripePayment(f.order.id, f.owner.id, { paymentIntents: { retrieve: async () => {
       entered.resolve(); await release.promise;
-      return { id: p.providerReference, amount: 2000, amount_received: 2000, currency: "gbp", status: "succeeded", metadata: { orderId: String(f.order.id) } };
+      return { id: p.providerReference, amount: p.amount.mul(100).toNumber(), amount_received: p.amount.mul(100).toNumber(), currency: "gbp", status: "succeeded", metadata: { orderId: String(f.order.id) } };
     } } } as unknown as Parameters<typeof recoverStripePayment>[2]);
     try { await entered.promise; assert.equal(await expireOrderReservation(f.order.id), null); await assert.rejects(cancelOrder(f.owner.id, f.order.id, "CHANGED_MIND"), OrderCancellationPaymentError); }
     finally { release.resolve(); await recovery; }
@@ -287,7 +287,7 @@ describe("payment-safe customer cancellation and expiry", () => {
   it("does not let lazy checkout expiry resell inventory held by an unresolved payment", async () => {
     const f = await fixture(); await payment(f, "FAILED"); await elapsed(f);
     const other = await user();
-    await assert.rejects(createOrder(other.id, { items: [{ productListingId: f.offers[0].id, quantity: 9 }] }), InsufficientAvailableStockError);
+    await assert.rejects(createOrder(other.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: f.offers[0].id, quantity: 9 }] }), InsufficientAvailableStockError);
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "PENDING");
     assert.equal(await prisma.order.count({ where: { userId: other.id } }), 0);
     await inventory(f, 10, 2);
@@ -315,7 +315,7 @@ describe("payment-safe customer cancellation and expiry", () => {
     try { await entered.promise; await elapsed(f); await assert.rejects(cancelOrder(f.owner.id, f.order.id, "OTHER"), OrderCancellationPaymentError); assert.equal(await expireOrderReservation(f.order.id), null); }
     finally { release.resolve(); await initiation; }
     const id = `PP_evt_${randomUUID()}`; events.push(id);
-    const completion = { id, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: reference, captureId: `CAP_${randomUUID()}`, amount: "20.00", currency: "GBP" };
+    const completion = { id, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: reference, captureId: `CAP_${randomUUID()}`, amount: f.order.totalAmount.toFixed(2), currency: "GBP" };
     assert.deepEqual(await reconcilePayPalWebhookEvent(completion), { duplicate: false, handled: true });
     const paid = await prisma.payment.findUniqueOrThrow({ where: { orderId: f.order.id } });
     assert.equal(paid.status, "SUCCEEDED"); assert.ok(paid.paidAt);
@@ -341,7 +341,7 @@ describe("payment-safe customer cancellation and expiry", () => {
     await prisma.order.update({ where: { id: f.order.id }, data: { status: "CANCELLED", reservationExpiresAt: null } });
     await prisma.productListing.update({ where: { id: f.offers[0].id }, data: { reservedStock: 0 } });
     const id = `PP_evt_${randomUUID()}`; events.push(id);
-    const e = { id, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: p.providerReference, captureId: `CAP_${randomUUID()}`, amount: "20.00", currency: "GBP" };
+    const e = { id, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: p.providerReference, captureId: `CAP_${randomUUID()}`, amount: f.order.totalAmount.toFixed(2), currency: "GBP" };
     assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: false, handled: true });
     const paid = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
     assert.equal(paid.status, "SUCCEEDED"); assert.ok(paid.paidAt);
@@ -359,7 +359,7 @@ describe("payment-safe customer cancellation and expiry", () => {
     const entered = gate(), release = gate(); const captureId = `CAP_${randomUUID()}`; events.push(`capture:${captureId}`);
     const capture = capturePayPalOrder(f.order.id, f.owner.id, { captureOrder: async () => {
       entered.resolve(); await release.promise;
-      return { id: p.providerReference, status: "COMPLETED", purchase_units: [{ payments: { captures: [{ id: captureId, status: "COMPLETED", amount: { value: "20.00", currency_code: "GBP" } }] } }] };
+      return { id: p.providerReference, status: "COMPLETED", purchase_units: [{ payments: { captures: [{ id: captureId, status: "COMPLETED", amount: { value: f.order.totalAmount.toFixed(2), currency_code: "GBP" } }] } }] };
     } });
     try {
       await entered.promise;
@@ -374,7 +374,7 @@ describe("payment-safe customer cancellation and expiry", () => {
     assert.equal(paid.providerCaptureReference, captureId);
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CANCELLED");
     const replayId = `PP_evt_${randomUUID()}`; events.push(replayId);
-    assert.deepEqual(await reconcilePayPalWebhookEvent({ id: replayId, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: p.providerReference, captureId, amount: "20.00", currency: "GBP" }), { duplicate: false, handled: true });
+    assert.deepEqual(await reconcilePayPalWebhookEvent({ id: replayId, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: p.providerReference, captureId, amount: f.order.totalAmount.toFixed(2), currency: "GBP" }), { duplicate: false, handled: true });
     const replayed = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
     assert.equal(replayed.status, "SUCCEEDED"); assert.equal(replayed.paidAt?.getTime(), paid.paidAt.getTime());
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CANCELLED");

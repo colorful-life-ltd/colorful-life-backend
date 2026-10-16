@@ -38,13 +38,13 @@ async function fixture() {
     addresses: { create: { recipientName: "Buyer", line1: "1 Street", city: "London", postcode: "T1", countryCode: "GB", isDefaultBilling: true } } } }); users.push(user.id);
   const product = await prisma.legoProduct.create({ data: { setNumber: randomUUID(), title: "Checkout", theme: "TEST", ageRecommendation: "8+", pieceCount: 10 } }); products.push(product.id);
   const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: "NEW", originalPrice: 10, currentStock: 10 } }); listings.push(listing.id);
-  const order = await createOrder(user.id, { items: [{ productListingId: listing.id, quantity: 2 }] }); orders.push(order.id);
+  const order = await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] }); orders.push(order.id);
   const payment = await prisma.payment.create({ data: { orderId: order.id, amount: order.totalAmount, provider: "STRIPE", providerReference: `pi_${randomUUID()}`, status: "PROCESSING", idempotencyKey: `order-${order.id}-stripe` } });
   return { user, listing, order, payment };
 }
 function event(f: Awaited<ReturnType<typeof fixture>>, type: StripePaymentIntentEvent["type"] = "payment_intent.succeeded") {
   const id = randomUUID(); events.push(id);
-  return { id, type, paymentIntentId: f.payment.providerReference, amount: 2000, currency: "gbp", metadata: { orderId: String(f.order.id) } };
+  return { id, type, paymentIntentId: f.payment.providerReference, amount: f.order.totalAmount.mul(100).toNumber(), currency: "gbp", metadata: { orderId: String(f.order.id) } };
 }
 async function state(f: Awaited<ReturnType<typeof fixture>>) {
   return { order: await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } }), payment: await prisma.payment.findUniqueOrThrow({ where: { id: f.payment.id } }),
@@ -150,7 +150,7 @@ describe("checkout payment hardening", () => {
     let release!: () => void, started!: () => void;
     const entered = new Promise<void>((resolve) => { started = resolve; }); const gate = new Promise<void>((resolve) => { release = resolve; });
     let creates = 0;
-    const client = { paymentIntents: { create: async () => { creates++; throw new Error("Unexpected create"); }, retrieve: async () => { started(); await gate; return { id: f.payment.providerReference, amount:2000, currency:"gbp", metadata:{orderId:String(f.order.id)}, client_secret: "secret", status: "processing" }; } } } as unknown as StripePaymentClient;
+    const client = { paymentIntents: { create: async () => { creates++; throw new Error("Unexpected create"); }, retrieve: async () => { started(); await gate; return { id: f.payment.providerReference, amount:f.order.totalAmount.mul(100).toNumber(), currency:"gbp", metadata:{orderId:String(f.order.id)}, client_secret: "secret", status: "processing" }; } } } as unknown as StripePaymentClient;
     const initiation = createOrReuseStripePaymentIntent(f.order.id, f.user.id, client);
     const rejected = assert.rejects(initiation, StripePaymentAlreadyCompletedError);
     await entered; await reconcileStripePaymentEvent(event(f)); const first = await assertConfirmed(f); release(); await rejected;

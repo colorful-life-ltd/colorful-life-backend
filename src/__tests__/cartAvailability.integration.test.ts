@@ -71,7 +71,7 @@ function http(user: Customer, path: string, method = "GET", body?: unknown) {
     ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
 function checkout(user: Customer, lines: Array<{ productListingId: number; quantity: number }>) {
-  return http(user, "/orders", "POST", { items: lines });
+  return http(user, "/orders", "POST", { shippingMethod: "STANDARD" as const, items: lines });
 }
 async function savedRows(user: Customer) {
   return prisma.cartItem.findMany({ where: { cart: { userId: user.id } }, orderBy: { id: "asc" } });
@@ -198,7 +198,7 @@ it("allows a submitted subset despite unrelated unavailable cart entries and pre
   assert.equal(response.status, 201);
   const body = await response.json();
   assert.equal(body.orderItems.length, 1);
-  assert.equal(body.orderItems[0].unitPrice, "10"); assert.equal(body.totalAmount, "10");
+  assert.equal(body.orderItems[0].unitPrice, "10"); assert.equal(body.totalAmount, "13.99");
   assert.equal((await savedRows(user)).length, 2);
   const fresh = await offer();
   // A direct-order line absent from the saved cart retains the same contract.
@@ -209,7 +209,7 @@ for (const managed of [false, true]) it(`${managed ? "managed" : "legacy"} pendi
   config.PAYMENT_RESOLUTION_ENABLED = managed;
   const user = await customer(), listing = await offer(2);
   await addCartItem(user.id, listing.id, 1);
-  const order = await createOrder(user.id, { items: [{ productListingId: listing.id, quantity: 1 }] });
+  const order = await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
   let item = (await getCart(user.id)).items[0];
   assert.equal(item.quantity, 1); assert.equal(item.allocatedQuantity, 1); assert.equal(item.unallocatedQuantity, 0);
   assert.deepEqual(item.availability, { status: "UNAVAILABLE", reason: "CART_QUANTITY_ALLOCATED", availableQuantity: 1 });
@@ -236,7 +236,7 @@ for (const managed of [false, true]) it(`${managed ? "managed" : "legacy"} pendi
 it("fully allocated final-unit cart stays visible and a new checkout retains the provenance conflict", async () => {
   const user = await customer(), listing = await offer(1);
   await addCartItem(user.id, listing.id, 1);
-  await createOrder(user.id, { items: [{ productListingId: listing.id, quantity: 1 }] });
+  await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
   const item = (await getCart(user.id)).items[0];
   assert.deepEqual(item.availability, { status: "UNAVAILABLE", reason: "CART_QUANTITY_ALLOCATED", availableQuantity: 0 });
   const response = await checkout(user, [{ productListingId: listing.id, quantity: 1 }]);
@@ -248,7 +248,7 @@ it("fully allocated final-unit cart stays visible and a new checkout retains the
 it("confirmation reconciliation still consumes only allocated quantity and preserves later additions", async () => {
   const user = await customer(), listing = await offer(3);
   await addCartItem(user.id, listing.id, 1);
-  const order = await createOrder(user.id, { items: [{ productListingId: listing.id, quantity: 1 }] });
+  const order = await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
   await addCartItem(user.id, listing.id, 1);
   await confirmOrder(user.id, order.id);
   const before = await savedRows(user);
@@ -320,7 +320,7 @@ it("clamps historically over-reserved stock to a nonnegative out-of-stock projec
 it("managed reservation coverage mismatch remains fail-closed with an actionable conflict", async () => {
   config.PAYMENT_RESOLUTION_ENABLED = true;
   const owner = await customer(), buyer = await customer(), listing = await offer(3);
-  const held = await createOrder(owner.id, { items: [{ productListingId: listing.id, quantity: 1 }] });
+  const held = await createOrder(owner.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
   // Simulate historical coverage corruption; never auto-repair it during checkout.
   await prisma.productListing.update({ where: { id: listing.id }, data: { reservedStock: 0 } });
   await addCartItem(buyer.id, listing.id, 1);

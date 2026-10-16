@@ -63,7 +63,7 @@ async function makeListing() {
 }
 
 async function makeOrder(customerId: number, listingId: number) {
-  const order = await createOrder(customerId, { items: [{ productListingId: listingId, quantity: 2 }] });
+  const order = await createOrder(customerId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 2 }] });
   orderIds.push(order.id);
   return order;
 }
@@ -97,7 +97,7 @@ describe("customer order reads", () => {
     const response = await get(customer.token, `/orders/${order.id}`);
     assert.strictEqual(response.status, 200);
     const body = await response.json();
-    assert.deepStrictEqual({ id: body.id, status: body.status, totalAmount: body.totalAmount, itemQuantity: body.orderItems[0].quantity, unitPrice: body.orderItems[0].unitPrice, lineTotal: body.orderItems[0].lineTotal }, { id: order.id, status: "PENDING", totalAmount: "30", itemQuantity: 2, unitPrice: "15", lineTotal: "30" });
+    assert.deepStrictEqual({ id: body.id, status: body.status, totalAmount: body.totalAmount, itemQuantity: body.orderItems[0].quantity, unitPrice: body.orderItems[0].unitPrice, lineTotal: body.orderItems[0].lineTotal }, { id: order.id, status: "PENDING", totalAmount: "33.99", itemQuantity: 2, unitPrice: "15", lineTotal: "30" });
     assert.equal(body.payment, null);
     assert.equal(body.reservationExpiresAt, order.reservationExpiresAt?.toISOString());
     for (const prefix of ["billing", "delivery"]) {
@@ -187,7 +187,7 @@ describe("admin order reads", () => {
     const detail = await (await get(admin.token, `/admin/orders/${b.id}`)).json();
     assert.equal(detail.deliveryLine1, "1 Test Street"); assert.equal(detail.deliveryRecipientName, "Customer");
     assert.equal(detail.orderItems[0].quantity, 2); assert.equal(detail.orderItems[0].unitPrice, "15");
-    assert.equal(detail.orderItems[0].lineTotal, "30"); assert.equal(detail.totalAmount, "30");
+    assert.equal(detail.orderItems[0].lineTotal, "30"); assert.equal(detail.totalAmount, "33.99");
     assert.equal(detail.actualShippingCost, null);
     assert.deepEqual(detail.payment, { status: "PROCESSING", currency: "GBP", paidAt: null });
     const serialized = JSON.stringify(detail);

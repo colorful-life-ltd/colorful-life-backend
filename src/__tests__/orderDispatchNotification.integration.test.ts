@@ -66,7 +66,7 @@ async function makeFixture() {
   const listing = await prisma.productListing.create({ data: {
         legoProductId: product.id, condition: "NEW", originalPrice: 10, currentStock: 2 } });
   listings.push(listing.id);
-  const order = await createOrder(customer.id, { items: [{ productListingId: listing.id, quantity: 1 }] });
+  const order = await createOrder(customer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
   orders.push(order.id);
   await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CONFIRMED } });
   await recordVerifiedPayment(order.id);

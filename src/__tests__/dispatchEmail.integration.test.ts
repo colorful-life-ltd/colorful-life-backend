@@ -1,3 +1,4 @@
+import { Prisma } from "../generated/prisma-client/client.js";
 import assert from 'node:assert/strict';
 import { after, afterEach, beforeEach, it } from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -29,7 +30,7 @@ async function fixture() {
   const admin = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: 'synthetic', role: 'ADMIN', emailVerified: true } });
   const product = await prisma.legoProduct.create({ data: { setNumber: randomUUID(), title: 'Synthetic dispatch item', theme: 'TEST', ageRecommendation: '8+', pieceCount: 10 } });
   const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: 'NEW', originalPrice: 10, currentStock: 3 } });
-  const order = await createOrder(user.id, { items: [{ productListingId: listing.id, quantity: 1 }] });
+  const order = await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
   await recordVerifiedPayment(order.id); await confirmOrder(admin.id, order.id);
   return { user, admin, listing, order };
 }
@@ -37,7 +38,10 @@ const jobFor = (orderId: number) => prisma.orderConfirmationJob.findFirstOrThrow
 const run = (id: string, transport: ConfirmationTransport, business: unknown = businessFixture) => runConfirmationBatch({ jobId: id, transport, business });
 async function due(id: string) { await prisma.orderConfirmationJob.update({ where: { id }, data: { nextAttemptAt: new Date(0) } }); }
 it('a committed dispatch captures persisted shipment identity and sends without invoice or shipping fabrication', async () => {
-  const f = await fixture(); await dispatchShipment(f.admin.id, f.order.id, input);
+  const f = await fixture();
+  // Historical dispatches may have no checkout delivery offer. Do not fabricate estimates.
+  await prisma.order.update({ where: { id: f.order.id }, data: { confirmationDeliverySnapshot: Prisma.DbNull } });
+  await dispatchShipment(f.admin.id, f.order.id, input);
   const job = await jobFor(f.order.id), shipment = await prisma.shipment.findUniqueOrThrow({ where: { id: job.shipmentId! } }), capture = captureConfirmationTransport();
   assert.equal(job.eventKey, `shipment:${shipment.id}`); assert.equal(job.state, 'PENDING');
   assert.equal((job.source as Record<string, unknown>).dispatchedAt, shipment.dispatchedAt.toISOString());

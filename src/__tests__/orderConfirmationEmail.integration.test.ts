@@ -196,16 +196,17 @@ it('signed HTTP webhook to captured MIME exercises the actual confirmation pipel
     assert.equal((await fetch(`${base}/orders/${f.order.id}`, { headers: { Authorization: `Bearer ${token}` } })).status, 200);
   } finally { await new Promise<void>((resolve, reject) => server.close(e => e ? reject(e) : resolve())); }
 });
-it('actual HTTP checkout captures product descriptions but blocks email until shipping is persisted by its own feature', async () => {
+it('actual HTTP checkout persists shipping and produces a valid confirmation source', async () => {
   const f = await fixture(), server = createServer(app); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   try {
-    const response = await fetch(`http://127.0.0.1:${address.port}/orders`, { method: 'POST', headers: { Authorization: `Bearer ${jwt.sign({ id: f.user.id, role: 'CUSTOMER' }, config.JWT_SECRET)}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
+    const response = await fetch(`http://127.0.0.1:${address.port}/orders`, { method: 'POST', headers: { Authorization: `Bearer ${jwt.sign({ id: f.user.id, role: 'CUSTOMER' }, config.JWT_SECRET)}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
     assert.equal(response.status, 201); const order = await response.json();
     const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId: order.id } }); assert.equal(item.invoiceDescriptionSnapshot, 'Original product');
-    const payment = await prisma.payment.create({ data: { orderId: order.id, provider: 'STRIPE', providerReference: `pi_${randomUUID()}`, amount: '12.50', status: 'PROCESSING' } });
-    await reconcileStripePaymentEvent({ id: randomUUID(), type: 'payment_intent.succeeded', paymentIntentId: payment.providerReference, amount: 1250, currency: 'gbp', metadata: { orderId: String(order.id) } });
-    assert.equal((await jobFor(order.id)).lastErrorCode, 'SHIPPING_NOT_PERSISTED');
+    const payment = await prisma.payment.create({ data: { orderId: order.id, provider: 'STRIPE', providerReference: `pi_${randomUUID()}`, amount: order.totalAmount, status: 'PROCESSING' } });
+    await reconcileStripePaymentEvent({ id: randomUUID(), type: 'payment_intent.succeeded', paymentIntentId: payment.providerReference, amount: 1649, currency: 'gbp', metadata: { orderId: String(order.id) } });
+    assert.equal((await jobFor(order.id)).state, 'PENDING');
+    assert.equal((await jobFor(order.id)).lastErrorCode, null);
   } finally { await new Promise<void>((resolve, reject) => server.close(e => e ? reject(e) : resolve())); }
 });
 

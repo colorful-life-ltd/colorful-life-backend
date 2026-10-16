@@ -86,7 +86,7 @@ async function createProductAndListings(count: number) {
   };
 }
 
-async function recordOrder(input: { items: { productListingId: number; quantity: number }[] }) {
+async function recordOrder(input: { shippingMethod: "STANDARD"; items: { productListingId: number; quantity: number }[] }) {
   const order = await createOrder(userId, input);
   createdOrderIds.push(order.id);
   return order;
@@ -121,7 +121,7 @@ afterEach(async () => {
 
 describe("Order Cancellation Domain Tests", () => {
   it("customer can cancel own PENDING order", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const cancelled = await cancelOrder(userId, order.id, CancellationReason.CHANGED_MIND);
     assert.strictEqual(cancelled.status, "CANCELLED");
     assert.ok(cancelled.cancelledAt);
@@ -134,7 +134,7 @@ describe("Order Cancellation Domain Tests", () => {
   });
 
   it("customer can cancel own CONFIRMED order", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[1], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[1], quantity: 1 }] });
     const before = (await prisma.productListing.findUnique({ where: { id: productListingIds[1] } }))!.currentStock;
     await prisma.productListing.update({ where: { id: productListingIds[1] }, data: { currentStock: { decrement: 1 }, reservedStock: { decrement: 1 } } });
     await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED" } });
@@ -147,7 +147,7 @@ describe("Order Cancellation Domain Tests", () => {
   });
 
   it("restores multiple confirmed order items and never restores twice", async () => {
-    const order = await recordOrder({ items: [
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [
       { productListingId: productListingIds[0], quantity: 2 },
       { productListingId: productListingIds[1], quantity: 3 },
     ] });
@@ -165,7 +165,7 @@ describe("Order Cancellation Domain Tests", () => {
   });
 
   it("concurrent confirmed cancellations restore inventory only once", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const before = (await prisma.productListing.findUnique({ where: { id: productListingIds[0] } }))!.currentStock;
     await prisma.productListing.update({ where: { id: productListingIds[0] }, data: { currentStock: { decrement: 1 }, reservedStock: { decrement: 1 } } });
     await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED" } });
@@ -198,7 +198,7 @@ describe("Order Cancellation Domain Tests", () => {
       },
       include: { addresses: true },
     });
-    const order = await createOrder(otherUser.id, {
+    const order = await createOrder(otherUser.id, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId: productListingIds[0], quantity: 1 }],
     });
     await assert.rejects(
@@ -214,7 +214,7 @@ describe("Order Cancellation Domain Tests", () => {
   });
 
   it("already CANCELLED order cannot be cancelled again", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const cancelled = await cancelOrder(userId, order.id, CancellationReason.CHANGED_MIND);
     const originalCancelledAt = cancelled.cancelledAt;
     const originalReason = cancelled.cancellationReason;
@@ -231,7 +231,7 @@ describe("Order Cancellation Domain Tests", () => {
   const nonCancellableStatuses = ["DISPATCHED", "COMPLETED", "RETURNED"] as const;
   nonCancellableStatuses.forEach((status) => {
     it(`${status} order cannot be cancelled`, async () => {
-      const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+      const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
       await prisma.order.update({ where: { id: order.id }, data: { status } });
       await assert.rejects(
         async () => cancelOrder(userId, order.id, CancellationReason.CHANGED_MIND),
@@ -241,7 +241,7 @@ describe("Order Cancellation Domain Tests", () => {
   });
 
   it("no InventoryMovement and stock unchanged on cancellation", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const initialStock = (await prisma.productListing.findUnique({ where: { id: productListingIds[0] } }))?.currentStock;
     await cancelOrder(userId, order.id, CancellationReason.CHANGED_MIND);
     const afterStock = (await prisma.productListing.findUnique({ where: { id: productListingIds[0] } }))?.currentStock;
@@ -251,7 +251,7 @@ describe("Order Cancellation Domain Tests", () => {
   });
 
   it("fails atomically when a PENDING reservation is missing", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     await prisma.productListing.update({ where: { id: productListingIds[0] }, data: { reservedStock: 0 } });
     await assert.rejects(() => cancelOrder(userId, order.id, CancellationReason.CHANGED_MIND), InsufficientReservedStockError);
     const persisted = await prisma.order.findUnique({ where: { id: order.id } });
@@ -262,7 +262,7 @@ describe("Order Cancellation Domain Tests", () => {
   });
 
   it("concurrent cancellation: exactly one succeeds", async () => {
-    const order = await recordOrder({ items: [{ productListingId: productListingIds[0], quantity: 1 }] });
+    const order = await recordOrder({ shippingMethod: "STANDARD" as const, items: [{ productListingId: productListingIds[0], quantity: 1 }] });
     const promise1 = cancelOrder(userId, order.id, CancellationReason.CHANGED_MIND);
     const promise2 = cancelOrder(userId, order.id, CancellationReason.ORDERED_BY_MISTAKE);
     const results = await Promise.allSettled([promise1, promise2]);

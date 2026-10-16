@@ -137,8 +137,8 @@ describe("per-item Used offers", () => {
     const customer = await prisma.user.create({ data: { email: `buyer-${randomUUID()}@example.test`, passwordHash: "test", emailVerified: true,
       addresses: { create: { recipientName: "Buyer", line1: "1 High Street", city: "London", postcode: "SW1A 1AA", countryCode: "GB", isDefaultBilling: true } } } });
     users.push(customer.id);
-    await assert.rejects(() => createOrder(customer.id, { items: [{ productListingId: listing.id, quantity: 2 }] }));
-    const order = await createOrder(customer.id, { items: [{ productListingId: listing.id, quantity: 1 }] }); orders.push(order.id);
+    await assert.rejects(() => createOrder(customer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] }));
+    const order = await createOrder(customer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }); orders.push(order.id);
     const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId: order.id } });
     assert.equal(item.productListingId, listing.id); assert.equal(item.conditionSnapshot, "USED_LIKE_NEW");
     assert.equal(item.damageDescriptionSnapshot, "Creased outer box");
@@ -265,7 +265,7 @@ describe("per-item Used offers", () => {
     const buyer = await prisma.user.create({ data: { email: `price-${randomUUID()}@example.test`, passwordHash: "test", emailVerified: true,
       addresses: { create: { recipientName: "Buyer", line1: "1 High Street", city: "London", postcode: "SW1A 1AA", countryCode: "GB", isDefaultBilling: true } } } });
     users.push(buyer.id);
-    const reservedOrder = await createOrder(buyer.id, { items: [{ productListingId: used.id, quantity: 1 }] }); orders.push(reservedOrder.id);
+    const reservedOrder = await createOrder(buyer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: used.id, quantity: 1 }] }); orders.push(reservedOrder.id);
 
     const excluded = await (await fetch(`${base}/products?q=${encodeURIComponent(lego.setNumber)}&maxPrice=50`)).json();
     assert.deepEqual(excluded.items, []);
@@ -319,7 +319,7 @@ describe("per-item Used offers", () => {
 
     const [conversionResult, reservationResult] = await Promise.allSettled([
       request(`/inventory/condition-conversions/${lego.id}`, adminToken, form("Outer box damage", 1, { sourceNewListingId: String(source.id), reason: "PACKAGING_DAMAGE" })),
-      createOrder(buyer.id, { items: [{ productListingId: source.id, quantity: 1 }] }).then((order) => { orders.push(order.id); return order; }),
+      createOrder(buyer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: source.id, quantity: 1 }] }).then((order) => { orders.push(order.id); return order; }),
     ]);
     assert.equal(conversionResult.status, "fulfilled");
     const conversionResponse = conversionResult.value;
@@ -460,7 +460,7 @@ describe("per-item Used offers", () => {
     const buyer = await prisma.user.create({ data: { email: `pending-${randomUUID()}@example.test`, passwordHash: "test", emailVerified: true,
       addresses: { create: { recipientName: "Buyer", line1: "1 High Street", city: "London", postcode: "SW1A 1AA", countryCode: "GB", isDefaultBilling: true } } } });
     users.push(buyer.id);
-    const order = await createOrder(buyer.id, { items: [{ productListingId: listing.id, quantity: 1 }] }); orders.push(order.id);
+    const order = await createOrder(buyer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }); orders.push(order.id);
     let state = await prisma.productListing.findUniqueOrThrow({ where: { id: listing.id } });
     assert.equal(state.currentStock, 1); assert.equal(state.reservedStock, 1); assert.equal(state.usedLifecycle, "AVAILABLE");
     await cancelOrder(buyer.id, order.id, "CHANGED_MIND");
@@ -476,7 +476,7 @@ describe("per-item Used offers", () => {
     const buyer = await prisma.user.create({ data: { email: `sale-${randomUUID()}@example.test`, passwordHash: "test", emailVerified: true,
       addresses: { create: { recipientName: "Buyer", line1: "1 High Street", city: "London", postcode: "SW1A 1AA", countryCode: "GB", isDefaultBilling: true } } } });
     users.push(buyer.id);
-    const order = await createOrder(buyer.id, { items: [{ productListingId: listing.id, quantity: 1 }] }); orders.push(order.id);
+    const order = await createOrder(buyer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }); orders.push(order.id);
     await confirmOrder(adminId, order.id);
     const sold = await prisma.productListing.findUniqueOrThrow({ where: { id: listing.id } });
     assert.equal(sold.currentStock, 0); assert.equal(sold.usedLifecycle, "SOLD");
@@ -492,7 +492,7 @@ describe("per-item Used offers", () => {
     const returnResponse = await createOffer(lego.id);
     assert.equal(returnResponse.status, 201);
     const returnListing = await returnResponse.json(); listings.push(returnListing.id);
-    const returnOrder = await createOrder(buyer.id, { items: [{ productListingId: returnListing.id, quantity: 1 }] }); orders.push(returnOrder.id);
+    const returnOrder = await createOrder(buyer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: returnListing.id, quantity: 1 }] }); orders.push(returnOrder.id);
     await confirmOrder(adminId, returnOrder.id);
     const orderItem = await prisma.orderItem.findFirstOrThrow({ where: { orderId: returnOrder.id } });
     const returnedItem = await requestOrderReturn(returnOrder.id, orderItem.id, 1, ReturnReason.DAMAGED, "Box damaged in transit", ReturnShippingPayer.SELLER, undefined, buyer.id);

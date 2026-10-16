@@ -1,3 +1,4 @@
+import { orderFinancials } from "./shipping.js";
 import { readCustomerPaymentWindow, readCustomerPaymentWindows } from "../payments/customerPaymentWindow.js";
 import { prisma } from "../../prisma/runtime.js";
 import { customerShipmentSelect, presentFulfilment } from "../fulfilment/fulfilmentPresenter.js";
@@ -6,6 +7,7 @@ const orderReadSelect = {
   id: true,
   status: true,
   totalAmount: true,
+  confirmationDeliverySnapshot: true,
   createdAt: true,
   updatedAt: true,
   shippingCarrier: true,
@@ -37,9 +39,9 @@ const orderReadSelect = {
 export type CustomerOrder = Awaited<ReturnType<typeof getCustomerOrder>>;
 
 /** Replaces raw fulfilment columns with the derived, link-safe fulfilment view. */
-function withFulfilment<T extends Parameters<typeof presentFulfilment>[0]>(order: T) {
-  const { shipments: _shipments, preparingAt: _preparingAt, ...rest } = order;
-  return { ...rest, fulfilment: presentFulfilment(order) };
+function withFulfilment<T extends Parameters<typeof presentFulfilment>[0] & Parameters<typeof orderFinancials>[0]>(order: T) {
+  const { shipments: _shipments, preparingAt: _preparingAt, confirmationDeliverySnapshot: _delivery, ...rest } = order;
+  return { ...rest, financials: orderFinancials(order), fulfilment: presentFulfilment(order) };
 }
 
 export async function listCustomerOrders(userId: number) {
@@ -89,6 +91,7 @@ export async function getCustomerPaymentStatus(userId: number, orderId: number) 
 // Explicit projections keep provider references, idempotency keys and credentials private.
 const adminOrderSummarySelect = {
   id: true, userId: true, status: true, totalAmount: true, createdAt: true,
+  confirmationDeliverySnapshot: true, orderItems: { select: { lineTotal: true } },
   shippingCarrier: true, trackingNumber: true, dispatchedAt: true, preparingAt: true, shipments: customerShipmentSelect,
   user: { select: { id: true, firstName: true, lastName: true, email: true } },
   payments: { select: { status: true, currency: true, paidAt: true } },
@@ -101,9 +104,9 @@ function projectAdminPayment<T extends { payments: Array<{ status: string; curre
   return { ...safeOrder, payment, paymentStatus: payment?.status ?? null, currency: payment?.currency ?? "GBP" };
 }
 
-function withFulfilmentStage<T extends Parameters<typeof presentFulfilment>[0]>(order: T) {
-  const { shipments: _shipments, ...safe } = order;
-  return { ...safe, fulfilmentStage: presentFulfilment(order).stage };
+function withFulfilmentStage<T extends Parameters<typeof presentFulfilment>[0] & Parameters<typeof orderFinancials>[0]>(order: T) {
+  const { shipments: _shipments, confirmationDeliverySnapshot: _delivery, orderItems: _items, ...safe } = order;
+  return { ...safe, financials: orderFinancials(order), fulfilmentStage: presentFulfilment(order).stage };
 }
 
 export async function listAdminOrders(query: import("./adminOrderValidator.js").AdminOrderQuery) {
@@ -142,6 +145,6 @@ export async function getAdminOrder(orderId: number) {
     },
   });
   if (!order) return null;
-  const { shipments, fulfilmentEvents, ...rest } = projectAdminPayment(order);
-  return { ...rest, fulfilmentStage: presentFulfilment(order).stage, fulfilment: presentFulfilment(order), shipments: shipments.map(({ trackingState: _internal, ...safe }) => safe), fulfilmentEvents };
+  const { shipments, fulfilmentEvents, confirmationDeliverySnapshot: _delivery, ...rest } = projectAdminPayment(order);
+  return { ...rest, financials: orderFinancials(order), fulfilmentStage: presentFulfilment(order).stage, fulfilment: presentFulfilment(order), shipments: shipments.map(({ trackingState: _internal, ...safe }) => safe), fulfilmentEvents };
 }

@@ -43,7 +43,7 @@ async function fixture(withPayment = true) {
   const owner = await user();
   const product = await prisma.legoProduct.create({ data: { setNumber: randomUUID(), title: "PayPal safety", theme: "TEST", ageRecommendation: "8+", pieceCount: 10 } }); products.push(product.id);
   const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: "NEW", originalPrice: 10, currentStock: 10 } }); listings.push(listing.id);
-  const order = await createOrder(owner.id, { items: [{ productListingId: listing.id, quantity: 2 }] }); orders.push(order.id);
+  const order = await createOrder(owner.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] }); orders.push(order.id);
   const f = { owner, listing, order };
   return { ...f, payment: withPayment ? await addPayment(f) : null };
 }

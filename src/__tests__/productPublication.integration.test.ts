@@ -174,7 +174,7 @@ describe("product publication HTTP integration", () => {
     const customer = await makeUser();
     assert.equal((await call("/cart/items", { method: "POST", token: customer.token, body: JSON.stringify({ productListingId: listing.id, quantity: 1 }) })).status, 409);
     // Availability conflicts use the actionable Issue #173 checkout envelope.
-    assert.equal((await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 1 }] }) })).status, 409);
+    assert.equal((await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: listing.id, quantity: 1 }] }) })).status, 409);
   });
 
   it("rejects cart and order purchases of unpublished products without reserving stock", async () => {
@@ -184,7 +184,7 @@ describe("product publication HTTP integration", () => {
 
     await setPublished(listing.legoProductId, false);
     assert.equal((await call("/cart/items", { method: "POST", token: customer.token, body: JSON.stringify({ productListingId: listing.id, quantity: 1 }) })).status, 409);
-    const order = await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 1 }] }) });
+    const order = await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: listing.id, quantity: 1 }] }) });
     assert.equal(order.status, 409);
     const error = (await order.json()).error;
     assert.equal(error.code, "LISTING_UNAVAILABLE");
@@ -197,7 +197,7 @@ describe("product publication HTTP integration", () => {
     assert.equal((await (await call("/cart", { token: customer.token })).json()).items.length, 1);
 
     await setPublished(listing.legoProductId, true);
-    const republished = await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 1 }] }) });
+    const republished = await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: listing.id, quantity: 1 }] }) });
     assert.equal(republished.status, 201);
     orderIds.push((await republished.json()).id);
   });
@@ -205,7 +205,7 @@ describe("product publication HTTP integration", () => {
   it("leaves historical orders untouched when a product is unpublished", async () => {
     const listing = await makeListing({ currentStock: 5 });
     const customer = await makeUser();
-    const created = await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ items: [{ productListingId: listing.id, quantity: 2 }] }) });
+    const created = await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: listing.id, quantity: 2 }] }) });
     assert.equal(created.status, 201);
     const orderId = (await created.json()).id;
     orderIds.push(orderId);

@@ -85,7 +85,7 @@ async function createListing() {
 }
 
 async function createTestOrder(userId: number, listingId: number) {
-  const order = await createOrder(userId, {
+  const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
     items: [{ productListingId: listingId, quantity: 1 }],
   });
   orderIds.push(order.id);

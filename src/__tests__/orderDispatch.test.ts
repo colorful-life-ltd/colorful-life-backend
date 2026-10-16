@@ -101,7 +101,7 @@ describe("orderDispatchService", () => {
   });
 
   it("dispatches a CONFIRMED order and records shipping details", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -123,7 +123,7 @@ describe("orderDispatchService", () => {
   });
 
   it("throws OrderNotDispatchableError if order not CONFIRMED", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -134,7 +134,7 @@ describe("orderDispatchService", () => {
     );
   });
   it("optional trackingNumber remains null if not provided", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -143,7 +143,7 @@ describe("orderDispatchService", () => {
     assert.strictEqual(dispatched.trackingNumber, null);
   });
   it("throws OrderNotDispatchableError for PENDING status", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -153,7 +153,7 @@ describe("orderDispatchService", () => {
     );
   });
   it("throws OrderNotDispatchableError for CANCELLED status", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -164,7 +164,7 @@ describe("orderDispatchService", () => {
     );
   });
   it("throws OrderNotDispatchableError for DISPATCHED status", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -175,7 +175,7 @@ describe("orderDispatchService", () => {
     );
   });
   it("throws OrderNotDispatchableError for COMPLETED status", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -186,7 +186,7 @@ describe("orderDispatchService", () => {
     );
   });
   it("throws OrderNotDispatchableError for RETURNED status", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -197,7 +197,7 @@ describe("orderDispatchService", () => {
     );
   });
   it("repeated dispatch metadata protection", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -217,7 +217,7 @@ describe("orderDispatchService", () => {
     assert.strictEqual(final?.dispatchedAt?.toString(), firstDispatchedAt?.toString());
   });
   it("concurrent dispatch race condition protection", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
@@ -245,7 +245,7 @@ describe("orderDispatchService", () => {
     }
   });
   it("inventory remains unchanged and no new WEBSITE_SALE movement on dispatch", async () => {
-    const order = await createOrder(userId, {
+    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const,
       items: [{ productListingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);

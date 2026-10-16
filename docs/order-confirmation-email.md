@@ -150,9 +150,10 @@ controls and privacy/accounting policy remain activation prerequisites.
 
 ## Financial and shipping dependencies
 
-Checkout currently charges item totals only. actualShippingCost is the seller's
-expense, not a customer delivery charge. A separate shipping feature must persist
-actual selected service/charge/estimates with the correctly priced order total:
+Issue #182 implements explicit checkout shipping selection and server pricing; see
+[checkout-shipping.md](checkout-shipping.md) for the API and coordinated frontend
+rollout. actualShippingCost remains the seller's expense, not a customer charge.
+New checkout orders atomically persist the existing handoff:
 
 ```ts
 Order.confirmationDeliverySnapshot = {
@@ -161,12 +162,13 @@ Order.confirmationDeliverySnapshot = {
 }
 ```
 
-Counts must be valid integers; line amounts, subtotal, delivery charge, order total
-and successfully paid GBP amount must exactly reconcile. This nullable handoff
-implements no shipping selection, price, default, customer endpoint or policy.
-Current checkout leaves it null and invoice tasks block with SHIPPING_NOT_PERSISTED.
-The planned Standard £3.99/2–4 days and Express £7.99/1–2 days occur only in synthetic
-tests; no historical amount is invented. New order items preserve description/set
+STANDARD is £3.99 with 3–5 working days after dispatch; EXPRESS is £7.99 with
+1–3 working days after dispatch. No implicit default or guaranteed arrival date.
+Line amounts, subtotal, delivery charge, order total and verified GBP payment must
+exactly reconcile. Historical rows without the handoff remain unknown and their
+immutable tasks remain blocked with SHIPPING_NOT_PERSISTED; no backfill is performed.
+Older synthetic invoice fixtures intentionally retain their frozen estimates.
+New order items preserve description/set
 number alongside existing price/condition snapshots; current catalogue data is never
 substituted for missing historical descriptions.
 

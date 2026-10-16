@@ -49,7 +49,7 @@ async function fixture(stock = 50) {
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 async function order(f: Fixture, items = [{ productListingId: f.a, quantity: 1 }], key = randomUUID()) {
-  const result = await createOrder(f.userId, { items }, key); orders.push(result.id); return result;
+  const result = await createOrder(f.userId, { shippingMethod: "STANDARD", items }, key); orders.push(result.id); return result;
 }
 async function payment(orderId: number) {
   const saved = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
@@ -142,9 +142,9 @@ describe("durable order cart provenance", { concurrency: 1 }, () => {
   });
   it("idempotent order creation retries reuse the allocation and mismatches retain their conflict", async () => {
     const f = await fixture(); await addCartItem(f.userId, f.a, 1); const key = randomUUID(), o = await order(f, undefined, key);
-    assert.equal((await createOrder(f.userId, { items: [{ productListingId: f.a, quantity: 1 }] }, key)).id, o.id);
+    assert.equal((await createOrder(f.userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: f.a, quantity: 1 }] }, key)).id, o.id);
     assert.equal((await provenance(o.id)).allocations.length, 1);
-    await assert.rejects(() => createOrder(f.userId, { items: [{ productListingId: f.a, quantity: 2 }] }, key), OrderIdempotencyMismatchError);
+    await assert.rejects(() => createOrder(f.userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: f.a, quantity: 2 }] }, key), OrderIdempotencyMismatchError);
     assert.equal((await provenance(o.id)).allocations[0].quantity, 1);
   });
   it("reductions discard unallocated intent first and preserve the remaining allocation", async () => {
@@ -264,7 +264,7 @@ describe("durable order cart provenance", { concurrency: 1 }, () => {
   });
   it("HTTP creation exposes stable allocation conflict without weakening ownership or verified email", async () => {
     const f = await fixture(); await addCartItem(f.userId, f.a, 1); await order(f);
-    const response = await fetch(`${url}/orders`, { method: "POST", headers: { Authorization: `Bearer ${f.token}`, "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: JSON.stringify({ items: [{ productListingId: f.a, quantity: 1 }] }) });
+    const response = await fetch(`${url}/orders`, { method: "POST", headers: { Authorization: `Bearer ${f.token}`, "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.a, quantity: 1 }] }) });
     assert.equal(response.status, 409); assert.equal((await response.json()).error.code, "CART_QUANTITY_UNAVAILABLE");
     const other = await fixture(); await addCartItem(other.userId, other.a, 1); const otherOrder = await order(other);
     await success(otherOrder.id); await reconcilePendingCarts(); assert.deepEqual(await quantities(f), { a: 1, b: 0 });
@@ -365,7 +365,7 @@ describe("durable order cart provenance", { concurrency: 1 }, () => {
   it("already allocated quantity returns the stable conflict even when the first reservation exhausted stock", async () => {
     const f = await fixture(1); await addCartItem(f.userId, f.a, 1); await order(f);
     await assert.rejects(() => order(f), CartQuantityAllocatedError);
-    const response = await fetch(`${url}/orders`, { method: "POST", headers: { Authorization: `Bearer ${f.token}`, "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: JSON.stringify({ items: [{ productListingId: f.a, quantity: 1 }] }) });
+    const response = await fetch(`${url}/orders`, { method: "POST", headers: { Authorization: `Bearer ${f.token}`, "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.a, quantity: 1 }] }) });
     assert.equal(response.status, 409); assert.equal((await response.json()).error.code, "CART_QUANTITY_UNAVAILABLE");
     assert.equal(await prisma.order.count({ where: { userId: f.userId } }), 1);
   });
