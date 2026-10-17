@@ -229,15 +229,19 @@ it('expired retry deadline permanently fences another order or capture, then rel
   await assert.rejects(createOrReusePayPalOrder(f.order.id, f.user.id, { createOrder: async () => { assert.fail('expired retry'); } }), PaymentAdmissionClosedError);
   await resolvePayPalPaymentOutcome(f.order.id, provider(remote(f, 'DECLINED'))); await assertReleased(f);
 });
-for (const status of [422,500] as const) it(`real capture adapter classifies HTTP ${status} funding body without making an external request`, async () => {
-  const f = await fixture(), originalFetch = globalThis.fetch; let calls = 0;
+for (const status of [422,500] as const) it(`real capture adapter classifies HTTP ${status} funding body without making an external request`, async t => {
+  const originalFetch = globalThis.fetch;
+  const originalPayPal = { PAYPAL_CLIENT_ID: config.PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET: config.PAYPAL_CLIENT_SECRET, PAYPAL_BASE_URL: config.PAYPAL_BASE_URL };
+  t.after(() => { globalThis.fetch = originalFetch; Object.assign(config, originalPayPal); });
+  Object.assign(config, { PAYPAL_CLIENT_ID: 'pp2-synthetic-client', PAYPAL_CLIENT_SECRET: 'pp2-synthetic-secret', PAYPAL_BASE_URL: 'https://paypal-pp2.invalid' });
+  const f = await fixture(); let calls = 0;
   globalThis.fetch = async (input) => {
     calls++; const url = String(input);
+    assert.ok(url.startsWith('https://paypal-pp2.invalid/'));
     return url.includes('/oauth2/token') ? new Response(JSON.stringify({ access_token: 'synthetic-token' }), { status: 200 })
       : new Response(JSON.stringify({ details: [{ issue: 'INSTRUMENT_DECLINED' }] }), { status });
   };
-  try { await assert.rejects(capturePayPalOrder(f.order.id, f.user.id), status === 422 ? PayPalFundingDeclinedError : PayPalCaptureProviderError); }
-  finally { globalThis.fetch = originalFetch; }
+  await assert.rejects(capturePayPalOrder(f.order.id, f.user.id), status === 422 ? PayPalFundingDeclinedError : PayPalCaptureProviderError);
   assert.equal(calls, 2);
   assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id, normalized: { path: ['declineCode'], equals: 'INSTRUMENT_DECLINED' } } }), status === 422 ? 1 : 0);
   await stock(f, 2);
