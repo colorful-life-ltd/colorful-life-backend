@@ -1,4 +1,5 @@
-import { checkPaymentAdmission, journalPayPalCapture } from "./paymentResolutionService.js";
+import { reconcilePayPalWebhookEvent } from "./paypalReconciliationService.js";
+import { checkPaymentAdmission, journalPayPalCapture, recordManagedFailure, PaymentResolutionUnavailableError } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
 import { prisma } from "../../prisma/runtime.js";
@@ -14,6 +15,8 @@ export class PayPalCaptureCancelledError extends Error {}
 export class PayPalCaptureAlreadyCompletedError extends Error {}
 export class PayPalCaptureProviderError extends Error {}
 export class PayPalCaptureMismatchError extends Error {}
+/** Only a parsed, definite HTTP funding rejection; never a generic transport failure. */
+export class PayPalFundingDeclinedError extends PayPalCaptureProviderError {}
 
 export type PayPalCaptureResponse = {
   id: string;
@@ -52,9 +55,13 @@ function createPayPalCaptureClient(): PayPalCaptureClient {
           accessToken = (await auth.json() as { access_token: string }).access_token;
         }
         const response = await fetch(`${config.PAYPAL_BASE_URL}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "PayPal-Request-Id": requestId } });
+        if (response.status === 422) {
+          const failure = await response.json() as { details?: Array<{ issue?: string }> };
+          if (failure.details?.length === 1 && failure.details[0].issue === 'INSTRUMENT_DECLINED') throw new PayPalFundingDeclinedError('PayPal funding source declined');
+        }
         if (!response.ok) throw new Error("capture failure");
         return await response.json() as PayPalCaptureResponse;
-      } catch { throw new PayPalCaptureProviderError("PayPal capture operation failed"); }
+      } catch (error) { if (error instanceof PayPalFundingDeclinedError) throw error; throw new PayPalCaptureProviderError("PayPal capture operation failed"); }
     },
   };
 }
@@ -81,9 +88,13 @@ async function execute(orderId: number, userId: number, client?: PayPalCaptureCl
     }
     const managed = await checkPaymentAdmission(tx, orderId);
     if (!managed && order.reservationExpiresAt && order.reservationExpiresAt <= new Date()) throw new PayPalCaptureExpiredError();
-    const operation = await journalPayPalCapture(tx, payment);
+    // Legacy rows lack a complete attempt ledger: never redispatch an uncertain
+    // capture merely by reusing a key whose provider retention may have elapsed.
+    if (!managed && payment.captureIdempotencyKey) throw new PaymentResolutionUnavailableError();
     if (payment.currency !== "GBP") throw new PayPalCaptureMismatchError("Unsupported payment currency");
     if (!payment.providerReference || payment.providerReference.startsWith("pending:")) throw new PayPalCaptureProviderError("PayPal Order is not available");
+    if (payment.status === PaymentStatus.CANCELED) throw new PaymentResolutionUnavailableError();
+    const operation = await journalPayPalCapture(tx, payment);
     const requestId = operation?.operationKey ?? payment.captureIdempotencyKey ?? `order-${orderId}-paypal-capture`;
     if (!payment.captureIdempotencyKey) await tx.payment.update({ where: { id: payment.id }, data: { captureIdempotencyKey: requestId } });
     return { paymentId: payment.id, paypalOrderId: payment.providerReference, requestId, amount: new Decimal(payment.amount) };
@@ -95,11 +106,36 @@ async function execute(orderId: number, userId: number, client?: PayPalCaptureCl
   try {
     captured = await (client ?? testClient ?? createPayPalCaptureClient()).captureOrder(prepared.paypalOrderId, prepared.requestId);
   } catch (error) {
+    await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${orderId} FOR UPDATE`;
+      if (error instanceof PayPalFundingDeclinedError) {
+        const payment = await tx.payment.findUniqueOrThrow({ where: { id: prepared.paymentId } });
+        const operation = await tx.paymentOperation.findUnique({ where: { operationKey: prepared.requestId } });
+        if (operation && payment.providerReference === prepared.paypalOrderId && payment.captureIdempotencyKey === prepared.requestId && !payment.paidAt && payment.status !== 'SUCCEEDED') {
+          await recordManagedFailure(tx, payment, prepared.paypalOrderId, `paypal-funding-failure:${operation.id}`);
+          await tx.financialEvidence.create({ data: { orderId, provider: 'PAYPAL', operationId: operation.id,
+            evidenceKey: `paypal-funding-decline:${operation.id}`, kind: 'FAILURE', verifiedAt: new Date(), normalized: {
+              providerReference: prepared.paypalOrderId, amount: payment.amount.toFixed(2), currency: payment.currency, declineCode: 'INSTRUMENT_DECLINED' } } });
+          await tx.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } });
+          await tx.paymentResolution.updateMany({ where: { orderId, reservationDisposition: 'HELD' }, data: { resolutionNextCheckAt: new Date() } });
+        }
+      }
+      await tx.paymentOperation.updateMany({ where: { operationKey: prepared.requestId, type: 'CAPTURE', state: { in: ['POTENTIALLY_DISPATCHED', 'UNKNOWN'] } },
+        data: { state: 'UNKNOWN', lastErrorCode: 'PAYPAL_CAPTURE_UNKNOWN' } });
+    });
     if (error instanceof PayPalCaptureProviderError) throw error;
     throw new PayPalCaptureProviderError("PayPal capture operation failed");
   }
   const captures = captured.purchase_units?.flatMap((unit) => unit.payments?.captures ?? []) ?? [];
   const capture = captures[0];
+  if (captures.length === 1 && captured.id === prepared.paypalOrderId && capture?.id
+    && ['PENDING', 'DECLINED'].includes(capture.status ?? '')
+    && capture.amount?.currency_code === 'GBP' && capture.amount.value === amountString(prepared.amount)) {
+    await reconcilePayPalWebhookEvent({ id: `capture-outcome:${prepared.requestId}:${capture.id}:${capture.status}`,
+      eventType: capture.status === 'PENDING' ? 'PAYMENT.CAPTURE.PENDING' : 'PAYMENT.CAPTURE.DENIED',
+      paypalOrderId: prepared.paypalOrderId, captureId: capture.id, amount: capture.amount.value, currency: 'GBP' });
+    throw new PayPalCaptureProviderError(capture.status === 'PENDING' ? 'PayPal capture is pending' : 'PayPal capture declined; provider verification required');
+  }
   if (captures.length !== 1 || captured.id !== prepared.paypalOrderId || captured.status !== "COMPLETED" || capture?.status !== "COMPLETED" || !capture.id || capture.amount?.currency_code?.toUpperCase() !== "GBP" || capture.amount.value !== amountString(prepared.amount)) {
     throw new PayPalCaptureMismatchError("PayPal capture did not match the local payment");
   }

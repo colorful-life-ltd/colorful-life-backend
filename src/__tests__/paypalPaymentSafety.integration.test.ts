@@ -1,3 +1,4 @@
+import { PaymentResolutionUnavailableError } from "../domain/payments/paymentResolutionService.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -262,13 +263,14 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     const worker = await import(`../domain/payments/paypalCaptureService.js?worker=${randomUUID()}`) as typeof import("../domain/payments/paypalCaptureService.js");
     const keys: string[] = []; const ledger = new Map<string, ReturnType<typeof c.client.captureOrder>>();
     const client: PayPalCaptureClient = { captureOrder: async (id, key) => {
-      keys.push(key); if (keys.length === 2) entered.resolve(); await release.promise;
+      keys.push(key); entered.resolve(); await release.promise;
       if (!ledger.has(key)) ledger.set(key, c.client.captureOrder(id)); return ledger.get(key)!;
     } };
-    const results = Promise.all([capturePayPalOrder(f.order.id, f.owner.id, client), worker.capturePayPalOrder(f.order.id, f.owner.id, client)]);
-    try { await entered.promise; assert.deepEqual(keys, [`order-${f.order.id}-paypal-capture`, `order-${f.order.id}-paypal-capture`]); }
+    const first = capturePayPalOrder(f.order.id, f.owner.id, client);
+    try { await entered.promise; await assert.rejects(worker.capturePayPalOrder(f.order.id, f.owner.id, client), PaymentResolutionUnavailableError);
+      assert.deepEqual(keys, [`order-${f.order.id}-paypal-capture`]); }
     finally { release.resolve(); }
-    const [a, b] = await results; assert.deepEqual(a, b); assert.equal(ledger.size, 1);
+    await first; assert.equal(ledger.size, 1);
     const at = await paid(f, c.captureId); await reconcilePayPalWebhookEvent(event(f, c.captureId)); await paid(f, c.captureId, at); await inventory(f, 0, 8, 1);
   });
 
