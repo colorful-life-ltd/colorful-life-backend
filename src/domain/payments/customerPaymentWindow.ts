@@ -1,7 +1,6 @@
 import { Prisma as PrismaSql } from "../../generated/prisma-client/client.js";
 import type { Order, Payment, PaymentAttempt, PaymentOperation, PaymentResolution, Prisma } from "../../generated/prisma-client/client.js";
 import { config } from "../../config/index.js";
-import { databaseNow } from "./paymentResolutionService.js";
 
 export type CustomerPaymentWindow = {
   version: 1;
@@ -30,6 +29,7 @@ export type PaymentWindowInput = {
   admission: "OPEN" | "CLOSED" | "UNAVAILABLE";
   managedEnabled: boolean;
   stripeConfigured: boolean;
+  newInitiationEnabled?: boolean;
   now: Date;
 };
 
@@ -69,6 +69,7 @@ export function presentCustomerPaymentWindow(input: PaymentWindowInput): Custome
   // Database operation-admission guards require these states for CREATE/CONFIRM.
   if (managed && (!payment || (finalUnpaid && payment.status === "CANCELED"))
     && r.state !== "INITIAL_OPEN" && r.state !== "RETRY_OPEN") return finish("OUTCOME_UNRESOLVED", "ADMISSION_UNAVAILABLE");
+  if ((!payment || (managed && finalUnpaid && payment.status === "CANCELED")) && input.newInitiationEnabled === false) return finish("NOT_PAYABLE", "STRIPE_UNAVAILABLE");
   if (!payment) return finish("INITIAL_PAYMENT", "INITIAL_WINDOW_OPEN", "ELIGIBLE");
   if (payment.provider !== "STRIPE") return finish("OUTCOME_UNRESOLVED", "OTHER_PROVIDER");
   if (managed && r.retryDeadline && finalUnpaid && payment.status === "CANCELED") return finish("RETRY_AVAILABLE", "VERIFIED_UNPAID_RETRY", "ELIGIBLE");
@@ -98,7 +99,11 @@ const paymentWindowSelect = {
 export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, userId: number, orderIds: readonly number[]) {
   const windows = new Map<number, CustomerPaymentWindow>();
   if (!orderIds.length) return windows;
-  const now = await databaseNow(tx);
+  // Fetch policy with the existing clock read, preserving fixed queries per batch.
+  const [clock] = await tx.$queryRaw<Array<{ now: Date; enabled: boolean }>>`SELECT clock_timestamp() AS now,
+    COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='STRIPE'), false) AS enabled`;
+  const now = clock.now;
+  const newInitiationEnabled = config.PAYMENT_STRIPE_INITIATION_ENABLED && clock.enabled;
   for (let offset = 0; offset < orderIds.length; offset += PAYMENT_WINDOW_BATCH_SIZE) {
     const orders = await tx.order.findMany({ where: { userId, id: { in: orderIds.slice(offset, offset + PAYMENT_WINDOW_BATCH_SIZE) } }, select: paymentWindowSelect });
     if (!orders.length) continue;
@@ -133,7 +138,7 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
       windows.set(order.id, presentCustomerPaymentWindow({ order, payment: order.payments[0] ?? null, resolution: r,
         attempts: order.paymentAttempts, hasUnresolvedInbox: unresolved.has(order.id),
         hasSuccessEvidence: order.financialEvidence.some(e => e.kind === "SUCCESS"), hasFinancialEvidence: order.financialEvidence.length > 0,
-        admission, managedEnabled: config.PAYMENT_RESOLUTION_ENABLED, stripeConfigured: !!config.STRIPE_SECRET_KEY, now }));
+        admission, managedEnabled: config.PAYMENT_RESOLUTION_ENABLED, stripeConfigured: !!config.STRIPE_SECRET_KEY, newInitiationEnabled, now }));
     }
   }
   return windows;

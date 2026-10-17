@@ -14,6 +14,7 @@ export class FulfilmentTransitionError extends Error {
 }
 
 export type PaymentIneligibility =
+  | "SECURITY_REVIEW_REQUIRED"
   | "NO_PAYMENT"
   | "PAYMENT_NOT_SUCCEEDED"
   | "PAYMENT_UNRESOLVED"

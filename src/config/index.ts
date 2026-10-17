@@ -1,3 +1,4 @@
+import { validateAbuseStartup } from "./paymentAbuse.js";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { config as dotenvConfig } from "dotenv";
@@ -22,6 +23,14 @@ const configSchema = z.object({
   REFUND_RECONCILIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   CARRIER_TRACKING_POLLING_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   PAYMENT_RESOLUTION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
+  PAYMENT_STRIPE_INITIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
+  PAYMENT_PAYPAL_INITIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
+  CLIENT_IP_MODE: z.enum(["direct", "proxy"]).optional(),
+  PAYMENT_ABUSE_HMAC_SECRET: z.string().min(32).optional(),
+  PAYMENT_ABUSE_LIMITS_JSON: z.string().optional(),
+  PAYMENT_CHALLENGE_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
+  TURNSTILE_SECRET_KEY: z.string().optional(),
+  TURNSTILE_HOSTNAME: z.string().optional(),
   PORT: z
     .preprocess((val) => (val ? Number(val) : 3000),
       z.number().int().positive()
@@ -65,4 +74,9 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+try { validateAbuseStartup(parsed.data, process.env.NODE_ENV); }
+catch (error) {
+  console.error("Invalid security startup configuration:", error instanceof Error ? error.message : "configuration unavailable");
+  process.exit(1);
+}
 export const config = parsed.data;

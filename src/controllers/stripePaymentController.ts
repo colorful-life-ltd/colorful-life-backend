@@ -1,3 +1,4 @@
+import { sendProtectionError } from "../middleware/checkoutProtection.js";
 import { PaymentAdmissionClosedError, PaymentResolutionUnavailableError } from "../domain/payments/paymentResolutionService.js";
 import { sendApiError } from "../utils/apiErrorResponse.js";
 import type { Request, Response } from "express";
@@ -11,7 +12,7 @@ export async function createStripePaymentIntentHandler(req: Request, res: Respon
   try {
     const result = await createOrReuseStripePaymentIntent(orderId, userId);
     return res.status(201).json({ clientSecret: result.clientSecret });
-  } catch (error) {
+  } catch (error) { if (sendProtectionError(res, error)) return;
     if (error instanceof PaymentAdmissionClosedError) return sendApiError(res, 409, "PAYMENT_ADMISSION_CLOSED", "Payment admission window is closed");
     if (error instanceof PaymentResolutionUnavailableError) return sendApiError(res, 409, "PAYMENT_OUTCOME_UNRESOLVED", "A prior payment operation requires resolution");
     if (error instanceof StripePaymentOrderNotFoundError || error instanceof StripePaymentOwnershipError) return res.status(404).json({ error: "Order not found" });

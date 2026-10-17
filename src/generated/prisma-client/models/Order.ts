@@ -468,6 +468,8 @@ export type OrderWhereInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobListRelationFilter
   commercialInvoice?: Prisma.XOR<Prisma.CommercialInvoiceNullableScalarRelationFilter, Prisma.CommercialInvoiceWhereInput> | null
   orderItems?: Prisma.OrderItemListRelationFilter
+  securityAdmissions?: Prisma.PaymentAdmissionListRelationFilter
+  securityFulfilmentReview?: Prisma.XOR<Prisma.PaymentFulfilmentReviewNullableScalarRelationFilter, Prisma.PaymentFulfilmentReviewWhereInput> | null
   payments?: Prisma.PaymentListRelationFilter
   refunds?: Prisma.RefundListRelationFilter
   cartProvenance?: Prisma.XOR<Prisma.OrderCartProvenanceNullableScalarRelationFilter, Prisma.OrderCartProvenanceWhereInput> | null
@@ -519,6 +521,8 @@ export type OrderOrderByWithRelationInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobOrderByRelationAggregateInput
   commercialInvoice?: Prisma.CommercialInvoiceOrderByWithRelationInput
   orderItems?: Prisma.OrderItemOrderByRelationAggregateInput
+  securityAdmissions?: Prisma.PaymentAdmissionOrderByRelationAggregateInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewOrderByWithRelationInput
   payments?: Prisma.PaymentOrderByRelationAggregateInput
   refunds?: Prisma.RefundOrderByRelationAggregateInput
   cartProvenance?: Prisma.OrderCartProvenanceOrderByWithRelationInput
@@ -574,6 +578,8 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   confirmationJobs?: Prisma.OrderConfirmationJobListRelationFilter
   commercialInvoice?: Prisma.XOR<Prisma.CommercialInvoiceNullableScalarRelationFilter, Prisma.CommercialInvoiceWhereInput> | null
   orderItems?: Prisma.OrderItemListRelationFilter
+  securityAdmissions?: Prisma.PaymentAdmissionListRelationFilter
+  securityFulfilmentReview?: Prisma.XOR<Prisma.PaymentFulfilmentReviewNullableScalarRelationFilter, Prisma.PaymentFulfilmentReviewWhereInput> | null
   payments?: Prisma.PaymentListRelationFilter
   refunds?: Prisma.RefundListRelationFilter
   cartProvenance?: Prisma.XOR<Prisma.OrderCartProvenanceNullableScalarRelationFilter, Prisma.OrderCartProvenanceWhereInput> | null
@@ -707,6 +713,8 @@ export type OrderCreateInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -757,6 +765,8 @@ export type OrderUncheckedCreateInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -806,6 +816,8 @@ export type OrderUpdateInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -856,6 +868,8 @@ export type OrderUncheckedUpdateInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -1347,6 +1361,34 @@ export type OrderUpdateOneRequiredWithoutCommercialInvoiceNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.OrderUpdateToOneWithWhereWithoutCommercialInvoiceInput, Prisma.OrderUpdateWithoutCommercialInvoiceInput>, Prisma.OrderUncheckedUpdateWithoutCommercialInvoiceInput>
 }
 
+export type OrderCreateNestedOneWithoutSecurityAdmissionsInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutSecurityAdmissionsInput, Prisma.OrderUncheckedCreateWithoutSecurityAdmissionsInput>
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutSecurityAdmissionsInput
+  connect?: Prisma.OrderWhereUniqueInput
+}
+
+export type OrderUpdateOneRequiredWithoutSecurityAdmissionsNestedInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutSecurityAdmissionsInput, Prisma.OrderUncheckedCreateWithoutSecurityAdmissionsInput>
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutSecurityAdmissionsInput
+  upsert?: Prisma.OrderUpsertWithoutSecurityAdmissionsInput
+  connect?: Prisma.OrderWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.OrderUpdateToOneWithWhereWithoutSecurityAdmissionsInput, Prisma.OrderUpdateWithoutSecurityAdmissionsInput>, Prisma.OrderUncheckedUpdateWithoutSecurityAdmissionsInput>
+}
+
+export type OrderCreateNestedOneWithoutSecurityFulfilmentReviewInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutSecurityFulfilmentReviewInput, Prisma.OrderUncheckedCreateWithoutSecurityFulfilmentReviewInput>
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutSecurityFulfilmentReviewInput
+  connect?: Prisma.OrderWhereUniqueInput
+}
+
+export type OrderUpdateOneRequiredWithoutSecurityFulfilmentReviewNestedInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutSecurityFulfilmentReviewInput, Prisma.OrderUncheckedCreateWithoutSecurityFulfilmentReviewInput>
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutSecurityFulfilmentReviewInput
+  upsert?: Prisma.OrderUpsertWithoutSecurityFulfilmentReviewInput
+  connect?: Prisma.OrderWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.OrderUpdateToOneWithWhereWithoutSecurityFulfilmentReviewInput, Prisma.OrderUpdateWithoutSecurityFulfilmentReviewInput>, Prisma.OrderUncheckedUpdateWithoutSecurityFulfilmentReviewInput>
+}
+
 export type OrderCreateWithoutUserInput = {
   status?: $Enums.OrderStatus
   creationIdempotencyKey?: string | null
@@ -1384,6 +1426,8 @@ export type OrderCreateWithoutUserInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -1433,6 +1477,8 @@ export type OrderUncheckedCreateWithoutUserInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -1549,6 +1595,8 @@ export type OrderCreateWithoutCartProvenanceInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   paymentResolution?: Prisma.PaymentResolutionCreateNestedOneWithoutOrderInput
@@ -1598,6 +1646,8 @@ export type OrderUncheckedCreateWithoutCartProvenanceInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   paymentResolution?: Prisma.PaymentResolutionUncheckedCreateNestedOneWithoutOrderInput
@@ -1662,6 +1712,8 @@ export type OrderUpdateWithoutCartProvenanceInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   paymentResolution?: Prisma.PaymentResolutionUpdateOneWithoutOrderNestedInput
@@ -1711,6 +1763,8 @@ export type OrderUncheckedUpdateWithoutCartProvenanceInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   paymentResolution?: Prisma.PaymentResolutionUncheckedUpdateOneWithoutOrderNestedInput
@@ -1759,6 +1813,8 @@ export type OrderCreateWithoutPaymentsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
   paymentResolution?: Prisma.PaymentResolutionCreateNestedOneWithoutOrderInput
@@ -1808,6 +1864,8 @@ export type OrderUncheckedCreateWithoutPaymentsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
   paymentResolution?: Prisma.PaymentResolutionUncheckedCreateNestedOneWithoutOrderInput
@@ -1872,6 +1930,8 @@ export type OrderUpdateWithoutPaymentsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
   paymentResolution?: Prisma.PaymentResolutionUpdateOneWithoutOrderNestedInput
@@ -1921,6 +1981,8 @@ export type OrderUncheckedUpdateWithoutPaymentsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
   paymentResolution?: Prisma.PaymentResolutionUncheckedUpdateOneWithoutOrderNestedInput
@@ -1969,6 +2031,8 @@ export type OrderCreateWithoutRefundsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
   paymentResolution?: Prisma.PaymentResolutionCreateNestedOneWithoutOrderInput
@@ -2018,6 +2082,8 @@ export type OrderUncheckedCreateWithoutRefundsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
   paymentResolution?: Prisma.PaymentResolutionUncheckedCreateNestedOneWithoutOrderInput
@@ -2082,6 +2148,8 @@ export type OrderUpdateWithoutRefundsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
   paymentResolution?: Prisma.PaymentResolutionUpdateOneWithoutOrderNestedInput
@@ -2131,6 +2199,8 @@ export type OrderUncheckedUpdateWithoutRefundsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
   paymentResolution?: Prisma.PaymentResolutionUncheckedUpdateOneWithoutOrderNestedInput
@@ -2178,6 +2248,8 @@ export type OrderCreateWithoutOrderItemsInput = {
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -2227,6 +2299,8 @@ export type OrderUncheckedCreateWithoutOrderItemsInput = {
   updatedAt?: Date | string
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -2291,6 +2365,8 @@ export type OrderUpdateWithoutOrderItemsInput = {
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -2340,6 +2416,8 @@ export type OrderUncheckedUpdateWithoutOrderItemsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -2389,6 +2467,8 @@ export type OrderCreateWithoutPaymentAttemptsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -2438,6 +2518,8 @@ export type OrderUncheckedCreateWithoutPaymentAttemptsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -2502,6 +2584,8 @@ export type OrderUpdateWithoutPaymentAttemptsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -2551,6 +2635,8 @@ export type OrderUncheckedUpdateWithoutPaymentAttemptsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -2599,6 +2685,8 @@ export type OrderCreateWithoutFinancialEvidenceInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -2648,6 +2736,8 @@ export type OrderUncheckedCreateWithoutFinancialEvidenceInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -2712,6 +2802,8 @@ export type OrderUpdateWithoutFinancialEvidenceInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -2761,6 +2853,8 @@ export type OrderUncheckedUpdateWithoutFinancialEvidenceInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -2809,6 +2903,8 @@ export type OrderCreateWithoutReservationReleaseProofsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -2858,6 +2954,8 @@ export type OrderUncheckedCreateWithoutReservationReleaseProofsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -2922,6 +3020,8 @@ export type OrderUpdateWithoutReservationReleaseProofsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -2971,6 +3071,8 @@ export type OrderUncheckedUpdateWithoutReservationReleaseProofsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -3019,6 +3121,8 @@ export type OrderCreateWithoutPaymentResolutionInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -3068,6 +3172,8 @@ export type OrderUncheckedCreateWithoutPaymentResolutionInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -3132,6 +3238,8 @@ export type OrderUpdateWithoutPaymentResolutionInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -3181,6 +3289,8 @@ export type OrderUncheckedUpdateWithoutPaymentResolutionInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -3229,6 +3339,8 @@ export type OrderCreateWithoutShipmentsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -3278,6 +3390,8 @@ export type OrderUncheckedCreateWithoutShipmentsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -3342,6 +3456,8 @@ export type OrderUpdateWithoutShipmentsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -3391,6 +3507,8 @@ export type OrderUncheckedUpdateWithoutShipmentsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -3439,6 +3557,8 @@ export type OrderCreateWithoutFulfilmentEventsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -3488,6 +3608,8 @@ export type OrderUncheckedCreateWithoutFulfilmentEventsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -3552,6 +3674,8 @@ export type OrderUpdateWithoutFulfilmentEventsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -3601,6 +3725,8 @@ export type OrderUncheckedUpdateWithoutFulfilmentEventsInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -3648,6 +3774,8 @@ export type OrderCreateWithoutConfirmationJobsInput = {
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -3697,6 +3825,8 @@ export type OrderUncheckedCreateWithoutConfirmationJobsInput = {
   updatedAt?: Date | string
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -3761,6 +3891,8 @@ export type OrderUpdateWithoutConfirmationJobsInput = {
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -3810,6 +3942,8 @@ export type OrderUncheckedUpdateWithoutConfirmationJobsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -3858,6 +3992,8 @@ export type OrderCreateWithoutCommercialInvoiceInput = {
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
@@ -3907,6 +4043,8 @@ export type OrderUncheckedCreateWithoutCommercialInvoiceInput = {
   updatedAt?: Date | string
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
   refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
@@ -3971,6 +4109,8 @@ export type OrderUpdateWithoutCommercialInvoiceInput = {
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -4020,6 +4160,444 @@ export type OrderUncheckedUpdateWithoutCommercialInvoiceInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
+  refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
+  cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
+  paymentResolution?: Prisma.PaymentResolutionUncheckedUpdateOneWithoutOrderNestedInput
+  paymentAttempts?: Prisma.PaymentAttemptUncheckedUpdateManyWithoutOrderNestedInput
+  financialEvidence?: Prisma.FinancialEvidenceUncheckedUpdateManyWithoutOrderNestedInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUncheckedUpdateManyWithoutOrderNestedInput
+  shipments?: Prisma.ShipmentUncheckedUpdateManyWithoutOrderNestedInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutOrderNestedInput
+}
+
+export type OrderCreateWithoutSecurityAdmissionsInput = {
+  status?: $Enums.OrderStatus
+  creationIdempotencyKey?: string | null
+  creationRequestHash?: string | null
+  billingRecipientName: string
+  billingLine1: string
+  billingLine2?: string | null
+  billingCity: string
+  billingCounty?: string | null
+  billingPostcode: string
+  billingCountryCode: string
+  billingPhone?: string | null
+  deliveryRecipientName: string
+  deliveryLine1: string
+  deliveryLine2?: string | null
+  deliveryCity: string
+  deliveryCounty?: string | null
+  deliveryPostcode: string
+  deliveryCountryCode: string
+  deliveryPhone?: string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: string | null
+  trackingNumber?: string | null
+  dispatchedAt?: Date | string | null
+  preparingAt?: Date | string | null
+  reservationExpiresAt?: Date | string | null
+  createdAt?: Date | string
+  cancelledAt?: Date | string | null
+  cancelledBy?: $Enums.CancellationInitiator | null
+  cancellationReason?: $Enums.CancellationReason | null
+  completedAt?: Date | string | null
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
+  commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
+  orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
+  refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
+  cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
+  paymentResolution?: Prisma.PaymentResolutionCreateNestedOneWithoutOrderInput
+  paymentAttempts?: Prisma.PaymentAttemptCreateNestedManyWithoutOrderInput
+  financialEvidence?: Prisma.FinancialEvidenceCreateNestedManyWithoutOrderInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofCreateNestedManyWithoutOrderInput
+  shipments?: Prisma.ShipmentCreateNestedManyWithoutOrderInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutOrderInput
+}
+
+export type OrderUncheckedCreateWithoutSecurityAdmissionsInput = {
+  id?: number
+  userId: number
+  status?: $Enums.OrderStatus
+  creationIdempotencyKey?: string | null
+  creationRequestHash?: string | null
+  billingRecipientName: string
+  billingLine1: string
+  billingLine2?: string | null
+  billingCity: string
+  billingCounty?: string | null
+  billingPostcode: string
+  billingCountryCode: string
+  billingPhone?: string | null
+  deliveryRecipientName: string
+  deliveryLine1: string
+  deliveryLine2?: string | null
+  deliveryCity: string
+  deliveryCounty?: string | null
+  deliveryPostcode: string
+  deliveryCountryCode: string
+  deliveryPhone?: string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: string | null
+  trackingNumber?: string | null
+  dispatchedAt?: Date | string | null
+  preparingAt?: Date | string | null
+  reservationExpiresAt?: Date | string | null
+  createdAt?: Date | string
+  cancelledAt?: Date | string | null
+  cancelledBy?: $Enums.CancellationInitiator | null
+  cancellationReason?: $Enums.CancellationReason | null
+  completedAt?: Date | string | null
+  updatedAt?: Date | string
+  confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
+  commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
+  orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
+  refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
+  cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
+  paymentResolution?: Prisma.PaymentResolutionUncheckedCreateNestedOneWithoutOrderInput
+  paymentAttempts?: Prisma.PaymentAttemptUncheckedCreateNestedManyWithoutOrderInput
+  financialEvidence?: Prisma.FinancialEvidenceUncheckedCreateNestedManyWithoutOrderInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUncheckedCreateNestedManyWithoutOrderInput
+  shipments?: Prisma.ShipmentUncheckedCreateNestedManyWithoutOrderInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutOrderInput
+}
+
+export type OrderCreateOrConnectWithoutSecurityAdmissionsInput = {
+  where: Prisma.OrderWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrderCreateWithoutSecurityAdmissionsInput, Prisma.OrderUncheckedCreateWithoutSecurityAdmissionsInput>
+}
+
+export type OrderUpsertWithoutSecurityAdmissionsInput = {
+  update: Prisma.XOR<Prisma.OrderUpdateWithoutSecurityAdmissionsInput, Prisma.OrderUncheckedUpdateWithoutSecurityAdmissionsInput>
+  create: Prisma.XOR<Prisma.OrderCreateWithoutSecurityAdmissionsInput, Prisma.OrderUncheckedCreateWithoutSecurityAdmissionsInput>
+  where?: Prisma.OrderWhereInput
+}
+
+export type OrderUpdateToOneWithWhereWithoutSecurityAdmissionsInput = {
+  where?: Prisma.OrderWhereInput
+  data: Prisma.XOR<Prisma.OrderUpdateWithoutSecurityAdmissionsInput, Prisma.OrderUncheckedUpdateWithoutSecurityAdmissionsInput>
+}
+
+export type OrderUpdateWithoutSecurityAdmissionsInput = {
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  creationIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creationRequestHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingCity?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryCity?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  trackingNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dispatchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  preparingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reservationExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  cancelledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  cancelledBy?: Prisma.NullableEnumCancellationInitiatorFieldUpdateOperationsInput | $Enums.CancellationInitiator | null
+  cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
+  commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
+  orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
+  refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
+  cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
+  paymentResolution?: Prisma.PaymentResolutionUpdateOneWithoutOrderNestedInput
+  paymentAttempts?: Prisma.PaymentAttemptUpdateManyWithoutOrderNestedInput
+  financialEvidence?: Prisma.FinancialEvidenceUpdateManyWithoutOrderNestedInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUpdateManyWithoutOrderNestedInput
+  shipments?: Prisma.ShipmentUpdateManyWithoutOrderNestedInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutOrderNestedInput
+}
+
+export type OrderUncheckedUpdateWithoutSecurityAdmissionsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  userId?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  creationIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creationRequestHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingCity?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryCity?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  trackingNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dispatchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  preparingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reservationExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  cancelledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  cancelledBy?: Prisma.NullableEnumCancellationInitiatorFieldUpdateOperationsInput | $Enums.CancellationInitiator | null
+  cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
+  commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
+  orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
+  refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
+  cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
+  paymentResolution?: Prisma.PaymentResolutionUncheckedUpdateOneWithoutOrderNestedInput
+  paymentAttempts?: Prisma.PaymentAttemptUncheckedUpdateManyWithoutOrderNestedInput
+  financialEvidence?: Prisma.FinancialEvidenceUncheckedUpdateManyWithoutOrderNestedInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUncheckedUpdateManyWithoutOrderNestedInput
+  shipments?: Prisma.ShipmentUncheckedUpdateManyWithoutOrderNestedInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutOrderNestedInput
+}
+
+export type OrderCreateWithoutSecurityFulfilmentReviewInput = {
+  status?: $Enums.OrderStatus
+  creationIdempotencyKey?: string | null
+  creationRequestHash?: string | null
+  billingRecipientName: string
+  billingLine1: string
+  billingLine2?: string | null
+  billingCity: string
+  billingCounty?: string | null
+  billingPostcode: string
+  billingCountryCode: string
+  billingPhone?: string | null
+  deliveryRecipientName: string
+  deliveryLine1: string
+  deliveryLine2?: string | null
+  deliveryCity: string
+  deliveryCounty?: string | null
+  deliveryPostcode: string
+  deliveryCountryCode: string
+  deliveryPhone?: string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: string | null
+  trackingNumber?: string | null
+  dispatchedAt?: Date | string | null
+  preparingAt?: Date | string | null
+  reservationExpiresAt?: Date | string | null
+  createdAt?: Date | string
+  cancelledAt?: Date | string | null
+  cancelledBy?: $Enums.CancellationInitiator | null
+  cancellationReason?: $Enums.CancellationReason | null
+  completedAt?: Date | string | null
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
+  commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
+  orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
+  refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
+  cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
+  paymentResolution?: Prisma.PaymentResolutionCreateNestedOneWithoutOrderInput
+  paymentAttempts?: Prisma.PaymentAttemptCreateNestedManyWithoutOrderInput
+  financialEvidence?: Prisma.FinancialEvidenceCreateNestedManyWithoutOrderInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofCreateNestedManyWithoutOrderInput
+  shipments?: Prisma.ShipmentCreateNestedManyWithoutOrderInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutOrderInput
+}
+
+export type OrderUncheckedCreateWithoutSecurityFulfilmentReviewInput = {
+  id?: number
+  userId: number
+  status?: $Enums.OrderStatus
+  creationIdempotencyKey?: string | null
+  creationRequestHash?: string | null
+  billingRecipientName: string
+  billingLine1: string
+  billingLine2?: string | null
+  billingCity: string
+  billingCounty?: string | null
+  billingPostcode: string
+  billingCountryCode: string
+  billingPhone?: string | null
+  deliveryRecipientName: string
+  deliveryLine1: string
+  deliveryLine2?: string | null
+  deliveryCity: string
+  deliveryCounty?: string | null
+  deliveryPostcode: string
+  deliveryCountryCode: string
+  deliveryPhone?: string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: string | null
+  trackingNumber?: string | null
+  dispatchedAt?: Date | string | null
+  preparingAt?: Date | string | null
+  reservationExpiresAt?: Date | string | null
+  createdAt?: Date | string
+  cancelledAt?: Date | string | null
+  cancelledBy?: $Enums.CancellationInitiator | null
+  cancellationReason?: $Enums.CancellationReason | null
+  completedAt?: Date | string | null
+  updatedAt?: Date | string
+  confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
+  commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
+  orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
+  refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
+  cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
+  paymentResolution?: Prisma.PaymentResolutionUncheckedCreateNestedOneWithoutOrderInput
+  paymentAttempts?: Prisma.PaymentAttemptUncheckedCreateNestedManyWithoutOrderInput
+  financialEvidence?: Prisma.FinancialEvidenceUncheckedCreateNestedManyWithoutOrderInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUncheckedCreateNestedManyWithoutOrderInput
+  shipments?: Prisma.ShipmentUncheckedCreateNestedManyWithoutOrderInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutOrderInput
+}
+
+export type OrderCreateOrConnectWithoutSecurityFulfilmentReviewInput = {
+  where: Prisma.OrderWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrderCreateWithoutSecurityFulfilmentReviewInput, Prisma.OrderUncheckedCreateWithoutSecurityFulfilmentReviewInput>
+}
+
+export type OrderUpsertWithoutSecurityFulfilmentReviewInput = {
+  update: Prisma.XOR<Prisma.OrderUpdateWithoutSecurityFulfilmentReviewInput, Prisma.OrderUncheckedUpdateWithoutSecurityFulfilmentReviewInput>
+  create: Prisma.XOR<Prisma.OrderCreateWithoutSecurityFulfilmentReviewInput, Prisma.OrderUncheckedCreateWithoutSecurityFulfilmentReviewInput>
+  where?: Prisma.OrderWhereInput
+}
+
+export type OrderUpdateToOneWithWhereWithoutSecurityFulfilmentReviewInput = {
+  where?: Prisma.OrderWhereInput
+  data: Prisma.XOR<Prisma.OrderUpdateWithoutSecurityFulfilmentReviewInput, Prisma.OrderUncheckedUpdateWithoutSecurityFulfilmentReviewInput>
+}
+
+export type OrderUpdateWithoutSecurityFulfilmentReviewInput = {
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  creationIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creationRequestHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingCity?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryCity?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  trackingNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dispatchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  preparingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reservationExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  cancelledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  cancelledBy?: Prisma.NullableEnumCancellationInitiatorFieldUpdateOperationsInput | $Enums.CancellationInitiator | null
+  cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
+  commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
+  orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
+  refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
+  cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
+  paymentResolution?: Prisma.PaymentResolutionUpdateOneWithoutOrderNestedInput
+  paymentAttempts?: Prisma.PaymentAttemptUpdateManyWithoutOrderNestedInput
+  financialEvidence?: Prisma.FinancialEvidenceUpdateManyWithoutOrderNestedInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUpdateManyWithoutOrderNestedInput
+  shipments?: Prisma.ShipmentUpdateManyWithoutOrderNestedInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutOrderNestedInput
+}
+
+export type OrderUncheckedUpdateWithoutSecurityFulfilmentReviewInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  userId?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  creationIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creationRequestHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingCity?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryCity?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  trackingNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dispatchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  preparingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reservationExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  cancelledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  cancelledBy?: Prisma.NullableEnumCancellationInitiatorFieldUpdateOperationsInput | $Enums.CancellationInitiator | null
+  cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
+  commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
+  orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -4105,6 +4683,8 @@ export type OrderUpdateWithoutUserInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
@@ -4154,6 +4734,8 @@ export type OrderUncheckedUpdateWithoutUserInput = {
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
   refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
   cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
@@ -4210,6 +4792,7 @@ export type OrderUncheckedUpdateManyWithoutUserInput = {
 export type OrderCountOutputType = {
   confirmationJobs: number
   orderItems: number
+  securityAdmissions: number
   payments: number
   refunds: number
   paymentAttempts: number
@@ -4222,6 +4805,7 @@ export type OrderCountOutputType = {
 export type OrderCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   confirmationJobs?: boolean | OrderCountOutputTypeCountConfirmationJobsArgs
   orderItems?: boolean | OrderCountOutputTypeCountOrderItemsArgs
+  securityAdmissions?: boolean | OrderCountOutputTypeCountSecurityAdmissionsArgs
   payments?: boolean | OrderCountOutputTypeCountPaymentsArgs
   refunds?: boolean | OrderCountOutputTypeCountRefundsArgs
   paymentAttempts?: boolean | OrderCountOutputTypeCountPaymentAttemptsArgs
@@ -4253,6 +4837,13 @@ export type OrderCountOutputTypeCountConfirmationJobsArgs<ExtArgs extends runtim
  */
 export type OrderCountOutputTypeCountOrderItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.OrderItemWhereInput
+}
+
+/**
+ * OrderCountOutputType without action
+ */
+export type OrderCountOutputTypeCountSecurityAdmissionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PaymentAdmissionWhereInput
 }
 
 /**
@@ -4345,6 +4936,8 @@ export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   confirmationJobs?: boolean | Prisma.Order$confirmationJobsArgs<ExtArgs>
   commercialInvoice?: boolean | Prisma.Order$commercialInvoiceArgs<ExtArgs>
   orderItems?: boolean | Prisma.Order$orderItemsArgs<ExtArgs>
+  securityAdmissions?: boolean | Prisma.Order$securityAdmissionsArgs<ExtArgs>
+  securityFulfilmentReview?: boolean | Prisma.Order$securityFulfilmentReviewArgs<ExtArgs>
   payments?: boolean | Prisma.Order$paymentsArgs<ExtArgs>
   refunds?: boolean | Prisma.Order$refundsArgs<ExtArgs>
   cartProvenance?: boolean | Prisma.Order$cartProvenanceArgs<ExtArgs>
@@ -4479,6 +5072,8 @@ export type OrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   confirmationJobs?: boolean | Prisma.Order$confirmationJobsArgs<ExtArgs>
   commercialInvoice?: boolean | Prisma.Order$commercialInvoiceArgs<ExtArgs>
   orderItems?: boolean | Prisma.Order$orderItemsArgs<ExtArgs>
+  securityAdmissions?: boolean | Prisma.Order$securityAdmissionsArgs<ExtArgs>
+  securityFulfilmentReview?: boolean | Prisma.Order$securityFulfilmentReviewArgs<ExtArgs>
   payments?: boolean | Prisma.Order$paymentsArgs<ExtArgs>
   refunds?: boolean | Prisma.Order$refundsArgs<ExtArgs>
   cartProvenance?: boolean | Prisma.Order$cartProvenanceArgs<ExtArgs>
@@ -4504,6 +5099,8 @@ export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     confirmationJobs: Prisma.$OrderConfirmationJobPayload<ExtArgs>[]
     commercialInvoice: Prisma.$CommercialInvoicePayload<ExtArgs> | null
     orderItems: Prisma.$OrderItemPayload<ExtArgs>[]
+    securityAdmissions: Prisma.$PaymentAdmissionPayload<ExtArgs>[]
+    securityFulfilmentReview: Prisma.$PaymentFulfilmentReviewPayload<ExtArgs> | null
     payments: Prisma.$PaymentPayload<ExtArgs>[]
     refunds: Prisma.$RefundPayload<ExtArgs>[]
     cartProvenance: Prisma.$OrderCartProvenancePayload<ExtArgs> | null
@@ -4948,6 +5545,8 @@ export interface Prisma__OrderClient<T, Null = never, ExtArgs extends runtime.Ty
   confirmationJobs<T extends Prisma.Order$confirmationJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$confirmationJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderConfirmationJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   commercialInvoice<T extends Prisma.Order$commercialInvoiceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$commercialInvoiceArgs<ExtArgs>>): Prisma.Prisma__CommercialInvoiceClient<runtime.Types.Result.GetResult<Prisma.$CommercialInvoicePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   orderItems<T extends Prisma.Order$orderItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$orderItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  securityAdmissions<T extends Prisma.Order$securityAdmissionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$securityAdmissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PaymentAdmissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  securityFulfilmentReview<T extends Prisma.Order$securityFulfilmentReviewArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$securityFulfilmentReviewArgs<ExtArgs>>): Prisma.Prisma__PaymentFulfilmentReviewClient<runtime.Types.Result.GetResult<Prisma.$PaymentFulfilmentReviewPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   payments<T extends Prisma.Order$paymentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   refunds<T extends Prisma.Order$refundsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$refundsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RefundPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   cartProvenance<T extends Prisma.Order$cartProvenanceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$cartProvenanceArgs<ExtArgs>>): Prisma.Prisma__OrderCartProvenanceClient<runtime.Types.Result.GetResult<Prisma.$OrderCartProvenancePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
@@ -5486,6 +6085,49 @@ export type Order$orderItemsArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.OrderItemScalarFieldEnum | Prisma.OrderItemScalarFieldEnum[]
+}
+
+/**
+ * Order.securityAdmissions
+ */
+export type Order$securityAdmissionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PaymentAdmission
+   */
+  select?: Prisma.PaymentAdmissionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PaymentAdmission
+   */
+  omit?: Prisma.PaymentAdmissionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PaymentAdmissionInclude<ExtArgs> | null
+  where?: Prisma.PaymentAdmissionWhereInput
+  orderBy?: Prisma.PaymentAdmissionOrderByWithRelationInput | Prisma.PaymentAdmissionOrderByWithRelationInput[]
+  cursor?: Prisma.PaymentAdmissionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PaymentAdmissionScalarFieldEnum | Prisma.PaymentAdmissionScalarFieldEnum[]
+}
+
+/**
+ * Order.securityFulfilmentReview
+ */
+export type Order$securityFulfilmentReviewArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PaymentFulfilmentReview
+   */
+  select?: Prisma.PaymentFulfilmentReviewSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PaymentFulfilmentReview
+   */
+  omit?: Prisma.PaymentFulfilmentReviewOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PaymentFulfilmentReviewInclude<ExtArgs> | null
+  where?: Prisma.PaymentFulfilmentReviewWhereInput
 }
 
 /**

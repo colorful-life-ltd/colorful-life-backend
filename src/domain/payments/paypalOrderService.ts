@@ -1,3 +1,4 @@
+import { admitFinancialOperation } from "../security/paymentAbuse.js";
 import { randomUUID } from "node:crypto";
 import { checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, PaymentResolutionUnavailableError } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
@@ -62,16 +63,19 @@ export async function createOrReusePayPalOrder(orderId: number, userId: number, 
         const previous = await tx.paymentAttempt.findUnique({ where: { provider_providerReference: { provider: 'PAYPAL', providerReference: existing.providerReference } }, include: { operations: true } });
         if (!previous?.finalityEvidenceId || previous.successEvidenceId || previous.operations.some(o => o.state !== 'RESULT_RECORDED')) throw new PaymentResolutionUnavailableError();
         const requestId = randomUUID();
+        await admitFinancialOperation(tx, "PAYPAL", orderId, userId, `paypal-create:${requestId}`, `paypal-attempt:${requestId}`);
         const payment = await tx.payment.update({ where: { id: existing.id }, data: { providerReference: `pending:${requestId}`, idempotencyKey: requestId,
           captureIdempotencyKey: null, providerCaptureReference: null, status: PaymentStatus.PENDING } });
         await journalNewPayment(tx, payment, 'CREATE');
         return { payment, value, requestId };
       }
       await guardPendingCreation(tx, existing);
+      if (existing.providerReference.startsWith("pending:")) await admitFinancialOperation(tx, "PAYPAL", orderId, userId, `paypal-create:${existing.idempotencyKey ?? existing.providerReference}`, `paypal-attempt:${existing.idempotencyKey ?? existing.providerReference.replace(/^pending:/, "")}`);
       if (!existing.providerReference.startsWith("pending:")) return { payment: existing, value, requestId: existing.idempotencyKey ?? `order-${orderId}-paypal` };
       return { payment: existing, value, requestId: existing.idempotencyKey ?? `order-${orderId}-paypal` };
     }
     const requestId = `order-${orderId}-paypal`;
+    await admitFinancialOperation(tx, "PAYPAL", orderId, userId, `paypal-create:${requestId}`, `paypal-attempt:${requestId}`);
     const payment = await tx.payment.create({ data: { orderId, amount: order.totalAmount, currency: "GBP", provider: PaymentProvider.PAYPAL, providerReference: `pending:${requestId}`, idempotencyKey: requestId, status: PaymentStatus.PENDING } });
     await journalNewPayment(tx, payment, "CREATE");
     return { payment, value, requestId };

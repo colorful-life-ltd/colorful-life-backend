@@ -1,3 +1,4 @@
+import adminPaymentSecurity from "./routes/adminPaymentSecurity.js";
 import adminPayPalWebhookReviewsRouter from './routes/adminPayPalWebhookReviews.js';
 import express from "express";
 import { config } from "./config/index.js";
@@ -47,7 +48,8 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/purchases", purchasesRouter);
   app.use("/purchase-analytics", purchaseAnalyticsRouter);
   app.use("/purchase-items", purchaseItemsRouter);
-  app.use("/admin/orders", adminOrdersRouter);
+  app.use("/admin/payment-security", adminPaymentSecurity);
+app.use("/admin/orders", adminOrdersRouter);
   app.use("/admin/paypal/webhook-reviews", adminPayPalWebhookReviewsRouter);
   app.use("/orders", ordersRouter);
   app.use("/cart", cartRouter);

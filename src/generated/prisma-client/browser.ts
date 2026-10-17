@@ -232,3 +232,33 @@ export type OrderConfirmationJob = Prisma.OrderConfirmationJobModel
  *
  */
 export type CommercialInvoice = Prisma.CommercialInvoiceModel
+/**
+ * Model AbuseBucket
+ *
+ */
+export type AbuseBucket = Prisma.AbuseBucketModel
+/**
+ * Model PaymentInitiationPolicy
+ *
+ */
+export type PaymentInitiationPolicy = Prisma.PaymentInitiationPolicyModel
+/**
+ * Model PaymentAdmission
+ *
+ */
+export type PaymentAdmission = Prisma.PaymentAdmissionModel
+/**
+ * Model PaymentSecurityEvent
+ *
+ */
+export type PaymentSecurityEvent = Prisma.PaymentSecurityEventModel
+/**
+ * Model PaymentFulfilmentReview
+ *
+ */
+export type PaymentFulfilmentReview = Prisma.PaymentFulfilmentReviewModel
+/**
+ * Model PaymentChallengeUse
+ *
+ */
+export type PaymentChallengeUse = Prisma.PaymentChallengeUseModel

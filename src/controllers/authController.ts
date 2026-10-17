@@ -1,3 +1,4 @@
+import { sendProtectionError } from "../middleware/checkoutProtection.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { Request, Response } from "express";
 import { signupSchema, loginSchema, verifyEmailSchema, forgotPasswordSchema, resetPasswordSchema } from "../utils/authValidation.js";
@@ -21,6 +22,9 @@ import {
   rotateRefreshSession,
   type RefreshSessionUser,
 } from "../domain/auth/refreshSessionService.js";
+
+// Public dummy hash, never an account credential; absent accounts still perform bcrypt work.
+const DUMMY_LOGIN_HASH = "$2b$12$3nZrxbFbXyf62sW1/ZgQ.O44bjJHseudB4lTWVEs5/geqipBrrNNq";
 
 const REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
@@ -124,11 +128,8 @@ export const login = async (req: Request, res: Response) => {
   const normalizedEmail = email;
   try {
     const user = await prisma.user.findFirst({ where: { email: normalizedEmail, deletedAt: null } });
-    if (!user) {
-      return sendApiError(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
-    }
-    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordMatches) {
+    const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_LOGIN_HASH);
+    if (!user || !passwordMatches) {
       return sendApiError(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
     }
     const issued = await prisma.$transaction(async (tx) => {
@@ -161,6 +162,7 @@ export const refreshSession = async (req: Request, res: Response) => {
       refreshExpiresAt: rotated.refreshExpiresAt.toISOString(),
     });
   } catch (error) {
+    if (sendProtectionError(res, error)) return;
     if (error instanceof InvalidRefreshSessionError) {
       return sendApiError(res, 401, "SESSION_INVALID", "Invalid or expired token");
     }
