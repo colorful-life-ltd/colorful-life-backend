@@ -1,5 +1,8 @@
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { SESClient, SendEmailCommand, SendRawEmailCommand } from "@aws-sdk/client-ses";
 import { config } from "../config/index.js";
+import { composeVerificationEmail } from "../domain/email/verificationEmail.js";
+import { approvedLegalIdentity, approvedSupportReplyTo } from "../domain/email/supportContact.js";
+import { EMAIL_VERIFICATION_TOKEN_LIFETIME_MS } from "../domain/auth/emailVerificationService.js";
 
 export type VerificationEmail = { recipientEmail: string; verificationUrl: string };
 type VerificationEmailSender = (email: VerificationEmail) => Promise<void>;
@@ -8,19 +11,11 @@ type PasswordResetEmailSender = (email: PasswordResetEmail) => Promise<void>;
 
 const sesClient = new SESClient({ region: config.AWS_REGION });
 
+// Branded Build & Bloom HTML with a plain-text fallback and an embedded hero, hence raw MIME.
 const sesVerificationEmailSender: VerificationEmailSender = async (email) => {
-  await sesClient.send(new SendEmailCommand({
-    Source: config.SES_FROM_EMAIL,
-    Destination: { ToAddresses: [email.recipientEmail] },
-    Message: {
-      Subject: { Data: "Verify your Colorful Life account", Charset: "UTF-8" },
-      Body: { Text: { Data: [
-        "Please verify your Colorful Life account using the link below:",
-        email.verificationUrl,
-        "This link expires in 24 hours.",
-      ].join("\n"), Charset: "UTF-8" } },
-    },
-  }));
+  const message = await composeVerificationEmail({ to: email.recipientEmail, from: config.SES_FROM_EMAIL, replyTo: approvedSupportReplyTo(), legal: approvedLegalIdentity(),
+    verificationUrl: email.verificationUrl, lifetimeMs: EMAIL_VERIFICATION_TOKEN_LIFETIME_MS, siteUrl: config.FRONTEND_URL });
+  await sesClient.send(new SendRawEmailCommand({ Source: config.SES_FROM_EMAIL, Destinations: [email.recipientEmail], RawMessage: { Data: message } }));
 };
 
 export function buildPasswordResetEmailCommand(email: PasswordResetEmail) {

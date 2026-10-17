@@ -12,12 +12,12 @@ import { composeConfirmation, sesConfirmationTransport, classifySesError, Delive
 
 it('renders exact branded HTML and matching plain-text snapshots', () => {
   const result = renderConfirmation(invoiceFixture);
-  assert.equal(result.subject, 'Your Colorful Life Order #42 is Confirmed!');
+  assert.equal(result.subject, 'Thank you for your Build & Bloom order #42');
   for (const kind of ['html', 'text'] as const) assert.equal(result[kind], readFileSync(new URL(`../../src/__tests__/fixtures/order-confirmation.${kind}`, import.meta.url), 'utf8'));
 });
 it('uses a neutral greeting and omits absent optional address/name fields', () => {
   const rendered = renderConfirmation({ ...invoiceFixture, purchase: { ...purchaseFixture, firstName: null } });
-  assert.ok(rendered.text.includes('Hello,\n')); assert.ok(!rendered.text.includes('null')); assert.ok(!rendered.html.includes('undefined'));
+  assert.ok(rendered.text.includes("\nWe've received your payment")); assert.doesNotMatch(rendered.text, /Hello|null/); assert.ok(!rendered.html.includes('undefined'));
 });
 it('escapes special characters without truncating long descriptions', () => {
   const title = '<script>alert("x")</script> & '.repeat(12);
@@ -28,9 +28,11 @@ it('escapes special characters without truncating long descriptions', () => {
 it('uses fluid 600px table layout and inline CSS without remote assets or tracking', () => {
   const { html } = renderConfirmation(invoiceFixture);
   assert.match(html, /max-width:600px/); assert.match(html, /width="100%"/); assert.match(html, /name="viewport"/);
-  assert.match(html, /src="cid:colorful-life-logo"/); assert.match(html, /alt="Synthetic Colorful Life test logo"/);
-  assert.doesNotMatch(html, /<script|<link|<style|https?:|background-image|@font-face|tracking/i);
-  assert.match(html, /scope="col"/); assert.match(html, /lang="en"/);
+  assert.match(html, /src="cid:bb-hero-order-confirmation"/); assert.match(html, /alt="Illustration of a child and her dog reading/);
+  assert.doesNotMatch(html, /<script|<link|https?:|background-image|@font-face|<img[^>]+src="(?!cid:)/i);
+  // One <style> block, holding only the mobile media query; everything else is inline.
+  assert.equal(html.match(/<style>/g)?.length, 1); assert.match(html, /<style>@media only screen and \(max-width:620px\)\{[^<]*\}<\/style>/);
+  assert.match(html, /aria-label="Items in your order"/); assert.match(html, /lang="en"/); assert.doesNotMatch(html, /Colorful Life Order|LEGO/i);
 });
 for (const [method, fee, min, max] of [['Standard Delivery', 399, 2, 4], ['Express Delivery', 799, 1, 2]] as const) it(`renders actual persisted ${method} values`, () => {
   const p = { ...purchaseFixture, totalPence: 2500 + fee, delivery: { ...purchaseFixture.delivery, method, chargePence: fee, minWorkingDays: min, maxWorkingDays: max } };
@@ -66,10 +68,11 @@ it('blocks unsupported glyphs rather than silently changing customer information
 });
 it('composes real multipart MIME with plain text, HTML, CID logo, Reply-To and PDF bytes', async () => {
   const pdf = await generateInvoicePdf(invoiceFixture), raw = await composeConfirmation(invoiceFixture, pdf);
-  const mail = await simpleParser(raw); assert.equal(mail.subject, 'Your Colorful Life Order #42 is Confirmed!');
+  const mail = await simpleParser(raw); assert.equal(mail.subject, 'Thank you for your Build & Bloom order #42');
   assert.equal(mail.replyTo?.value[0].address, 'support@example.test'); assert.equal(mail.to && 'value' in mail.to ? mail.to.value[0].address : null, 'buyer@example.test');
-  assert.ok(mail.text?.includes(NON_VAT_STATEMENT)); assert.ok(typeof mail.html === 'string' && mail.html.includes('Your order is confirmed'));
-  assert.deepEqual(mail.attachments.find(a => a.contentType === 'application/pdf')?.content, pdf); assert.ok(mail.attachments.some(a => a.cid === 'colorful-life-logo'));
+  assert.ok(mail.text?.includes(NON_VAT_STATEMENT)); assert.ok(typeof mail.html === 'string' && mail.html.includes('Thank you for your order!'));
+  assert.deepEqual(mail.attachments.find(a => a.contentType === 'application/pdf')?.content, pdf); assert.ok(mail.attachments.some(a => a.cid === 'bb-hero-order-confirmation'));
+  assert.equal(mail.from?.value[0].name, 'Build & Bloom'); assert.equal(mail.from?.value[0].address, 'orders@example.test');
   assert.match(raw.toString(), /multipart\/mixed/); assert.match(raw.toString(), /multipart\/alternative/); assert.doesNotMatch(raw.toString(), /client_secret|sk_live_|whsec_|stripe-create-/);
 });
 it('refuses SES delivery during isolated tests even if a caller enables the feature', async () => {
@@ -102,8 +105,8 @@ it('checks SES readiness using injected local responses only', async () => {
 
 for (const presentation of ['DISPATCHED', 'COMPLETED'] as const) it(`invoice delivery uses accurate ${presentation} wording with the identical immutable PDF`, async () => {
   const pdf = await generateInvoicePdf(invoiceFixture), mail = await simpleParser(await composeConfirmation(invoiceFixture, pdf, presentation));
-  assert.doesNotMatch(mail.text!, /We will email you when your order is dispatched/);
-  assert.match(mail.subject!, /Invoice for Order #42/);
+  assert.doesNotMatch(mail.text!, /We'll send you another email when it's dispatched/);
+  assert.equal(mail.subject, 'Your Build & Bloom invoice for order #42');
   assert.deepEqual(mail.attachments.find(a => a.contentType === 'application/pdf')?.content, pdf);
   assert.ok(mail.text?.includes(presentation === 'DISPATCHED' ? 'has been dispatched' : 'is completed'));
 });
