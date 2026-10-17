@@ -1,3 +1,4 @@
+import { isConfirmationPayment } from './verifiedPayment.js';
 import { dispatchSchema } from './dispatch.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { InvoicePresentation } from './template.js';
@@ -35,7 +36,7 @@ async function ineligibleReason(tx: Prisma.TransactionClient, claim: OrderConfir
   const p = source.data;
   return !order.cancelledAt && ['CONFIRMED', 'DISPATCHED', 'COMPLETED'].includes(order.status)
     && (!order.paymentResolution || order.paymentResolution.reservationDisposition === 'CONSUMED')
-    && order.payments.some(pay => pay.id === p.paymentId && pay.provider === 'STRIPE' && pay.status === 'SUCCEEDED' && pay.paidAt && pay.currency === 'GBP' && pay.amount.mul(100).equals(p.totalPence)) ? null : 'ORDER_INELIGIBLE';
+    && order.payments.some(pay => pay.id === p.paymentId && isConfirmationPayment(pay) && pay.currency === 'GBP' && pay.amount.mul(100).equals(p.totalPence)) ? null : 'ORDER_INELIGIBLE';
 }
 
 async function settle(claim: OrderConfirmationJob, state: string, diagnostic: string | null = null, messageId?: string) {

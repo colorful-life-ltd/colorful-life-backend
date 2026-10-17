@@ -4,7 +4,7 @@ import { Decimal } from "@prisma/client/runtime/client";
 import { z } from "zod";
 import { PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
 import { prisma } from "../../prisma/runtime.js";
-import { payPalLateSuccessDiagnostic, recordPayPalSuccess } from "./paypalPaymentOutcome.js";
+import { recordPayPalSuccess } from "./paypalPaymentOutcome.js";
 
 export type PayPalWebhookEvent = {
   id: string;
@@ -116,12 +116,12 @@ export async function processPayPalWebhookReceipt(receiptId: number): Promise<Pa
     if (event.eventType === "PAYMENT.CAPTURE.COMPLETED") {
       const expected = new Decimal(payment.amount).toFixed(2);
       if (!event.captureId || !event.paypalOrderId || event.paypalOrderId !== payment.providerReference
-        || payment.currency !== "GBP" || event.currency?.toUpperCase() !== payment.currency || event.amount !== expected) {
+        || !payment.amount.equals(payment.order.totalAmount) || payment.currency !== "GBP" || event.currency?.toUpperCase() !== payment.currency || event.amount !== expected) {
         return finish(false, false, mismatchError);
       }
       const now = new Date();
-      await recordPayPalSuccess(tx, payment, event.captureId, now);
-      return finish(true, true, payPalLateSuccessDiagnostic(payment.order, now));
+      const { processingError } = await recordPayPalSuccess(tx, payment, event.captureId, now);
+      return finish(true, true, processingError);
     }
     if (event.eventType === "PAYMENT.CAPTURE.DENIED" && event.captureId && event.paypalOrderId === payment.providerReference
       && event.currency?.toUpperCase() === payment.currency && event.amount === new Decimal(payment.amount).toFixed(2)) {

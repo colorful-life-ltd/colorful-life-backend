@@ -134,7 +134,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
       const responses = await Promise.all([first, repeated]);
       assert.ok(responses.every((r) => r.status === 200));
       for (const response of responses) assert.deepEqual(await response.json(), { paypalOrderId: f.payment!.providerReference, captureId: c.captureId });
-      assert.equal(calls, 1); await paid(f, c.captureId); await inventory(f, 2);
+      assert.equal(calls, 1); await paid(f, c.captureId); await inventory(f, 0, 8, 1);
     } finally { release.resolve(); await first; restore(); }
   });
 
@@ -143,7 +143,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     const first = await capturePayPalOrder(f.order.id, f.owner.id, c.client); const at = await paid(f, c.captureId);
     await prisma.order.update({ where: { id: f.order.id }, data: { reservationExpiresAt: new Date(0) } });
     const replay = await capturePayPalOrder(f.order.id, f.owner.id, { captureOrder: async () => { assert.fail("replay called PayPal"); } });
-    assert.deepEqual(replay, first); await paid(f, c.captureId, at); await inventory(f, 2);
+    assert.deepEqual(replay, first); await paid(f, c.captureId, at); await inventory(f, 0, 8, 1);
   });
 
   it("does not return cached identifiers after database ownership changes", async () => {
@@ -170,7 +170,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
       const at = await paid(f, c.captureId);
       release.resolve(); await rejected; await paid(f, c.captureId, at);
       assert.equal((await prisma.payment.findUniqueOrThrow({ where: { orderId: f.order.id } })).providerReference, providerId);
-      assert.equal(await prisma.payment.count({ where: { orderId: f.order.id } }), 1); await inventory(f, 2);
+      assert.equal(await prisma.payment.count({ where: { orderId: f.order.id } }), 1); await inventory(f, 0, 8, 1);
     } finally { release.resolve(); await rejected; }
   });
 
@@ -227,7 +227,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     try { await held.wait(2); } finally { held.release.resolve(); await held.holder; }
     const r = await results; assert.equal(r.filter((x) => x.duplicate).length, 1); assert.ok(r.every((x) => x.handled));
     const at = await paid(f, c.captureId); await reconcilePayPalWebhookEvent(event(f, c.captureId)); await paid(f, c.captureId, at);
-    assert.equal(await prisma.paymentWebhookEvent.count({ where: { provider: "PAYPAL", providerEventId: e.id } }), 1); await inventory(f, 2);
+    assert.equal(await prisma.paymentWebhookEvent.count({ where: { provider: "PAYPAL", providerEventId: e.id } }), 1); await inventory(f, 0, 8, 1);
   });
 
   it("does not acknowledge duplicate validation failures as handled success", async () => {
@@ -253,7 +253,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
       assert.equal(retained.processedAt, null); assert.ok(retained.evidence);
       const p = await prisma.payment.findUniqueOrThrow({ where: { id: f.payment!.id } }); assert.equal(p.status, "PENDING"); assert.equal(p.paidAt, null);
       await prisma.payment.update({ where: { id: other.payment!.id }, data: { providerCaptureReference: null } });
-      assert.equal((await post()).status, 200); await paid(f, c.captureId); await inventory(f, 2); await inventory(other, 2);
+      assert.equal((await post()).status, 200); await paid(f, c.captureId); await inventory(f, 0, 8, 1); await inventory(other, 2);
     } finally { held.release.resolve(); await held.holder; await request; restore(); }
   });
 
@@ -269,7 +269,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     try { await entered.promise; assert.deepEqual(keys, [`order-${f.order.id}-paypal-capture`, `order-${f.order.id}-paypal-capture`]); }
     finally { release.resolve(); }
     const [a, b] = await results; assert.deepEqual(a, b); assert.equal(ledger.size, 1);
-    const at = await paid(f, c.captureId); await reconcilePayPalWebhookEvent(event(f, c.captureId)); await paid(f, c.captureId, at); await inventory(f, 2);
+    const at = await paid(f, c.captureId); await reconcilePayPalWebhookEvent(event(f, c.captureId)); await paid(f, c.captureId, at); await inventory(f, 0, 8, 1);
   });
 
   it("retains inventory and seller/customer guards while capture is in flight past deadline", async () => {
@@ -281,9 +281,9 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
       await assert.rejects(cancelOrderByAdmin(f.order.id, "OUT_OF_STOCK", f.owner.id), OrderCancellationPaymentError);
       assert.equal(await expireOrderReservation(f.order.id), null); await inventory(f, 2);
     } finally { release.resolve(); await capture; }
-    await paid(f, c.captureId); assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "PENDING");
-    const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: "PAYPAL", providerEventId: `capture:${c.captureId}` } } });
-    assert.match(receipt.processingError!, /after reservation deadline/); await inventory(f, 2);
+    await paid(f, c.captureId); assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CONFIRMED");
+    assert.equal(await prisma.paymentWebhookEvent.count({ where: { provider: "PAYPAL", providerEventId: `capture:${c.captureId}` } }), 0);
+    await inventory(f, 0, 8, 1);
   });
 
   it("serializes capture completion, expiry, and cancellation on the same Order row", async () => {
@@ -294,7 +294,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     const cancellation = assert.rejects(cancelOrder(f.owner.id, f.order.id, "CHANGED_MIND"), OrderCancellationPaymentError);
     const expiry = expireOrderReservation(f.order.id); release.resolve();
     try { await held.wait(3); } finally { held.release.resolve(); await held.holder; }
-    await Promise.all([capture, cancellation]); assert.equal(await expiry, null); await paid(f, c.captureId); await inventory(f, 2);
+    await Promise.all([capture, cancellation]); assert.equal(await expiry, null); await paid(f, c.captureId); await inventory(f, 0, 8, 1);
   });
 
   it("serializes customer cancellation against PayPal initiation with database lock waits", async () => {
@@ -351,12 +351,12 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     const original = `CAP-${randomUUID()}`, e = event(f, original);
     try { await entered.promise; assert.equal((await reconcilePayPalWebhookEvent(e)).handled, true); const at = await paid(f, original); release.resolve(); await rejected; await paid(f, original, at); }
     finally { release.resolve(); await rejected; }
-    assert.equal((await reconcilePayPalWebhookEvent(event(f, c.captureId))).handled, false); await inventory(f, 2);
+    assert.equal((await reconcilePayPalWebhookEvent(event(f, c.captureId))).handled, false); await inventory(f, 0, 8, 1);
   });
 
   it("consumes inventory once through existing confirmation despite capture/webhook retries", async () => {
     const f = await fixture(), c = captureClient(f); await capturePayPalOrder(f.order.id, f.owner.id, c.client);
-    const at = await paid(f, c.captureId); await confirmOrder(f.owner.id, f.order.id);
+    const at = await paid(f, c.captureId); assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CONFIRMED");
     await Promise.all([reconcilePayPalWebhookEvent(event(f, c.captureId)), capturePayPalOrder(f.order.id, f.owner.id, c.client)]);
     await assert.rejects(confirmOrder(f.owner.id, f.order.id)); await paid(f, c.captureId, at); await inventory(f, 0, 8, 1);
   });
@@ -383,12 +383,12 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
         const retried = await deliver(e); assert.equal(retried.status, 200); assert.deepEqual(await retried.json(), { duplicate: true, handled: true });
         const at = await paid(f, c.captureId), completed = await receipt(e.id); assert.ok(completed.processedAt);
         assert.equal(completed.receivedAt.getTime(), pending.receivedAt.getTime()); assert.deepEqual(completed.evidence, pending.evidence);
-        assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, terminal);
+        assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, terminal === "PENDING" ? "CONFIRMED" : terminal);
         if (terminal !== "PENDING") assert.match(completed.processingError!, /requires refund\/reconciliation/);
         const duplicate = await deliver(e); assert.equal(duplicate.status, 200); assert.deepEqual(await duplicate.json(), { duplicate: true, handled: true });
         await paid(f, c.captureId, at); assert.equal((await receipt(e.id)).processedAt!.getTime(), completed.processedAt.getTime());
         assert.equal(await prisma.paymentWebhookEvent.count({ where: { provider: "PAYPAL", providerEventId: e.id } }), 1);
-        await inventory(f, terminal === "PENDING" ? 2 : 0);
+        await inventory(f, 0, terminal === "PENDING" ? 8 : 10, terminal === "PENDING" ? 1 : 0);
       } finally { restore(); }
     });
   }
@@ -405,7 +405,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
       assert.equal((await receipt(e.id)).processedAt, null);
       release.resolve(); assert.equal((await initiation).paypalOrderId, providerId);
       const at = await paid(f, c.captureId); assert.ok((await receipt(e.id)).processedAt);
-      assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true }); await paid(f, c.captureId, at); await inventory(f, 2);
+      assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true }); await paid(f, c.captureId, at); await inventory(f, 0, 8, 1);
     } finally { release.resolve(); await initiation; restore(); }
   });
 
@@ -422,7 +422,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     const restarted = await replayProcess(actualReference).done;
     assert.equal(restarted.code, 0, restarted.stderr); assert.deepEqual(JSON.parse(restarted.stdout), { scanned: 1, processed: 1, pending: 0, failed: 0 });
     const at = await paid(f, c.captureId); assert.ok((await receipt(e.id)).processedAt);
-    assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true }); await paid(f, c.captureId, at); await inventory(f, 2);
+    assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true }); await paid(f, c.captureId, at); await inventory(f, 0, 8, 1);
   });
 
   it("leaves a crashed worker's pending receipt discoverable and recovers in a replacement process", async () => {
@@ -433,7 +433,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     assert.equal((await receipt(e.id)).processedAt, null); assert.ok((await receipt(e.id)).evidence);
     const before = await prisma.payment.findUniqueOrThrow({ where: { id: f.payment!.id } }); assert.equal(before.status, "PENDING"); assert.equal(before.paidAt, null);
     const replacement = await replayProcess(f.payment!.providerReference).done; assert.equal(replacement.code, 0, replacement.stderr);
-    assert.equal(JSON.parse(replacement.stdout).processed, 1); await paid(f, c.captureId); await inventory(f, 2);
+    assert.equal(JSON.parse(replacement.stdout).processed, 1); await paid(f, c.captureId); await inventory(f, 0, 8, 1);
   });
 
   it("serializes replay in two independent OS processes using the Order lock", async () => {
@@ -445,7 +445,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     const at = await paid(f, c.captureId), completed = await receipt(e.id); assert.ok(completed.processedAt);
     assert.equal(await prisma.paymentWebhookEvent.count({ where: { provider: "PAYPAL", providerEventId: e.id } }), 1);
     assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true });
-    await paid(f, c.captureId, at); assert.equal((await receipt(e.id)).processedAt!.getTime(), completed.processedAt.getTime()); await inventory(f, 2);
+    await paid(f, c.captureId, at); assert.equal((await receipt(e.id)).processedAt!.getTime(), completed.processedAt.getTime()); await inventory(f, 0, 8, 1);
   });
 
   it("advances past older uncorrelated receipts using bounded keyset pages", async () => {
@@ -454,7 +454,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     const known = event(f, c.captureId); await persistVerifiedPayPalWebhookEvent(known);
     assert.ok((await receipt(unbound.id)).id < (await receipt(known.id)).id);
     const result = await replayPendingPayPalWebhooks({ pageSize: 1 }); assert.ok(result.scanned >= 2); assert.ok(result.pending >= 1); assert.ok(result.processed >= 1);
-    assert.equal((await receipt(unbound.id)).processedAt, null); assert.ok((await receipt(known.id)).processedAt); await paid(f, c.captureId); await inventory(f, 2);
+    assert.equal((await receipt(unbound.id)).processedAt, null); assert.ok((await receipt(known.id)).processedAt); await paid(f, c.captureId); await inventory(f, 0, 8, 1);
   });
 
   it("does not acknowledge an unrelated receipt primary-key persistence failure", async () => {
@@ -469,7 +469,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
       assert.equal(await prisma.paymentWebhookEvent.count({ where: { provider: "PAYPAL", providerEventId: e.id } }), 0);
       const p = await prisma.payment.findUniqueOrThrow({ where: { id: f.payment!.id } }); assert.equal(p.status, "PENDING"); assert.equal(p.paidAt, null);
       const retried = await deliver(e); assert.equal(retried.status, 200); assert.deepEqual(await retried.json(), { duplicate: false, handled: true });
-      await paid(f, c.captureId); await inventory(f, 2);
+      await paid(f, c.captureId); await inventory(f, 0, 8, 1);
     } finally { restore(); }
   });
 
@@ -504,7 +504,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
       await prisma.$transaction(async (tx) => { await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${f.order.id} FOR UPDATE`;
         await tx.payment.update({ where: { id: f.payment!.id }, data: { providerReference: providerId } }); });
       assert.equal((await deliver(e)).status, 200); const at = await paid(f, c.captureId);
-      assert.equal((await deliver({ ...e, amount: "999.00" })).status, 500); await paid(f, c.captureId, at); await inventory(f, 2);
+      assert.equal((await deliver({ ...e, amount: "999.00" })).status, 500); await paid(f, c.captureId, at); await inventory(f, 0, 8, 1);
     } finally { restore(); }
   });
 
@@ -516,7 +516,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true });
     const current = await receipt(e.id); assert.equal(current.id, old.id); assert.equal(current.receivedAt.getTime(), old.receivedAt.getTime()); assert.ok(current.processedAt);
     assert.deepEqual(current.evidence, { version: 1, ...e }); const at = await paid(f, c.captureId);
-    assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true }); await paid(f, c.captureId, at); await inventory(f, 2);
+    assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true }); await paid(f, c.captureId, at); await inventory(f, 0, 8, 1);
   });
 
   it("keeps legacy pending receipts without evidence visible for operational recovery", async () => {

@@ -93,7 +93,7 @@ export async function journalPayPalCapture(tx: Prisma.TransactionClient, payment
   if (await tx.paymentOperation.findFirst({ where: { attemptId: attempt.id, type: "CAPTURE" } })) throw new PaymentResolutionUnavailableError();
   return journal(tx, attempt.id, "CAPTURE", r.retryDeadline ?? r.initialPaymentDeadline);
 }
-/** Financial success is monotonic; PayPal remains paid-but-unconfirmed. */
+/** Financial success is monotonic; inventory confirmation is handled by the caller. */
 export async function recordManagedSuccess(tx: Prisma.TransactionClient, payment: Payment, reference: string, captureId?: string, receiptId?: number) {
   const r = await managedResolution(tx, payment.orderId);
   const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, historical: false }, orderBy: { id: "desc" } });

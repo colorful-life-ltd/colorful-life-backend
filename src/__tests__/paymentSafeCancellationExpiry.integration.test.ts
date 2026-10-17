@@ -309,7 +309,7 @@ describe("payment-safe customer cancellation and expiry", () => {
     }
   });
 
-  it("retains a PayPal attempt during provider I/O and completion without relying on its status", async () => {
+  it("retains PayPal inventory during provider I/O and consumes it once on verified completion", async () => {
     const f = await fixture(); const entered = gate(), release = gate(); const reference = `PP_${randomUUID()}`;
     const initiation = createOrReusePayPalOrder(f.order.id, f.owner.id, { createOrder: async () => { entered.resolve(); await release.promise; return { id: reference }; } });
     try { await entered.promise; await elapsed(f); await assert.rejects(cancelOrder(f.owner.id, f.order.id, "OTHER"), OrderCancellationPaymentError); assert.equal(await expireOrderReservation(f.order.id), null); }
@@ -323,9 +323,9 @@ describe("payment-safe customer cancellation and expiry", () => {
     assert.deepEqual(await reconcilePayPalWebhookEvent(completion), { duplicate: true, handled: true });
     const replayed = await prisma.payment.findUniqueOrThrow({ where: { id: paid.id } });
     assert.equal(replayed.status, "SUCCEEDED"); assert.equal(replayed.paidAt?.getTime(), paid.paidAt.getTime());
-    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "PENDING");
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CONFIRMED");
     assert.equal(await expireOrderReservation(f.order.id), null); await assert.rejects(cancelOrder(f.owner.id, f.order.id, "OTHER"), OrderCancellationPaymentError);
-    await inventory(f, 10, 2); // Automatic PayPal confirmation is outside #154.
+    await inventory(f, 8, 0, 1); // PP-1 converts once; cancellation/expiry cannot release it again.
   });
 
   it("preserves seller cancellation's no-payment boundary and exactly-once release", async () => {

@@ -77,7 +77,7 @@ callbacks. No production sending configuration was changed in this worktree.
 
 ## Invoice obligation and status-aware delivery
 
-Verified Stripe success actually taking PENDING → CONFIRMED captures exactly one
+Verified Stripe or bound PayPal capture success actually taking PENDING → CONFIRMED captures exactly one
 ORDER_CONFIRMATION task inside the existing payment transaction. Signed webhooks,
 receipt replay, recovery and managed retrieval share this trusted path. Re-observing
 historical confirmed success creates no job. Ownership, amount/currency/correlation,
@@ -120,7 +120,7 @@ acknowledgement in the approved operational audit procedure.
 
 Manual/admin confirmation missing a task can use internal
 `recoverOrderConfirmation(orderId, true)` only after explicit historical review. It
-locks Order, requires settled Stripe payment and eligible order/managed state, then
+locks Order, requires settled Stripe or capture-bound PayPal payment and eligible order/managed state, then
 captures one source or returns the existing job. It never overwrites an immutable
 incomplete snapshot. Correcting historical financial data needs a separately reviewed
 procedure, not guessed prices or snapshot edits.
@@ -452,3 +452,37 @@ Compiled output, database files, temporary credentials and local evidence are ex
 - `src/index.ts`
 - `src/routes/adminOrders.ts`
 - `src/services/emailService.ts`
+
+
+## PayPal verified capture confirmation (PP-1, #187)
+
+Customer PayPal initiation remains disabled, including with credentials configured.
+This change completes processing of existing PayPal payments only. The capture API,
+verified capture webhook/replay and MANAGED read-only provider resolution converge
+on `recordPayPalSuccess` under the Order lock. A completed capture must match the
+persisted PayPal order and capture identity, GBP currency, Payment.amount and
+Order.totalAmount. Stripe's reconciliation implementation is unchanged.
+
+For PENDING orders with eligible reservation coverage, the shared
+`confirmOrderInTransaction` converts reserved inventory, records WEBSITE_SALE and
+marks MANAGED reservations CONSUMED. The same transaction then calls
+`enqueueOrderConfirmation`; it does not introduce a second invoice/email pipeline.
+The shared worker accepts successful capture-bound PayPal payments and retains the
+existing source immutability, invoice numbering, PDF cache, deletion, sending
+activation and SES acceptance safeguards. Missing historical shipping/product data
+still blocks invoice delivery rather than fabricating financial data.
+
+A fulfilment savepoint protects verified financial evidence in both LEGACY and
+MANAGED modes: stock conversion failure rolls back all conversion writes, leaves
+the order unconfirmed and reservation retained, and records a manual-inventory-
+reconciliation diagnostic on the capture/webhook receipt. No invoice job is created.
+There is no new automatic stock-remediation or retry policy. Already processed
+receipts and successful API replay remain idempotent; operators must review retained
+paid-but-unconfirmed exceptions through existing reconciliation procedures.
+
+Late EXPIRED/CANCELLED/RETURNED success retains payment evidence and a diagnostic
+without confirming, reacquiring inventory or creating an invoice job. Re-observation
+of an already confirmed historical order does not automatically backfill an email.
+No migration, provider webhook registration or production activation is required or
+performed by this code change. PayPal timeout/release policy and additional webhook
+security/events remain outside PP-1.
