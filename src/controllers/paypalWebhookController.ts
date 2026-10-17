@@ -2,7 +2,7 @@ import { paypalRiskEvents, normalizePayPalRiskResource } from '../domain/payment
 import { reconcileRefundWebhook } from "../domain/refunds/refundWebhookService.js";
 import { paypalRefundParent } from "../domain/refunds/paypalRefundService.js";
 import type { Request, Response } from "express";
-import { config } from "../config/index.js";
+import { verifyPayPalWebhookWithPayPal } from "../domain/payments/paypalWebhookVerification.js";
 import { reconcilePayPalWebhookEvent } from "../domain/payments/paypalReconciliationService.js";
 
 type PayPalResource = { custom_id?: string; id?: string; status?: string; amount?: { value?: string; currency_code?: string }; supplementary_data?: { related_ids?: { order_id?: string } }; links?: Array<{ rel?: string; href?: string }> };
@@ -28,19 +28,6 @@ export function buildPayPalRefundDiagnostic(event: { id?: string; event_type?: s
 
 export type PayPalWebhookVerifier = (body: Buffer, req: Request) => Promise<boolean>;
 
-async function verifyPayPalWebhookWithPayPal(body: Buffer, req: Request): Promise<boolean> {
-  if (!config.PAYPAL_WEBHOOK_ID || !config.PAYPAL_CLIENT_ID || !config.PAYPAL_CLIENT_SECRET) return false;
-  try {
-    const credentials = Buffer.from(`${config.PAYPAL_CLIENT_ID}:${config.PAYPAL_CLIENT_SECRET}`).toString("base64");
-    const auth = await fetch(`${config.PAYPAL_BASE_URL}/v1/oauth2/token`, { method: "POST", headers: { Authorization: `Basic ${credentials}`, "Content-Type": "application/x-www-form-urlencoded" }, body: "grant_type=client_credentials" });
-    if (!auth.ok) return false;
-    const token = (await auth.json() as { access_token?: string }).access_token;
-    if (!token) return false;
-    const response = await fetch(`${config.PAYPAL_BASE_URL}/v1/notifications/verify-webhook-signature`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ auth_algo: req.headers["paypal-auth-algo"], cert_url: req.headers["paypal-cert-url"], transmission_id: req.headers["paypal-transmission-id"], transmission_sig: req.headers["paypal-transmission-sig"], transmission_time: req.headers["paypal-transmission-time"], webhook_id: config.PAYPAL_WEBHOOK_ID, webhook_event: JSON.parse(body.toString("utf8")) }) });
-    return response.ok && (await response.json() as { verification_status?: string }).verification_status === "SUCCESS";
-  } catch { return false; }
-}
-
 let webhookVerifier: PayPalWebhookVerifier = verifyPayPalWebhookWithPayPal;
 
 export function setPayPalWebhookVerifierForTests(verifier: PayPalWebhookVerifier): () => void {
@@ -50,7 +37,14 @@ export function setPayPalWebhookVerifierForTests(verifier: PayPalWebhookVerifier
 }
 
 export async function paypalWebhookHandler(req: Request, res: Response) {
-  if (!Buffer.isBuffer(req.body) || !(await webhookVerifier(req.body, req))) return res.status(400).json({ error: "Invalid webhook" });
+  if (!Buffer.isBuffer(req.body)) return res.status(400).json({ error: "Invalid webhook" });
+  try {
+    if (!(await webhookVerifier(req.body, req))) return res.status(400).json({ error: "Invalid webhook" });
+  } catch {
+    // No unverified data is persisted or logged. A non-2xx response permits
+    // provider redelivery after transient verification/configuration failures.
+    return res.status(503).json({ error: "Webhook verification unavailable" });
+  }
   let event: { id?: string; event_type?: string; resource?: PayPalResource };
   try { event = JSON.parse(req.body.toString("utf8")) as typeof event; } catch { return res.status(400).json({ error: "Invalid webhook" }); }
   if (!event || typeof event.id !== "string" || !event.id || event.id.length > 256 || typeof event.event_type !== "string" || !event.event_type || event.event_type.length > 100) return res.status(400).json({ error: "Invalid webhook" });
