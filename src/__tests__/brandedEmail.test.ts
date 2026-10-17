@@ -143,5 +143,8 @@ it('the invoice sequence starts at the approved 102801 and the migration never m
   const sql = readFileSync('prisma/migrations/20261021120000_invoice_number_start/migration.sql', 'utf8');
   assert.match(sql, /IF next_value < 102801 THEN\s+PERFORM setval\('"commercial_invoice_number_seq"'::regclass, 102800, true\);/);
   assert.doesNotMatch(sql, /RESTART|INSERT|UPDATE|DELETE|DROP/i);
+  // The conflicting sequence lock is taken before the read, so concurrent nextval() cannot interleave.
+  assert.ok(sql.indexOf('ALTER SEQUENCE "commercial_invoice_number_seq" INCREMENT BY 1;') < sql.indexOf('INTO next_value'));
+  assert.match(sql, /set_config\('lock_timeout', '10s', true\)/);
   assert.equal(`BB-${102801n.toString().padStart(8, '0')}`, 'BB-00102801');
 });

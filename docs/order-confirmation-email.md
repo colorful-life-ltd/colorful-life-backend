@@ -220,7 +220,10 @@ zero-padded to `numberDigits`, allocated from the single global PostgreSQL seque
 `20261021120000_invoice_number_start` advances the sequence to the owner-approved first value
 102801 only if it is still below it (it never resets or rewinds a live sequence and creates no
 invoices), so with prefix `BB` and 8 digits the first invoice is `BB-00102801`, then
-`BB-00102802`, and so on. `invoiceNumber` is unique, the snapshot must repeat it, and
+`BB-00102802`, and so on. It first takes a conflicting lock on the sequence (a no-op `ALTER SEQUENCE`),
+so invoice issuing may stay active during the deploy: concurrent `nextval()` calls wait for it and
+never receive a reused or lower number. It fails after a 10 s lock timeout rather than queueing
+behind a long transaction, and is safe to re-run. `invoiceNumber` is unique, the snapshot must repeat it, and
 immutability triggers prevent later edits. The sequence is never reset, gaps are possible after
 rollbacks, and values above the padded width simply grow longer. Changing the prefix later does
 not renumber issued invoices, which keep the number recorded in their snapshot.
