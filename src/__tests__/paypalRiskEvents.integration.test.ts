@@ -19,7 +19,7 @@ before(async () => { server = app.listen(0, '127.0.0.1'); await new Promise<void
 beforeEach(() => { config.PAYMENT_RESOLUTION_ENABLED = false; restoreVerifier = setPayPalWebhookVerifierForTests(async () => true); });
 afterEach(() => { restoreVerifier?.(); config.PAYMENT_RESOLUTION_ENABLED = originalMode; });
 after(async () => { await new Promise<void>(r => server.close(() => r())); await prisma.$disconnect(); });
-async function fixture(managed = false) {
+async function fixture(managed = false, captureBinding: 'BOTH' | 'PAYMENT_ONLY' | 'ATTEMPT_ONLY' | 'UNBOUND' = 'BOTH') {
   config.PAYMENT_RESOLUTION_ENABLED = managed;
   const user = await prisma.user.create({ data: { email: `${randomUUID()}@pp3.test`, passwordHash: 'synthetic', emailVerified: true,
     addresses: { create: { recipientName: 'Synthetic Buyer', line1: '1 Fictional Street', city: 'Testville', postcode: 'T1', countryCode: 'GB', isDefaultBilling: true } } } });
@@ -27,9 +27,9 @@ async function fixture(managed = false) {
   const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: 'NEW', originalPrice: 10, currentStock: 5 } });
   const order = await createOrder(user.id, { shippingMethod: 'STANDARD', items: [{ productListingId: listing.id, quantity: 2 }] });
   const captureId = `CAP-${randomUUID()}`;
-  const payment = await prisma.payment.create({ data: { orderId: order.id, provider: 'PAYPAL', providerReference: `PP-${randomUUID()}`, providerCaptureReference: captureId, amount: order.totalAmount, currency: 'GBP', status: 'PROCESSING' } });
+  const payment = await prisma.payment.create({ data: { orderId: order.id, provider: 'PAYPAL', providerReference: `PP-${randomUUID()}`, providerCaptureReference: captureBinding === 'ATTEMPT_ONLY' || captureBinding === 'UNBOUND' ? null : captureId, amount: order.totalAmount, currency: 'GBP', status: 'PROCESSING' } });
   if (managed) {
-    const attempt = await prisma.paymentAttempt.create({ data: { orderId: order.id, paymentId: payment.id, provider: 'PAYPAL', providerReference: payment.providerReference, providerCaptureReference: captureId, amount: payment.amount, currency: 'GBP', creationKey: randomUUID(), admittedAt: new Date() } });
+    const attempt = await prisma.paymentAttempt.create({ data: { orderId: order.id, paymentId: payment.id, provider: 'PAYPAL', providerReference: payment.providerReference, providerCaptureReference: captureBinding === 'PAYMENT_ONLY' || captureBinding === 'UNBOUND' ? null : captureId, amount: payment.amount, currency: 'GBP', creationKey: randomUUID(), admittedAt: new Date() } });
     for (const type of ['CREATE', 'CAPTURE'] as const) {
       const operation = await prisma.paymentOperation.create({ data: { attemptId: attempt.id, type, operationKey: randomUUID(), requestHash: 'a'.repeat(64), admittedAt: new Date(), admissionDeadline: (await prisma.paymentResolution.findUniqueOrThrow({ where: { orderId: order.id } })).initialPaymentDeadline } });
       await prisma.paymentOperation.update({ where: { id: operation.id }, data: { state: 'POTENTIALLY_DISPATCHED', executionCount: 1 } });
@@ -190,4 +190,41 @@ for (const status of ['DISPATCHED', 'COMPLETED'] as const) it(`${status} paid or
   assert.equal(stock.currentStock, 3); assert.equal(stock.reservedStock, 0);
   assert.equal(await prisma.refund.count({ where: { paymentId: f.payment.id } }), 0);
   assert.equal(await prisma.orderConfirmationJob.count({ where: { orderId: f.order.id } }), 1);
+});
+
+for (const scenario of ['UNBOUND', 'PAYMENT_ONLY', 'NO_ATTEMPT', 'HISTORICAL_ONLY', 'OLD_CAPTURE', 'SUPERSEDED_ATTEMPT', 'CONFLICTING_PAYMENT_CAPTURE'] as const) it(`DECLINED ${scenario}: Order correlation cannot replace current-attempt Capture binding`, async () => {
+  const managed = scenario !== 'NO_ATTEMPT' && scenario !== 'HISTORICAL_ONLY';
+  const f = await fixture(managed, scenario === 'UNBOUND' || scenario === 'PAYMENT_ONLY' ? scenario : scenario === 'CONFLICTING_PAYMENT_CAPTURE' ? 'ATTEMPT_ONLY' : 'BOTH');
+  if (scenario === 'HISTORICAL_ONLY') await prisma.paymentAttempt.create({ data: {
+    orderId: f.order.id, paymentId: f.payment.id, provider: 'PAYPAL', historical: true,
+    providerReference: f.payment.providerReference, providerCaptureReference: f.captureId,
+    amount: f.payment.amount, currency: 'GBP',
+  } });
+  if (scenario === 'OLD_CAPTURE' || scenario === 'SUPERSEDED_ATTEMPT') {
+    const reference = scenario === 'OLD_CAPTURE' ? `PP-${randomUUID()}` : null;
+    await prisma.paymentAttempt.create({ data: { orderId: f.order.id, paymentId: f.payment.id, provider: 'PAYPAL',
+      providerReference: reference, amount: f.payment.amount, currency: 'GBP', creationKey: randomUUID(), admittedAt: new Date() } });
+    if (reference) await prisma.payment.update({ where: { id: f.payment.id }, data: { providerReference: reference, providerCaptureReference: null } });
+  }
+  if (scenario === 'CONFLICTING_PAYMENT_CAPTURE') await prisma.payment.update({ where: { id: f.payment.id }, data: { providerCaptureReference: `OTHER-${randomUUID()}` } });
+  const before = await prisma.payment.findUniqueOrThrow({ where: { id: f.payment.id } });
+  const resolutionBefore = await prisma.paymentResolution.findUnique({ where: { orderId: f.order.id } });
+  const attemptsBefore = await prisma.paymentAttempt.findMany({ where: { paymentId: f.payment.id }, include: { operations: true }, orderBy: { id: 'asc' } });
+  const receipt = await post('PAYMENT.CAPTURE.DECLINED', { ...resource(f, 'PAYMENT.CAPTURE.DECLINED'), supplementary_data: { related_ids: { order_id: before.providerReference } } });
+  assert.ok(receipt.reviewDetails); assert.ok(receipt.processedAt);
+  assert.equal((receipt.evidence as any).captureId, f.captureId);
+  assert.deepEqual(await prisma.payment.findUniqueOrThrow({ where: { id: f.payment.id } }), before);
+  assert.deepEqual(await prisma.paymentResolution.findUnique({ where: { orderId: f.order.id } }), resolutionBefore);
+  assert.deepEqual(await prisma.paymentAttempt.findMany({ where: { paymentId: f.payment.id }, include: { operations: true }, orderBy: { id: 'asc' } }), attemptsBefore);
+  assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id } }), 0);
+  await unchanged(f);
+});
+it('DECLINED with exact current-attempt Capture binding remains valid when the Payment capture summary is not yet set', async () => {
+  const f = await fixture(true, 'ATTEMPT_ONLY');
+  await post('PAYMENT.CAPTURE.DECLINED', resource(f, 'PAYMENT.CAPTURE.DECLINED'));
+  const payment = await prisma.payment.findUniqueOrThrow({ where: { id: f.payment.id } });
+  assert.equal(payment.status, 'FAILED'); assert.equal(payment.providerCaptureReference, null);
+  assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id, kind: 'FAILURE' } }), 1);
+  assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id, kind: 'TERMINAL_UNPAID' } }), 0);
+  await unchanged(f);
 });

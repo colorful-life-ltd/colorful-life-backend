@@ -32,8 +32,13 @@ export async function processPayPalRiskReceipt(receiptId: number, event: PayPalW
     // capture binding, order mutation, or inventory effect is authorized here.
     if (declined && reason === 'PROVIDER_EVENT_REQUIRES_REVIEW' && correlations.length === 1 && event.resourceStatus === 'DECLINED') {
       const payment = correlations[0];
-      const attempt = payment.attempts.find(a => a.providerReference === event.paypalOrderId && !a.historical);
-      if (payment.providerReference === event.paypalOrderId && (!attempt || !attempt.finalityEvidenceId)
+      // Review correlation may use older IDs or the Order ID; financial status
+      // requires the Capture ID bound to the latest non-historical attempt.
+      const attempt = payment.attempts.filter(a => a.provider === 'PAYPAL' && !a.historical).sort((a, b) => b.id - a.id)[0];
+      if (event.captureId && attempt && attempt.providerReference === payment.providerReference
+        && attempt.providerReference === event.paypalOrderId && attempt.providerCaptureReference === event.captureId
+        && (!payment.providerCaptureReference || payment.providerCaptureReference === event.captureId)
+        && !attempt.finalityEvidenceId && !attempt.successEvidenceId
         && payment.order.status === 'PENDING' && payment.amount.equals(payment.order.totalAmount) && payment.currency === 'GBP'
         && !payment.paidAt && payment.status !== 'SUCCEEDED' && payment.amount.toFixed(2) === event.amount && payment.currency === event.currency) {
         await recordManagedFailure(tx, payment, payment.providerReference, `paypal-failure:${receipt.id}`, receipt.id);
