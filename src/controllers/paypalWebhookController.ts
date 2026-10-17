@@ -1,3 +1,4 @@
+import { paypalRiskEvents, normalizePayPalRiskResource } from '../domain/payments/paypalRiskEvents.js';
 import { reconcileRefundWebhook } from "../domain/refunds/refundWebhookService.js";
 import { paypalRefundParent } from "../domain/refunds/paypalRefundService.js";
 import type { Request, Response } from "express";
@@ -52,13 +53,17 @@ export async function paypalWebhookHandler(req: Request, res: Response) {
   if (!Buffer.isBuffer(req.body) || !(await webhookVerifier(req.body, req))) return res.status(400).json({ error: "Invalid webhook" });
   let event: { id?: string; event_type?: string; resource?: PayPalResource };
   try { event = JSON.parse(req.body.toString("utf8")) as typeof event; } catch { return res.status(400).json({ error: "Invalid webhook" }); }
-  if (!event.id || !event.event_type) return res.status(400).json({ error: "Invalid webhook" });
+  if (!event || typeof event.id !== "string" || !event.id || event.id.length > 256 || typeof event.event_type !== "string" || !event.event_type || event.event_type.length > 100) return res.status(400).json({ error: "Invalid webhook" });
   if (process.env.NODE_ENV !== "production") {
     const diagnostic = buildPayPalRefundDiagnostic(event);
     if (diagnostic) console.info("PayPal refund webhook diagnostic", diagnostic);
   }
   const resource = event.resource ?? {};
   try {
+    if (paypalRiskEvents.includes(event.event_type)) {
+      const result = await reconcilePayPalWebhookEvent({ id: event.id, eventType: event.event_type, ...normalizePayPalRiskResource(event.event_type, event.resource) });
+      return res.status(200).json(result);
+    }
     if(refundWebhookTypes.has(event.event_type)){
       const local=resource.custom_id===undefined?undefined:/^cl-refund-([1-9][0-9]*)$/.exec(resource.custom_id)?.[1]??"invalid";
       const result=await reconcileRefundWebhook({version:2,kind:"refund",provider:"PAYPAL",id:event.id,eventType:event.event_type,
