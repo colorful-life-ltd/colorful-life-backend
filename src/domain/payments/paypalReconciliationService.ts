@@ -1,3 +1,5 @@
+import { paypalRiskEvents, riskFields } from './paypalRiskEvents.js';
+import { processPayPalRiskReceipt } from './paypalWebhookReviewService.js';
 import { processRefundWebhookReceipt } from "../refunds/refundWebhookService.js";
 import { recordManagedFailure } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
@@ -14,9 +16,16 @@ export type PayPalWebhookEvent = {
   amount?: string;
   currency?: string;
   orderId?: string;
+  resourceStatus?: string;
+  disputeId?: string;
+  sellerTransactionIds?: string[];
+  providerUpdatedAt?: string;
+  disputeOutcome?: string;
+  invalidFields?: string[];
 };
 
 const evidenceSchema = z.object({
+  ...riskFields,
   version: z.literal(1),
   id: z.string().min(1).max(256),
   eventType: z.string().min(1).max(100),
@@ -36,7 +45,9 @@ export class PayPalWebhookEvidenceConflictError extends Error {
 /** Only call after provider signature verification. Never retain headers or raw customer data. */
 export async function persistVerifiedPayPalWebhookEvent(event: PayPalWebhookEvent) {
   const evidence = evidenceSchema.parse({ version: 1, id: event.id, eventType: event.eventType,
-    captureId: event.captureId, paypalOrderId: event.paypalOrderId, amount: event.amount, currency: event.currency });
+    captureId: event.captureId, paypalOrderId: event.paypalOrderId, amount: event.amount, currency: event.currency,
+    resourceStatus: event.resourceStatus, disputeId: event.disputeId, sellerTransactionIds: event.sellerTransactionIds,
+    providerUpdatedAt: event.providerUpdatedAt, disputeOutcome: event.disputeOutcome, invalidFields: event.invalidFields });
   return prisma.$transaction(async (tx) => {
     const inserted = await tx.$queryRaw<Array<{ id: number }>>`
       INSERT INTO "PaymentWebhookEvent" ("provider", "providerEventId", "eventType", "evidence")
@@ -76,6 +87,7 @@ export async function processPayPalWebhookReceipt(receiptId: number): Promise<Pa
   const decoded = evidenceSchema.safeParse(snapshot.evidence);
   const event = decoded.success && decoded.data.id === snapshot.providerEventId && decoded.data.eventType === snapshot.eventType
     ? decoded.data : null;
+  if (event && paypalRiskEvents.includes(event.eventType)) return processPayPalRiskReceipt(receiptId, event);
   return prisma.$transaction(async (tx) => {
     // Initial correlation is not a financial decision. Order precedes receipt
     // and Payment locks; all mutable state is reread after acquiring these locks.
