@@ -51,7 +51,7 @@ export async function checkPaymentAdmission(tx: Prisma.TransactionClient, orderI
 async function journal(tx: Prisma.TransactionClient, attemptId: number, type: "CREATE" | "CONFIRM" | "CAPTURE" | "TERMINATE" | "RETRIEVE", deadline?: Date) {
   const now = await databaseNow(tx);
   const attempt = await tx.paymentAttempt.findUniqueOrThrow({ where: { id: attemptId } });
-  const key = type === "CREATE" ? attempt.creationKey! : `resolution-${randomUUID()}`;
+  const key = type === "CREATE" ? attempt.creationKey! : attempt.provider === "PAYPAL" && type === "CAPTURE" ? randomUUID() : `resolution-${randomUUID()}`;
   const op = await tx.paymentOperation.create({ data: { attemptId, type, operationKey: key,
     requestHash: createHash("sha256").update(JSON.stringify({ attemptId, type, key, provider: attempt.provider, orderId: attempt.orderId, amount: attempt.amount.toFixed(2), currency: attempt.currency, providerReference: attempt.providerReference })).digest("hex"),
     admittedAt: now, admissionDeadline: deadline } });
@@ -86,8 +86,8 @@ export async function guardPendingCreation(tx: Prisma.TransactionClient, payment
 export async function journalPayPalCapture(tx: Prisma.TransactionClient, payment: Payment) {
   const r = await checkPaymentAdmission(tx, payment.orderId);
   if (!r) return null;
-  const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, historical: false }, orderBy: { id: "desc" } });
-  if (!attempt) throw new PaymentResolutionUnavailableError();
+  const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, providerReference: payment.providerReference, historical: false }, orderBy: { id: "desc" } });
+  if (!attempt || attempt.finalityEvidenceId || attempt.successEvidenceId) throw new PaymentResolutionUnavailableError();
   if (payment.captureIdempotencyKey) throw new PaymentResolutionUnavailableError();
   // Never resend an uncertain capture, even from another backend instance or after key expiry.
   if (await tx.paymentOperation.findFirst({ where: { attemptId: attempt.id, type: "CAPTURE" } })) throw new PaymentResolutionUnavailableError();

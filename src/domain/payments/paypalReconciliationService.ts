@@ -126,6 +126,9 @@ export async function processPayPalWebhookReceipt(receiptId: number): Promise<Pa
     if (event.eventType === "PAYMENT.CAPTURE.DENIED" && event.captureId && event.paypalOrderId === payment.providerReference
       && event.currency?.toUpperCase() === payment.currency && event.amount === new Decimal(payment.amount).toFixed(2)) {
       await recordManagedFailure(tx, payment, payment.providerReference, `paypal-failure:${receipt.id}`, receipt.id);
+      // A denial is a retry-window signal, not release authority. Queue the
+      // independent provider check promptly while admission is still open.
+      await tx.paymentResolution.updateMany({ where: { orderId: payment.orderId, historical: false, quarantineReason: null, reservationDisposition: 'HELD', state: { not: 'PAID' } }, data: { resolutionNextCheckAt: new Date() } });
     }
     if (payment.status !== PaymentStatus.SUCCEEDED && !payment.paidAt) {
       await tx.payment.update({ where: { id: payment.id }, data: {

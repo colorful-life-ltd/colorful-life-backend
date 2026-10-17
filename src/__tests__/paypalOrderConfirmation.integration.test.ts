@@ -6,7 +6,7 @@ import { prisma } from '../prisma/runtime.js';
 import { config } from '../config/index.js';
 import { createOrder } from '../domain/orders/orderService.js';
 import { journalNewPayment, journalPayPalCapture } from '../domain/payments/paymentResolutionService.js';
-import { capturePayPalOrder, PayPalCaptureMismatchError } from '../domain/payments/paypalCaptureService.js';
+import { capturePayPalOrder, PayPalCaptureProviderError, PayPalCaptureMismatchError } from '../domain/payments/paypalCaptureService.js';
 import { reconcilePayPalWebhookEvent } from '../domain/payments/paypalReconciliationService.js';
 import { resolvePayPalPaymentOutcome } from '../domain/payments/paypalResolutionService.js';
 import { runConfirmationBatch } from '../domain/orderConfirmation/worker.js';
@@ -51,7 +51,7 @@ async function assertConfirmed(f: Fixture, managed: boolean) {
   if (managed) {
     const resolution = await prisma.paymentResolution.findUniqueOrThrow({ where: { orderId: f.order.id } });
     assert.equal(resolution.state, 'PAID'); assert.equal(resolution.reservationDisposition, 'CONSUMED');
-    assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id, kind: 'SUCCESS' } }), 1);
+    assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id, kind: 'SUCCESS', operation: { type: 'CAPTURE' } } }), 1);
   }
 }
 for (const managed of [false, true]) {
@@ -92,7 +92,7 @@ for (const managed of [false, true]) {
       assert.match(receipt.processingError!, /financial success retained/); assert.ok(receipt.processedAt);
       if (managed) {
         assert.equal((await prisma.paymentResolution.findUniqueOrThrow({ where: { orderId: f.order.id } })).reservationDisposition, 'HELD');
-        assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id, kind: 'SUCCESS' } }), 1);
+        assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id, kind: 'SUCCESS', operation: { type: 'CAPTURE' } } }), 1);
       }
     });
   }
@@ -129,7 +129,7 @@ for (const invalid of ['parent', 'amount', 'currency', 'capture-status', 'order-
   if (invalid === 'currency') capture.amount.currency_code = 'USD';
   if (invalid === 'capture-status') capture.status = 'PENDING';
   if (invalid === 'order-status') remote.status = 'APPROVED';
-  await assert.rejects(capturePayPalOrder(f.order.id, f.user.id, { captureOrder: async () => remote }), PayPalCaptureMismatchError);
+  await assert.rejects(capturePayPalOrder(f.order.id, f.user.id, { captureOrder: async () => remote }), invalid === 'capture-status' ? PayPalCaptureProviderError : PayPalCaptureMismatchError);
   assert.equal((await prisma.payment.findUniqueOrThrow({ where: { id: f.payment.id } })).status, 'PROCESSING');
   assert.equal(await prisma.orderConfirmationJob.count({ where: { orderId: f.order.id } }), 0);
   assert.equal((await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } })).reservedStock, 2);
