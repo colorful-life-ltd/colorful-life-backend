@@ -93,7 +93,13 @@ export const ModelName = {
   ShipmentTrackingConflict: 'ShipmentTrackingConflict',
   ShipmentCarrierEvidence: 'ShipmentCarrierEvidence',
   OrderConfirmationJob: 'OrderConfirmationJob',
-  CommercialInvoice: 'CommercialInvoice'
+  CommercialInvoice: 'CommercialInvoice',
+  AbuseBucket: 'AbuseBucket',
+  PaymentInitiationPolicy: 'PaymentInitiationPolicy',
+  PaymentAdmission: 'PaymentAdmission',
+  PaymentSecurityEvent: 'PaymentSecurityEvent',
+  PaymentFulfilmentReview: 'PaymentFulfilmentReview',
+  PaymentChallengeUse: 'PaymentChallengeUse'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -851,6 +857,70 @@ export const CommercialInvoiceScalarFieldEnum = {
 } as const
 
 export type CommercialInvoiceScalarFieldEnum = (typeof CommercialInvoiceScalarFieldEnum)[keyof typeof CommercialInvoiceScalarFieldEnum]
+
+
+export const AbuseBucketScalarFieldEnum = {
+  key: 'key',
+  tokens: 'tokens',
+  updatedAt: 'updatedAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type AbuseBucketScalarFieldEnum = (typeof AbuseBucketScalarFieldEnum)[keyof typeof AbuseBucketScalarFieldEnum]
+
+
+export const PaymentInitiationPolicyScalarFieldEnum = {
+  provider: 'provider',
+  enabled: 'enabled',
+  capacity: 'capacity',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PaymentInitiationPolicyScalarFieldEnum = (typeof PaymentInitiationPolicyScalarFieldEnum)[keyof typeof PaymentInitiationPolicyScalarFieldEnum]
+
+
+export const PaymentAdmissionScalarFieldEnum = {
+  identity: 'identity',
+  attemptIdentity: 'attemptIdentity',
+  orderId: 'orderId',
+  provider: 'provider',
+  createdAt: 'createdAt'
+} as const
+
+export type PaymentAdmissionScalarFieldEnum = (typeof PaymentAdmissionScalarFieldEnum)[keyof typeof PaymentAdmissionScalarFieldEnum]
+
+
+export const PaymentSecurityEventScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  provider: 'provider',
+  orderId: 'orderId',
+  actorId: 'actorId',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type PaymentSecurityEventScalarFieldEnum = (typeof PaymentSecurityEventScalarFieldEnum)[keyof typeof PaymentSecurityEventScalarFieldEnum]
+
+
+export const PaymentFulfilmentReviewScalarFieldEnum = {
+  orderId: 'orderId',
+  reason: 'reason',
+  createdAt: 'createdAt',
+  releasedAt: 'releasedAt',
+  releasedBy: 'releasedBy',
+  releaseNote: 'releaseNote'
+} as const
+
+export type PaymentFulfilmentReviewScalarFieldEnum = (typeof PaymentFulfilmentReviewScalarFieldEnum)[keyof typeof PaymentFulfilmentReviewScalarFieldEnum]
+
+
+export const PaymentChallengeUseScalarFieldEnum = {
+  digest: 'digest',
+  expiresAt: 'expiresAt'
+} as const
+
+export type PaymentChallengeUseScalarFieldEnum = (typeof PaymentChallengeUseScalarFieldEnum)[keyof typeof PaymentChallengeUseScalarFieldEnum]
 
 
 export const SortOrder = {

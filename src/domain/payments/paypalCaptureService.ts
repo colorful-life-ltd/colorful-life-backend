@@ -1,3 +1,4 @@
+import { admitFinancialOperation } from "../security/paymentAbuse.js";
 import { reconcilePayPalWebhookEvent } from "./paypalReconciliationService.js";
 import { checkPaymentAdmission, journalPayPalCapture, recordManagedFailure, PaymentResolutionUnavailableError } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
@@ -94,6 +95,7 @@ async function execute(orderId: number, userId: number, client?: PayPalCaptureCl
     if (payment.currency !== "GBP") throw new PayPalCaptureMismatchError("Unsupported payment currency");
     if (!payment.providerReference || payment.providerReference.startsWith("pending:")) throw new PayPalCaptureProviderError("PayPal Order is not available");
     if (payment.status === PaymentStatus.CANCELED) throw new PaymentResolutionUnavailableError();
+    await admitFinancialOperation(tx, "PAYPAL", orderId, userId, `paypal-capture:${payment.id}:${payment.idempotencyKey ?? payment.providerReference}`, `paypal-attempt:${payment.idempotencyKey ?? payment.providerReference}`);
     const operation = await journalPayPalCapture(tx, payment);
     const requestId = operation?.operationKey ?? payment.captureIdempotencyKey ?? `order-${orderId}-paypal-capture`;
     if (!payment.captureIdempotencyKey) await tx.payment.update({ where: { id: payment.id }, data: { captureIdempotencyKey: requestId } });

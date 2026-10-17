@@ -465,6 +465,8 @@ model Order {
   completedAt           DateTime?              @db.Timestamptz
   updatedAt             DateTime               @updatedAt
   orderItems            OrderItem[]
+  securityAdmissions PaymentAdmission[]
+  securityFulfilmentReview PaymentFulfilmentReview?
   payments              Payment[]
   refunds               Refund[]
   cartProvenance        OrderCartProvenance?
@@ -1152,4 +1154,52 @@ model CommercialInvoice {
   pdfBytes Bytes?
   pdfSha256 String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+
+// Admission/security tables intentionally have no customer identity columns.
+model AbuseBucket {
+  key String @id
+  tokens Float
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  @@index([expiresAt])
+}
+model PaymentInitiationPolicy {
+  provider String @id
+  enabled Boolean @default(true)
+  capacity Int?
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+}
+model PaymentAdmission {
+  identity String @id
+  attemptIdentity String
+  orderId Int
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([orderId, createdAt])
+}
+model PaymentSecurityEvent {
+  id BigInt @id @default(autoincrement())
+  kind String
+  provider String?
+  orderId Int?
+  actorId Int?
+  reason String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([createdAt])
+}
+model PaymentFulfilmentReview {
+  orderId Int @id
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  releasedAt DateTime? @db.Timestamptz(3)
+  releasedBy Int?
+  releaseNote String?
+}
+model PaymentChallengeUse {
+  digest String @id
+  expiresAt DateTime @db.Timestamptz(3)
+  @@index([expiresAt])
 }

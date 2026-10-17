@@ -1,3 +1,4 @@
+import { admitFinancialOperation } from "../security/paymentAbuse.js";
 import { replayManagedStripeReceipts } from "./stripeReconciliationService.js";
 import { randomUUID } from "node:crypto";
 import { finalizeManagedStripeRetrieval, checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, journalManagedRetrieval } from "./paymentResolutionService.js";
@@ -61,15 +62,18 @@ export async function createOrReuseStripePaymentIntent(
         const previous = await tx.paymentAttempt.findFirst({ where: { paymentId: existing.id, providerReference: existing.providerReference, historical: false } });
         if (!previous?.finalityEvidenceId || await tx.paymentOperation.count({ where: { attemptId: previous.id, state: { not: "RESULT_RECORDED" } } })) throw new StripePaymentNotPayableError();
         const idempotencyKey = `stripe-retry-${randomUUID()}`;
+        await admitFinancialOperation(tx, "STRIPE", orderId, userId, idempotencyKey);
         const payment = await tx.payment.update({ where: { id: existing.id }, data: { providerReference: `pending:${idempotencyKey}`, idempotencyKey, status: PaymentStatus.PROCESSING } });
         const journal = await journalNewPayment(tx, payment, "CREATE");
         return { payment, amount, attemptId: journal?.attempt.id };
       }
       await guardPendingCreation(tx, existing);
+      if (existing.providerReference.startsWith("pending:")) await admitFinancialOperation(tx, "STRIPE", orderId, userId, existing.idempotencyKey ?? `legacy:${existing.id}`);
       const retrieval = !existing.providerReference.startsWith("pending:") ? await journalManagedRetrieval(tx, existing) : null;
       return { payment: existing, amount, retrievalId: retrieval?.id };
     }
     const idempotencyKey = `stripe-create-${randomUUID()}`;
+    await admitFinancialOperation(tx, "STRIPE", orderId, userId, idempotencyKey);
     const payment = await tx.payment.create({ data: { orderId, amount: order.totalAmount, currency: "GBP", provider: PaymentProvider.STRIPE, providerReference: `pending:${idempotencyKey}`, idempotencyKey, status: PaymentStatus.PROCESSING } });
     const journal = await journalNewPayment(tx, payment, "CREATE");
     return { payment, amount, attemptId: journal?.attempt.id };

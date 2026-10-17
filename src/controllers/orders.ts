@@ -1,3 +1,4 @@
+import { sendProtectionError } from "../middleware/checkoutProtection.js";
 import { OrderReturnEligibilityError, OrderCancellationReturnConflictError } from "../domain/orders/returnInventorySafety.js";
 import { CartQuantityAllocatedError } from "../domain/cart/cartProvenanceService.js";
 import { Request, Response } from "express";
@@ -104,6 +105,7 @@ export const createOrderHandler = async (req: Request, res: Response) => {
     const { creationIdempotencyKey: _key, creationRequestHash: _hash, actualShippingCost: _merchantCost, confirmationDeliverySnapshot: _deliverySnapshot, ...response } = order;
     return res.status(201).json(response);
   } catch (err: unknown) {
+      if (sendProtectionError(res, err)) return;
       if (err instanceof CartQuantityAllocatedError) return sendApiError(res, 409, "CART_QUANTITY_UNAVAILABLE", err.message, { productListingId: err.productListingId });
       if (err instanceof ProductListingNotFoundError) return sendApiError(res, 409, "LISTING_UNAVAILABLE", err.message, { productListingId: err.productListingId, reason: "LISTING_NOT_FOUND", availableQuantity: 0 });
       if (err instanceof ProductListingInactiveError) return sendApiError(res, 409, "LISTING_UNAVAILABLE", "This listing is no longer available", { productListingId: err.productListingId, reason: err.reason, availableQuantity: 0 });

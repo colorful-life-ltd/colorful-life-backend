@@ -1,3 +1,4 @@
+import { admitOrderCreation } from "../security/paymentAbuse.js";
 import { orderFinancials, resolveShipping, shippingMethodSchema } from "./shipping.js";
 import { readCustomerPaymentWindow, type CustomerPaymentWindow } from "../payments/customerPaymentWindow.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
@@ -150,6 +151,8 @@ export async function createOrder(
         return present(tx, existing);
       }
     }
+
+    await admitOrderCreation(tx, userId);
 
     // No existing Order locks are acquired while this customer cart lock is held.
     // Stock locks precede task/allocation writes, matching confirmation ordering.

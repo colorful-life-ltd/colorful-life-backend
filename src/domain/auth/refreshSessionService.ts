@@ -1,3 +1,4 @@
+import { bucket, consume } from "../security/paymentAbuse.js";
 import { createHash, randomBytes } from "node:crypto";
 import type { Prisma } from "../../generated/prisma-client/client.js";
 import { config } from "../../config/index.js";
@@ -75,6 +76,8 @@ export async function rotateRefreshSession<T>(
       throw new InvalidRefreshSessionError();
     }
 
+    // Stable row identity survives rotation. Invalid/expired tokens cannot spend another session's budget.
+    await consume(tx, [bucket("refreshSession", String(discovered.id))]);
     const accessToken = issueAccessToken(user);
     const rotated = await tx.refreshSession.updateMany({
       where: {

@@ -1,3 +1,4 @@
+import { assertNoFulfilmentHold } from "../security/paymentAbuse.js";
 import { notifyLegacyDispatch } from "../orderConfirmation/legacyDispatch.js";
 import { enqueueDispatchConfirmation } from "../orderConfirmation/dispatch.js";
 import { Decimal } from "@prisma/client/runtime/client";
@@ -50,6 +51,7 @@ async function lockOrder(tx: Prisma.TransactionClient, orderId: number) {
  * historical rows the verified payment record decides, matching managedResolution().
  */
 export async function assertPaymentVerifiedForFulfilment(tx: Prisma.TransactionClient, orderId: number) {
+  if (!await assertNoFulfilmentHold(tx, orderId)) throw new FulfilmentPaymentNotVerifiedError(orderId, "SECURITY_REVIEW_REQUIRED");
   await tx.$queryRaw`SELECT id FROM "Payment" WHERE "orderId" = ${orderId} FOR UPDATE`;
   const payment = await tx.payment.findUnique({ where: { orderId } });
   if (!payment) throw new FulfilmentPaymentNotVerifiedError(orderId, "NO_PAYMENT");

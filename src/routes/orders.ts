@@ -1,3 +1,4 @@
+import { checkoutProtection } from "../middleware/checkoutProtection.js";
 import { shippingOptions } from "../domain/orders/shipping.js";
 import { getCustomerPaymentStatus } from "../domain/orders/orderReadService.js";
 import { abandonPaymentReservation } from "../domain/payments/stripeResolutionService.js";
@@ -37,7 +38,7 @@ import { createPayPalOrderHandler, capturePayPalOrderHandler } from "../controll
 const router = Router();
 
 router.get("/shipping-options", (_req, res) => { res.json(shippingOptions()); });
-router.post("/", authMiddleware, requireVerifiedEmail, createOrderHandler);
+router.post("/", authMiddleware, requireVerifiedEmail, checkoutProtection("order"), createOrderHandler);
 router.get("/", authMiddleware, requireVerifiedEmail, listCustomerOrdersHandler);
 router.get("/:orderId", authMiddleware, requireVerifiedEmail, getCustomerOrderHandler);
 router.post("/:orderId/dispatch", authMiddleware, dispatchOrderHandler);
@@ -88,10 +89,10 @@ router.post(
 );
 // Payment routes
 router.post("/:orderId/payments", authMiddleware, createPaymentHandler);
-router.post("/:orderId/payments/stripe", authMiddleware, requireVerifiedEmail, createStripePaymentIntentHandler);
-router.post("/:orderId/payments/stripe/reconcile", authMiddleware, requireVerifiedEmail, recoverStripePaymentHandler);
+router.post("/:orderId/payments/stripe", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), createStripePaymentIntentHandler);
+router.post("/:orderId/payments/stripe/reconcile", authMiddleware, requireVerifiedEmail, checkoutProtection("recovery"), recoverStripePaymentHandler);
 router.post("/:orderId/payments/paypal", authMiddleware, requireVerifiedEmail, createPayPalOrderHandler);
-router.post("/:orderId/payments/paypal/capture", authMiddleware, requireVerifiedEmail, capturePayPalOrderHandler);
+router.post("/:orderId/payments/paypal/capture", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), capturePayPalOrderHandler);
 router.get("/:orderId/payments", authMiddleware, listPaymentsHandler);
 router.post("/:orderId/refunds", authMiddleware, createRefundHandler);
 router.get("/:orderId/refunds", authMiddleware, listRefundsHandler);
