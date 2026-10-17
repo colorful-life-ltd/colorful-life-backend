@@ -3,7 +3,7 @@ import { Decimal } from "@prisma/client/runtime/client";
 import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
 import { prisma } from "../../prisma/runtime.js";
 import { config } from "../../config/index.js";
-import { payPalLateSuccessDiagnostic, recordPayPalSuccess } from "./paypalPaymentOutcome.js";
+import { recordPayPalSuccess } from "./paypalPaymentOutcome.js";
 
 export class PayPalCaptureOrderNotFoundError extends Error {}
 export class PayPalCaptureOwnershipError extends Error {}
@@ -107,12 +107,11 @@ async function execute(orderId: number, userId: number, client?: PayPalCaptureCl
   return prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: number; status: OrderStatus; reservationExpiresAt: Date | null }>>`SELECT "id", "status", "reservationExpiresAt" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
     const order = locked[0];
-    const payment = await tx.payment.findUnique({ where: { id: prepared.paymentId } });
+    const payment = await tx.payment.findUnique({ where: { id: prepared.paymentId }, include: { order: true } });
     if (!order || !payment) throw new PayPalCaptureOrderNotFoundError();
-    if (payment.orderId !== orderId || payment.provider !== PaymentProvider.PAYPAL || payment.providerReference !== prepared.paypalOrderId || payment.currency !== "GBP" || amountString(new Decimal(payment.amount)) !== capture.amount!.value || (payment.providerCaptureReference && payment.providerCaptureReference !== capture.id)) throw new PayPalCaptureMismatchError("PayPal capture did not match the current payment");
+    if (payment.orderId !== orderId || payment.provider !== PaymentProvider.PAYPAL || payment.providerReference !== prepared.paypalOrderId || payment.currency !== "GBP" || !payment.amount.equals(payment.order.totalAmount) || amountString(new Decimal(payment.amount)) !== capture.amount!.value || (payment.providerCaptureReference && payment.providerCaptureReference !== capture.id)) throw new PayPalCaptureMismatchError("PayPal capture did not match the current payment");
     const now = new Date();
-    const updated = await recordPayPalSuccess(tx, payment, capture.id!, now);
-    const processingError = payPalLateSuccessDiagnostic(order, now);
+    const { payment: updated, processingError } = await recordPayPalSuccess(tx, payment, capture.id!, now);
     if (processingError) {
       await tx.paymentWebhookEvent.upsert({ where: { provider_providerEventId: { provider: PaymentProvider.PAYPAL, providerEventId: `capture:${capture.id}` } },
         create: { provider: PaymentProvider.PAYPAL, providerEventId: `capture:${capture.id}`, eventType: "PAYMENT.CAPTURE.COMPLETED", processedAt: now, processingError },

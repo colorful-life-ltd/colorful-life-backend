@@ -1,13 +1,14 @@
+import { isConfirmationPayment } from './verifiedPayment.js';
 import type { Prisma } from '../../generated/prisma-client/client.js';
 import { purchaseSchema } from './contract.js';
 
-/** Only called inside the existing verified Stripe success transaction/Order lock. */
+/** Only called inside the existing verified provider success transaction/Order lock. */
 export async function enqueueOrderConfirmation(tx: Prisma.TransactionClient, orderId: number) {
   const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: {
     user: { select: { email: true, firstName: true, emailVerified: true, deletedAt: true } }, orderItems: true,
     payments: true, paymentResolution: true,
   } });
-  const payment = order.payments.find(p => p.provider === 'STRIPE' && p.status === 'SUCCEEDED' && p.paidAt);
+  const payment = order.payments.find(isConfirmationPayment);
   if (!payment || order.cancelledAt || !['CONFIRMED', 'DISPATCHED', 'COMPLETED'].includes(order.status)
     || order.paymentResolution && order.paymentResolution.reservationDisposition !== 'CONSUMED') return;
   const address = (kind: 'billing' | 'delivery') => ({ recipientName: order[`${kind}RecipientName`], line1: order[`${kind}Line1`], line2: order[`${kind}Line2`], city: order[`${kind}City`], county: order[`${kind}County`], postcode: order[`${kind}Postcode`], countryCode: order[`${kind}CountryCode`] });

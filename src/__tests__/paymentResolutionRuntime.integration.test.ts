@@ -209,13 +209,13 @@ it("database rejects cross-order release proofs and relevant unresolved provider
  await prisma.paymentWebhookEvent.create({data:{provider:"STRIPE",providerEventId:randomUUID(),eventType:"payment_intent.succeeded",evidence:{orderId:String(b.order.id),paymentIntentId:p.remote.id}}});
  assert.equal(await expireOrderReservation(b.order.id),null);assert.equal((await state(b)).stock.reservedStock,2);
 });
-it("PayPal provider lookup recovers late success but preserves paid-but-unconfirmed behavior",async()=>{
+it("PayPal provider lookup recovers late success through shared order confirmation",async()=>{
  const f=await fixture(31);const p=await admitted(f,"PAYPAL");
  const {resolvePayPalPaymentOutcome}=await import("../domain/payments/paypalResolutionService.js");
  const captureId=`CAP-${randomUUID()}`;
  await resolvePayPalPaymentOutcome(f.order.id,{retrieveOrder:async()=>({id:p.remote.id,status:"COMPLETED",purchase_units:[{payments:{captures:[{id:captureId,status:"COMPLETED",amount:{value:"20.00",currency_code:"GBP"}}]}}]})});
  const payment=await prisma.payment.findUniqueOrThrow({where:{id:p.payment.id}});assert.equal(payment.status,"SUCCEEDED");assert.ok(payment.paidAt);assert.equal(payment.providerCaptureReference,captureId);
- const s=await state(f);assert.equal(s.order.status,"PENDING");assert.equal(s.resolution.state,"PAID");assert.equal(s.stock.currentStock,2);assert.equal(s.stock.reservedStock,2);
+ const s=await state(f);assert.equal(s.order.status,"CONFIRMED");assert.equal(s.resolution.state,"PAID");assert.equal(s.resolution.reservationDisposition,"CONSUMED");assert.equal(s.stock.currentStock,0);assert.equal(s.stock.reservedStock,0);
 });
 
 it("resolution projection is customer-owned and excludes provider identities and proof data",async()=>{
