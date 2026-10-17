@@ -183,9 +183,11 @@ tracking is stated honestly. No arrival dates or partial shipment claims are inv
 ORDER_CONFIRMATION_BUSINESS_JSON is unset by default. The validated approval bundle
 requires approved:true, legalName:"Colorful Life Ltd", verified registrationNumber,
 registeredAddress lines, fromEmail, monitored replyToEmail/replyToMonitored:true,
-retentionPolicy, approved invoicePrefix/numberDigits and approved primaryColor,
-accentColor and bounded PNG/JPEG logo bytes/alt text. Primary colour requires readable
-white-text contrast. No real legal details, logo or business approval is supplied.
+retentionPolicy and approved invoicePrefix/numberDigits. Since Issue #185 the Build & Bloom
+artwork and palette are versioned in the repository; the legacy primaryColor, accentColor
+and logo fields are optional and still validated when present. The same monitored
+replyToEmail is the Reply-To for account verification emails. No real legal details or
+business approval is supplied by the repository; they belong to environment configuration.
 No VAT number/amount is accepted.
 
 Invoice financial/customer data is frozen at confirmation. **Number allocation and
@@ -202,11 +204,51 @@ The shared OrderConfirmationJob table retains its existing name and now includes
 immutable type/event/routing/source and one-write dispatch branding/backlog approval.
 The confirmation source.orderId must equal its job orderId at the database boundary.
 
+## Build & Bloom configuration (Issue #185)
+
+Business details are environment configuration (`ORDER_CONFIRMATION_BUSINESS_JSON`), never
+source code. In addition to the fields above, the optional `registeredIn` (e.g. "England and
+Wales") supplies the place of registration. Every customer email footer shows the UK trading
+disclosures built from this configuration: legal name, place of registration, company number
+and registered office. Account verification emails use the same configured identity and
+monitored `replyToEmail` (only when `replyToMonitored` is `true`), without requiring the
+invoice-only fields.
+
+**Invoice numbering.** Numbers are `{invoicePrefix}-{sequence}` with the sequence value
+zero-padded to `numberDigits`, allocated from the single global PostgreSQL sequence
+`commercial_invoice_number_seq` inside the issuing transaction. Migration
+`20261021120000_invoice_number_start` advances the sequence to the owner-approved first value
+102801 only if it is still below it (it never resets or rewinds a live sequence and creates no
+invoices), so with prefix `BB` and 8 digits the first invoice is `BB-00102801`, then
+`BB-00102802`, and so on. It first takes a conflicting lock on the sequence (a no-op `ALTER SEQUENCE`),
+so invoice issuing may stay active during the deploy: concurrent `nextval()` calls wait for it and
+never receive a reused or lower number. It fails after a 10 s lock timeout rather than queueing
+behind a long transaction, and is safe to re-run. `invoiceNumber` is unique, the snapshot must repeat it, and
+immutability triggers prevent later edits. The sequence is never reset, gaps are possible after
+rollbacks, and values above the padded width simply grow longer. Changing the prefix later does
+not renumber issued invoices, which keep the number recorded in their snapshot.
+
+**Record retention.** `retentionPolicy` records the approved policy statement; it is a governance
+attestation and is not printed on emails or invoices. Nothing in the application deletes invoices,
+orders or payment records automatically (issued invoices are deletion-protected). Different record
+categories have different legal bases and periods, for example:
+
+- Accounting records: a private company must keep them for at least 3 years from when they are
+  made (Companies Act 2006, s.388).
+- Corporation Tax records (invoices, orders, payments, refunds): HMRC generally requires
+  6 years from the end of the accounting period, and longer in some cases (e.g. open enquiries
+  or late returns).
+- Customer personal data that is not needed for those records: kept only as long as necessary
+  (UK GDPR storage limitation), to be defined in the privacy policy.
+
+The longest applicable period governs records that serve several purposes. This summary is not
+legal advice; the owner or accountant approves the final statement.
+
 ## Templates, PDF and MIME
 
 Pure typed templates are independent of SES, with HTML/plain-text versions, escaped
 customer content, responsive max-600px tables, inline CSS, system fonts and descriptive
-CID logo. They use no scripts, remote CSS/images/fonts, tracking pixels or marketing.
+CID Build & Bloom artwork. They use no scripts, remote CSS/images/fonts, tracking pixels or marketing.
 Dispatch and status-aware invoice presentation reuse the approved branding.
 
 PDFKit creates A4 commercial invoices with actual persisted GBP paid amounts and
@@ -219,7 +261,7 @@ The PDF includes the exact statement:
 > Colorful Life Ltd is not VAT registered. No VAT has been charged. This document is a commercial invoice, not a VAT invoice.
 
 Nodemailer stream transport composes MIME only. File/URL loading is disabled. Durable
-messages include HTML/text, logo and monitored Reply-To. Only invoice delivery attaches
+messages include HTML/text, embedded artwork and monitored Reply-To. Only invoice delivery attaches
 the cached PDF (maximum 3 MB); raw MIME maximum is 9 MB, below SES classic's 10 MB.
 Real SES is refused in tests, including when flags are enabled.
 

@@ -26,13 +26,18 @@ function contrastWithWhite(hex: string) {
 }
 export const businessSchema = z.object({
   approved: z.literal(true), legalName: z.literal('Colorful Life Ltd'), registrationNumber: header,
-  registeredAddress: z.array(header).min(2).max(8), fromEmail: z.string().email(), replyToEmail: z.string().email(),
+  registeredAddress: z.array(header).min(2).max(8),
+  // Place of registration for UK trading disclosures, e.g. "England and Wales". Optional so frozen pre-#185 snapshots still parse.
+  registeredIn: header.optional(), fromEmail: z.string().email(), replyToEmail: z.string().email(),
   replyToMonitored: z.literal(true), retentionPolicy: header,
   invoicePrefix: z.string().regex(/^[A-Z0-9-]{1,20}$/), numberDigits: z.number().int().min(1).max(12),
-  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).refine(c => contrastWithWhite(c) >= 4.5),
-  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  logo: z.object({ mime: z.enum(['image/png', 'image/jpeg']), base64: z.string().min(8).max(180000).regex(/^[A-Za-z0-9+/]+={0,2}$/), alt: header }).strict(),
+  // Brand identity (Build & Bloom artwork, palette) is versioned in the repository since Issue #185.
+  // These legacy fields stay accepted and validated so existing bundles and frozen invoice snapshots parse.
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).refine(c => contrastWithWhite(c) >= 4.5).optional(),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  logo: z.object({ mime: z.enum(['image/png', 'image/jpeg']), base64: z.string().min(8).max(180000).regex(/^[A-Za-z0-9+/]+={0,2}$/), alt: header }).strict().optional(),
 }).strict().refine(b => {
+  if (!b.logo) return true;
   const bytes = Buffer.from(b.logo.base64, 'base64');
   return b.logo.mime === 'image/png' ? bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')) : bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
 }, 'Approved logo must match its declared image type');

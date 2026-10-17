@@ -2,7 +2,7 @@ import type { Business, Invoice, Purchase } from '../../domain/orderConfirmation
 // Entirely synthetic identities/logo. Never production business configuration.
 export const businessFixture: Business = {
   approved: true, legalName: 'Colorful Life Ltd', registrationNumber: 'TEST-ONLY-000',
-  registeredAddress: ['Synthetic company fixture', '1 Fictional Road', 'Testville', 'TEST'],
+  registeredAddress: ['Synthetic company fixture', '1 Fictional Road', 'Testville', 'TEST'], registeredIn: 'England and Wales',
   fromEmail: 'orders@example.test', replyToEmail: 'support@example.test', replyToMonitored: true,
   retentionPolicy: 'Synthetic isolated-test retention policy', invoicePrefix: 'TEST', numberDigits: 8,
   primaryColor: '#234d46', accentColor: '#b6d3c2',

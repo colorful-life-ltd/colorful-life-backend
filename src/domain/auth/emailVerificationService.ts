@@ -6,7 +6,8 @@ import {
   InvalidOrExpiredVerificationTokenError,
 } from "./emailVerificationErrors.js";
 
-const TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
+export const EMAIL_VERIFICATION_TOKEN_LIFETIME_MS = 24 * 60 * 60 * 1000;
+const TOKEN_LIFETIME_MS = EMAIL_VERIFICATION_TOKEN_LIFETIME_MS;
 type VerificationTransactionClient = Prisma.TransactionClient;
 
 export function hashEmailVerificationToken(rawToken: string): string {
