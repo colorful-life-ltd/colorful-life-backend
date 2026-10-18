@@ -1,3 +1,4 @@
+import { assertRealEmailAllowed, testEmailMode } from "../config/testEmail.js";
 import { SESClient, SendEmailCommand, SendRawEmailCommand } from "@aws-sdk/client-ses";
 import { config } from "../config/index.js";
 import { composeVerificationEmail } from "../domain/email/verificationEmail.js";
@@ -9,13 +10,18 @@ type VerificationEmailSender = (email: VerificationEmail) => Promise<void>;
 export type PasswordResetEmail = { recipientEmail: string; resetUrl: string };
 type PasswordResetEmailSender = (email: PasswordResetEmail) => Promise<void>;
 
-const sesClient = new SESClient({ region: config.AWS_REGION });
+let sesClient: SESClient | undefined;
+function realSesClient() {
+  assertRealEmailAllowed();
+  return sesClient ??= new SESClient({ region: config.AWS_REGION });
+}
 
 // Branded Build & Bloom HTML with a plain-text fallback and an embedded hero, hence raw MIME.
 const sesVerificationEmailSender: VerificationEmailSender = async (email) => {
+  if (testEmailMode()) return; // Deterministic no-send default; content tests inject a capture sender.
   const message = await composeVerificationEmail({ to: email.recipientEmail, from: config.SES_FROM_EMAIL, replyTo: approvedSupportReplyTo(), legal: approvedLegalIdentity(),
     verificationUrl: email.verificationUrl, lifetimeMs: EMAIL_VERIFICATION_TOKEN_LIFETIME_MS, siteUrl: config.FRONTEND_URL });
-  await sesClient.send(new SendRawEmailCommand({ Source: config.SES_FROM_EMAIL, Destinations: [email.recipientEmail], RawMessage: { Data: message } }));
+  await realSesClient().send(new SendRawEmailCommand({ Source: config.SES_FROM_EMAIL, Destinations: [email.recipientEmail], RawMessage: { Data: message } }));
 };
 
 export function buildPasswordResetEmailCommand(email: PasswordResetEmail) {
@@ -34,7 +40,8 @@ export function buildPasswordResetEmailCommand(email: PasswordResetEmail) {
 }
 
 const sesPasswordResetEmailSender: PasswordResetEmailSender = async (email) => {
-  await sesClient.send(buildPasswordResetEmailCommand(email), { abortSignal: AbortSignal.timeout(1500) });
+  if (testEmailMode()) return;
+  await realSesClient().send(buildPasswordResetEmailCommand(email), { abortSignal: AbortSignal.timeout(1500) });
 };
 
 let verificationSender: VerificationEmailSender = sesVerificationEmailSender;
@@ -65,7 +72,7 @@ export function sendPasswordResetEmail(email: PasswordResetEmail): Promise<void>
 export type DispatchNotification = { customerEmail: string; orderId: number; shippingCarrier: string; trackingNumber?: string | null; dispatchedAt: Date };
 type DispatchSender = (notification: DispatchNotification) => Promise<void>;
 const legacyDispatchSender: DispatchSender = async notification => {
-  if (process.env.NODE_ENV === 'test') throw new Error('Real legacy SES disabled in tests');
+  assertRealEmailAllowed();
   const client = new SESClient({ region: config.AWS_REGION, maxAttempts: 1 });
   try {
     const result = await client.send(new SendEmailCommand({

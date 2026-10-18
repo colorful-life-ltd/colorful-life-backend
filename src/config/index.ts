@@ -1,3 +1,4 @@
+import { isolateTestAwsEnvironment, testEmailMode } from "./testEmail.js";
 import { validateAbuseStartup } from "./paymentAbuse.js";
 import { isIP } from "node:net";
 import { z } from "zod";
@@ -7,6 +8,7 @@ import { parsePublicSiteOrigin } from "../domain/seo/publicSiteOrigin.js";
 
 // Load environment variables from .env if present
 dotenvConfig();
+if (testEmailMode()) isolateTestAwsEnvironment(process.env);
 
 // Fixed epoch: future email cutoffs remain invalid for this process until a reviewed restart.
 export const emailConfigurationLoadedAt = Date.now();
