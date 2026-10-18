@@ -1,3 +1,4 @@
+import { hasValidListingPrices } from "./listingPrice.js";
 import { Prisma } from "../../generated/prisma-client/client.js";
 import { prisma } from "../../prisma/runtime.js";
 import type { ProductCatalogueQuery } from "./productCatalogueValidator.js";
@@ -34,7 +35,7 @@ function eligibleProductPredicate(query: ProductCatalogueQuery): Prisma.Sql {
 }
 
 function offerMatchesQuery(listing: any, query: ProductCatalogueQuery) {
-  if (!listing.active || listing.currentStock <= listing.reservedStock) return false;
+  if (!listing.active || listing.currentStock <= listing.reservedStock || !hasValidListingPrices(listing)) return false;
   if (listing.condition !== "NEW" && !(listing.condition === "USED_LIKE_NEW" && listing.usedLifecycle === "AVAILABLE")) return false;
   const effectivePrice = Number(listing.salePrice ?? listing.originalPrice);
   return (query.minPrice === undefined || effectivePrice >= query.minPrice)

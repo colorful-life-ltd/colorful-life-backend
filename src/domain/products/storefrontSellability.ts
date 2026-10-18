@@ -24,6 +24,8 @@ export function storefrontSellableListingExistsPredicate(
     SELECT 1 FROM "ProductListing" pl
     WHERE pl."legoProductId" = lp."id"
       AND pl."active" = TRUE
+      AND pl."originalPrice" > 0
+      AND (pl."salePrice" IS NULL OR pl."salePrice" > 0)
       AND pl."currentStock" > pl."reservedStock"
       AND (pl."condition" = 'NEW' OR (pl."condition" = 'USED_LIKE_NEW' AND pl."usedLifecycle" = 'AVAILABLE'))
       ${pricePredicate}

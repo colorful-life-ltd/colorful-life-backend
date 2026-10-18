@@ -1,3 +1,4 @@
+import { hasValidListingPrices, priceMessage } from "../products/listingPrice.js";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../../generated/prisma-client/client.js";
 import { InventoryAuditAction, InventoryAdjustmentReason, InventoryMovementType, ListingCondition, UsedOfferLifecycle } from "../../generated/prisma-client/enums.js";
@@ -14,7 +15,7 @@ export class UsedOfferInsufficientNewStockError extends Error {}
 export type UsedOfferInput = {
   legoProductId: number;
   originalPrice: number;
-  salePrice?: number;
+  salePrice?: number | null;
   damageDescription: string;
   reason?: InventoryAdjustmentReason;
   reasonNote?: string;
@@ -57,8 +58,8 @@ export function createUsedOfferService(storage: ImageStorage, db: PrismaClient =
     if (conversion !== (input.sourceNewListingId !== undefined)) {
       throw new UsedOfferValidationError(conversion ? "A NEW source listing is required" : "A source listing is only accepted for condition conversion");
     }
-    if (!Number.isFinite(input.originalPrice) || input.originalPrice <= 0 || (input.salePrice !== undefined && (!Number.isFinite(input.salePrice) || input.salePrice < 0))) {
-      throw new UsedOfferValidationError("Invalid offer price");
+    if (!hasValidListingPrices(input)) {
+      throw new UsedOfferValidationError(priceMessage);
     }
     if (conversion && input.reason !== undefined && input.reason !== InventoryAdjustmentReason.PACKAGING_DAMAGE) {
       throw new UsedOfferValidationError("Used Like New conversion requires the PACKAGING_DAMAGE reason");

@@ -1,3 +1,4 @@
+import { positivePriceSchema, salePriceSchema, priceMessage } from "../domain/products/listingPrice.js";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma/runtime.js";
@@ -28,8 +29,8 @@ purchaseListingsRouter.get("/products", async (req, res) => {
   } catch { res.status(500).json({ error: "Product search failed" }); }
 });
 const pricing = {
-  condition: z.enum(["NEW", "USED_LIKE_NEW"]), originalPrice: z.number().positive(),
-  salePrice: z.number().nonnegative().optional(), currentStock: z.literal(0),
+  condition: z.enum(["NEW", "USED_LIKE_NEW"]), originalPrice: positivePriceSchema,
+  salePrice: salePriceSchema, currentStock: z.literal(0),
 };
 const creation = z.union([
   z.object({ ...pricing, existingProductId: z.number().int().positive() }).strict(),
@@ -39,7 +40,7 @@ const creation = z.union([
 ]);
 purchaseListingsRouter.post("/listings", async (req, res) => {
   const parsed = creation.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: "Select a condition and valid product details. Initial stock must be zero." }); return; }
+  if (!parsed.success) { res.status(400).json({ error: "Select a condition and valid product details. Initial stock must be zero. " + priceMessage }); return; }
   const body = parsed.data;
   if (body.condition === "USED_LIKE_NEW") { res.status(400).json({ error: "Used offers must be created through the per-item Used offer operation" }); return; }
   if (!("existingProductId" in body)) {

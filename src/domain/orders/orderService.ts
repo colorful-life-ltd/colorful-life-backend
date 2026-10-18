@@ -1,3 +1,4 @@
+import { hasValidListingPrices, InvalidListingPriceError } from "../products/listingPrice.js";
 import { admitOrderCreation } from "../security/paymentAbuse.js";
 import { orderFinancials, resolveShipping, shippingMethodSchema } from "./shipping.js";
 import { readCustomerPaymentWindow, type CustomerPaymentWindow } from "../payments/customerPaymentWindow.js";
@@ -219,6 +220,7 @@ export async function createOrder(
     let totalAmount = new Decimal(0);
     const orderItemCreateData = input.items.map((item) => {
       const listing = listingMap.get(item.productListingId)!;
+      if (!hasValidListingPrices(listing)) throw new InvalidListingPriceError(listing.id);
       const unitPrice = listing.salePrice ?? listing.originalPrice;
       const lineTotal = unitPrice.mul(item.quantity);
       totalAmount = totalAmount.add(lineTotal);
