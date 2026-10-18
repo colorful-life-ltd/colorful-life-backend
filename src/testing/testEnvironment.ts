@@ -1,3 +1,4 @@
+import { isolateTestAwsEnvironment } from "../config/testEmail.js";
 import { randomBytes } from "node:crypto";
 import { stagingLimits } from "../config/paymentAbuse.js";
 import { validateTestDatabase } from "../config/testDatabase.js";
@@ -7,6 +8,10 @@ export function prepareTestEnvironment(env: NodeJS.ProcessEnv) {
   // Reject production and unsafe database targets before mutating any configuration.
   const target = validateTestDatabase(env);
   env.NODE_ENV = "test";
+  isolateTestAwsEnvironment(env);
+  const guard = `--import=${new URL("./noExternalNetwork.js", import.meta.url).href}`;
+  if (!env.NODE_OPTIONS?.split(/\s+/).includes(guard)) env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ""} ${guard}`.trim();
+  for (const name of ["RUN_STRIPE_SANDBOX_TESTS", "RUN_STRIPE_WEBHOOK_E2E_TESTS", "RUN_STRIPE_REFUND_WEBHOOK_E2E_TESTS"]) env[name] = "false";
   // One synthetic key per run, inherited by every test worker and its subprocesses.
   env.PAYMENT_ABUSE_HMAC_SECRET = randomBytes(32).toString("hex");
   // Legacy fixture traffic shares a network identity. Keep enforcement active with
