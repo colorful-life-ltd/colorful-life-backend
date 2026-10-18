@@ -18,13 +18,16 @@ export type PaymentIneligibility =
   | "NO_PAYMENT"
   | "PAYMENT_NOT_SUCCEEDED"
   | "PAYMENT_UNRESOLVED"
+  | "REFUND_REVIEW_REQUIRED"
   | "REFUND_IN_PROGRESS"
   | "FULLY_REFUNDED";
 
 /** The order's payment is not verified as successful and settled, so it must not be fulfilled. */
 export class FulfilmentPaymentNotVerifiedError extends Error {
   constructor(orderId: number, public readonly reason: PaymentIneligibility) {
-    super(`Order ${orderId} payment is not verified for fulfilment (${reason})`);
+    super(reason === "REFUND_REVIEW_REQUIRED"
+      ? `Order ${orderId} fulfilment is blocked because refund evidence requires unresolved review. Resolve the refund review before preparing or dispatching this order.`
+      : `Order ${orderId} payment is not verified for fulfilment (${reason})`);
     this.name = "FulfilmentPaymentNotVerifiedError";
   }
 }

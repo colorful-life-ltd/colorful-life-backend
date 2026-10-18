@@ -42,12 +42,13 @@ async function lockOrder(tx: Prisma.TransactionClient, orderId: number) {
 }
 
 /**
- * Caller holds the Order row lock (see lockOrder), which payment initiation, webhooks and
- * recovery also take. Refund capacity is reserved under the Payment row lock
- * only, so that row is locked here too (Order -> Payment; refunds never lock
- * Order). The verdict therefore cannot change before commit.
+ * Caller holds the Order row lock (see lockOrder), shared with payment initiation,
+ * refund lifecycle/webhook writers and recovery. Lock Payment next, matching
+ * refund lifecycle's Order -> Payment -> Refund order and excluding capacity-only
+ * writers too. Review state is read after those locks, so a committed conflict
+ * cannot be missed by a subsequent fulfilment transition.
  * Payment must be SUCCEEDED with paidAt, not fully refunded, with no refund in
- * flight. Orders managed by payment resolution (#156) must also be PAID; for
+ * flight or unresolved refund review. Orders managed by payment resolution (#156) must also be PAID; for
  * historical rows the verified payment record decides, matching managedResolution().
  */
 export async function assertPaymentVerifiedForFulfilment(tx: Prisma.TransactionClient, orderId: number) {
@@ -56,6 +57,12 @@ export async function assertPaymentVerifiedForFulfilment(tx: Prisma.TransactionC
   const payment = await tx.payment.findUnique({ where: { orderId } });
   if (!payment) throw new FulfilmentPaymentNotVerifiedError(orderId, "NO_PAYMENT");
   if (payment.status !== "SUCCEEDED" || !payment.paidAt) throw new FulfilmentPaymentNotVerifiedError(orderId, "PAYMENT_NOT_SUCCEEDED");
+  // Refund/webhook writers acquire the same Order -> Payment locks before
+  // updating review state. Read after locking Payment so a committed conflict
+  // cannot be missed; only refunds belonging to this payment can block it.
+  if (await tx.refund.findFirst({ where: { paymentId: payment.id, reviewRequired: true }, select: { id: true } })) {
+    throw new FulfilmentPaymentNotVerifiedError(orderId, "REFUND_REVIEW_REQUIRED");
+  }
   if (payment.reservedRefundAmount.gt(0)) throw new FulfilmentPaymentNotVerifiedError(orderId, "REFUND_IN_PROGRESS");
   if (payment.refundedAmount.gte(payment.amount)) throw new FulfilmentPaymentNotVerifiedError(orderId, "FULLY_REFUNDED");
   const resolution = await tx.paymentResolution.findUnique({ where: { orderId } });

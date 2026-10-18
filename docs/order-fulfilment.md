@@ -27,13 +27,18 @@ Anything else is rejected without side effects. There is no transition back from
 
 ## Payment eligibility
 
-Checked inside the transaction after `SELECT … FOR UPDATE` on the Order row (shared with payment initiation, webhooks and recovery) and on the Payment row (shared with refund capacity reservation). Both Preparing and Dispatch require:
+Checked inside the transaction after `FOR NO KEY UPDATE` on the Order row and `FOR UPDATE` on the Payment row. Refund lifecycle/webhook writers use the same Order → Payment → Refund lock order; standalone refund-capacity helpers also serialize on Payment. Both Preparing and Dispatch require:
 
 - a Payment with `status = SUCCEEDED` and `paidAt` set (pending, processing, failed, cancelled or missing payments are rejected; expired/cancelled orders fail the state check);
+- no refund belonging to the payment with `reviewRequired = true`, regardless of refund status or resolution code;
 - no refund in flight (`reservedRefundAmount = 0`) and not fully refunded;
 - for orders managed by payment resolution (#156: non-historical `PaymentResolution`), `state = PAID` and no quarantine. Historical resolution rows (all pre-#156 orders, `REVIEW_REQUIRED`) defer to the verified payment record, matching `managedResolution()`; otherwise no legacy paid order could ever be dispatched.
 
 Rejection: HTTP 409 `{error:{code:"ORDER_PAYMENT_NOT_VERIFIED",message}}` (message names `NO_PAYMENT`, `PAYMENT_NOT_SUCCEEDED`, `PAYMENT_UNRESOLVED`, `REFUND_IN_PROGRESS` or `FULLY_REFUNDED`). The existing dispatch endpoint applies the same check.
+
+Unresolved refund review returns HTTP 409 `{error:{code:"REFUND_REVIEW_REQUIRED",message}}` on preparation, modern dispatch and legacy dispatch. The message asks the operator to resolve the refund review before fulfilment and exposes no provider evidence or references. Unconflicted partial refunds remain eligible. Rejection changes no payment/refund/stock data. This guard does not resolve reviews, perform reconciliation or release security holds.
+
+The shared locks serialize new fulfilment transitions with review writes: a conflict committed first blocks fulfilment; a conflict arriving after dispatch does not undo a shipment. Existing idempotent no-op replays remain unchanged and create no shipment/audit/notification. This enforcement change is #203; manual review resolution and Admin review UI remain separate follow-ups.
 
 ## Admin API
 
@@ -53,7 +58,7 @@ Both endpoints sit under the existing `/admin/orders` router (authentication wit
 - Unknown fields (including any URL or timestamp) are rejected. The dispatch time is database time.
 - Repeating the same carrier/tracking number on a dispatched order is an idempotent 200 (no new shipment, audit event or email). Different details: 409 `ORDER_ALREADY_DISPATCHED`; shipment data is never overwritten.
 
-Errors: 400 invalid id `{error:"Invalid order id"}` or Zod-formatted body; 404 `{error:"Order not found"}`; 409 `FULFILMENT_TRANSITION_INVALID`, `ORDER_PAYMENT_NOT_VERIFIED`, `ORDER_ALREADY_DISPATCHED`; 500 `INTERNAL_SERVER_ERROR`.
+Errors: 400 invalid id `{error:"Invalid order id"}` or Zod-formatted body; 404 `{error:"Order not found"}`; 409 `FULFILMENT_TRANSITION_INVALID`, `ORDER_PAYMENT_NOT_VERIFIED`, `REFUND_REVIEW_REQUIRED`, `ORDER_ALREADY_DISPATCHED`; 500 `INTERNAL_SERVER_ERROR`.
 
 Response (abridged):
 
