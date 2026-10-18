@@ -553,6 +553,7 @@ export const getInventoryMovements = async (req: Request, res: Response) => {
         note: true,
         performedByUserId: true,
         createdAt: true,
+        fbaOutbound: { select: { id: true, shipmentReference: true, idempotencyKey: true } },
       },
     });
     res.json({ listingId, movements });
