@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateTestDatabase } from "../config/testDatabase.js";
+import { prepareTestEnvironment } from "./testEnvironment.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -20,8 +20,7 @@ try {
     throw new Error("Use check, prepare, or run [dist/__tests__/name.test.js ...]");
   }
   // Validate before changing NODE_ENV, importing application code, or spawning Prisma.
-  const target = validateTestDatabase(process.env);
-  process.env.NODE_ENV = "test";
+  const target = prepareTestEnvironment(process.env);
   const { config } = await import("../config/index.js");
   if (config.DATABASE_URL !== target.url) throw new Error("Test runtime database selection mismatch");
   console.log(`Validated test database: ${target.database}; application and Prisma migrations use TEST_DATABASE_URL.`);
