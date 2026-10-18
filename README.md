@@ -1032,6 +1032,16 @@ npm test
 npm test -- dist/__tests__/cataloguePresentation.integration.test.js
 ```
 
+The guarded test launcher supplies a fresh synthetic payment-abuse HMAC secret
+shared by its child processes, finite high-throughput fixture budgets, and enabled
+Stripe/PayPal initiation switches for tests using injected provider clients. No
+payment-abuse environment exports are needed. Challenge, reconciliation, tracking
+and email switches are disabled unless a focused test explicitly changes them.
+Abuse-specific tests restore restrictive limits and exercise real enforcement.
+These settings exist only in the test launcher; normal development/production
+startup still requires its own valid security configuration and retains disabled
+provider defaults. Live sandbox suites remain separately opt-in.
+
 Both preparation and `npm test` build first and apply the committed Prisma
 migrations using `prisma migrate deploy` against the validated test target.
 Applying migrations is repeatable; there is no reset, seed, or development-data
