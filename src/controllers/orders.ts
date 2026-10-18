@@ -542,7 +542,7 @@ export const completeOrderReturnHandler = async (req: Request, res: Response) =>
         return res.status(400).json({ error: err.message });
       }
       if (err instanceof FulfilmentPaymentNotVerifiedError) {
-        return sendApiError(res, 409, "ORDER_PAYMENT_NOT_VERIFIED", err.message);
+        return sendApiError(res, 409, err.reason === "REFUND_REVIEW_REQUIRED" ? "REFUND_REVIEW_REQUIRED" : "ORDER_PAYMENT_NOT_VERIFIED", err.message);
       }
       console.error("Order dispatch error", err);
       return res.status(500).json({ error: "Internal server error" });

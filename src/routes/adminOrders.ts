@@ -42,7 +42,7 @@ router.get("/:orderId", async (req, res) => {
 });
 function sendFulfilmentError(res: Response, error: unknown, operation: string) {
   if (error instanceof FulfilmentOrderNotFoundError) return res.status(404).json({ error: "Order not found" });
-  if (error instanceof FulfilmentPaymentNotVerifiedError) return sendApiError(res, 409, "ORDER_PAYMENT_NOT_VERIFIED", error.message);
+  if (error instanceof FulfilmentPaymentNotVerifiedError) return sendApiError(res, 409, error.reason === "REFUND_REVIEW_REQUIRED" ? "REFUND_REVIEW_REQUIRED" : "ORDER_PAYMENT_NOT_VERIFIED", error.message);
   if (error instanceof FulfilmentTransitionError) return sendApiError(res, 409, "FULFILMENT_TRANSITION_INVALID", error.message);
   if (error instanceof OrderAlreadyDispatchedError) return sendApiError(res, 409, "ORDER_ALREADY_DISPATCHED", error.message);
   console.error(`Admin fulfilment ${operation} error`, error);
