@@ -1260,5 +1260,5 @@ Retrieve a shipment with `GET /inventory/fba-outbounds/:id`. The existing
 `GET /products/:id/inventory-movements` also includes `fbaOutbound` metadata
 (ID, shipment reference and key; null for other movement types). No update/delete
 endpoint is provided. The new `FbaOutbound` table requires migration
-`20261025120000_add_fba_outbound_ledger`, followed by Prisma client generation/build.
+`20261018150000_add_fba_outbound_ledger`, followed by Prisma client generation/build.
 It is additive and does not backfill or modify historical inventory records.
