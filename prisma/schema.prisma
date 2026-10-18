@@ -381,10 +381,26 @@ model ProductImage {
   @@index([legoProductId, sortOrder])
 }
 
+// Shipment ledger only; no Amazon warehouse balance. Inventory values are the
+// immutable result of this operation, so retries do not return unrelated later stock.
+model FbaOutbound {
+  id                 Int               @id @default(autoincrement())
+  movementId         Int               @unique
+  movement           InventoryMovement @relation(fields: [movementId], references: [id], onDelete: Restrict)
+  idempotencyKey     String            @unique @db.VarChar(128)
+  requestHash        String            @db.VarChar(64)
+  shipmentReference  String            @db.VarChar(200)
+  currentStockAfter  Int
+  reservedStockAfter Int
+
+  @@index([shipmentReference])
+}
+
 model InventoryMovement {
   id                Int                   @id @default(autoincrement())
   listingId         Int
   listing           ProductListing        @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  fbaOutbound       FbaOutbound?
   quantityChange    Int
   type              InventoryMovementType
   note              String

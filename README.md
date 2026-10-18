@@ -1213,3 +1213,52 @@ Next:
 ## Order and dispatch confirmation email and commercial invoice
 
 See [Issue #180 configuration, rollout, dependencies and test boundaries](docs/order-confirmation-email.md). The new durable order and dispatch senders are independently disabled by default. Existing best-effort dispatch notifications remain available until durable dispatch is explicitly activated. Missing shipping/business facts block invoice issuance; SES readiness failures pause durable workers without blocking API startup.
+
+### Home-stock outbound shipments to Amazon FBA
+
+This is a local-stock deduction and shipment ledger only. It does not track Amazon
+stock, call Amazon APIs, or reconcile Amazon sales/returns. `currentStock` already
+excludes confirmed website orders before physical dispatch; never substitute a raw
+shelf count. Available local stock is `currentStock - reservedStock`.
+
+Authenticated ADMINs can `POST /inventory/fba-outbounds` with JSON:
+
+```json
+{
+  "productListingId": 123,
+  "quantity": 2,
+  "shipmentReference": "FBA-SHIPMENT-123",
+  "note": "Two units sent from home stock to Amazon",
+  "idempotencyKey": "a-client-generated-unique-key"
+}
+```
+
+Quantity/listing ID must be positive 32-bit integers. Reference and note are required,
+trimmed, and limited to 200 and 2,000 characters respectively. Keys contain 1–128
+ASCII letters, digits, dots, underscores, colons or hyphens, starting with a letter
+or digit. Unknown fields (including a caller-supplied actor) are rejected. Individually
+documented Used offers are excluded. Inactive/unpublished New listings remain eligible
+because this operation records local logistics, not storefront sellability.
+
+A successful first submission returns HTTP 201 with `replayed: false`, `outbound`
+(ID, listing, quantity, reference, note, key, authenticated actor, timestamp and signed
+`FBA_OUTBOUND` movement), and `inventory` (`productListingId`, `currentStock`,
+`reservedStock`, `availableStock`). An identical retry returns HTTP 200 with
+`replayed: true` and the **original operation's inventory snapshot**, not live balances.
+Use the same key after a lost response; never generate a new key merely to retry.
+Keys are globally unique for this operation. A change to listing, quantity, normalized
+reference/note or authenticated actor returns HTTP 409 `IDEMPOTENCY_CONFLICT`.
+Separate legitimate shipments use separate keys; shipment references alone are not
+assumed unique. Failed transactions do not consume a key.
+
+Insufficient available stock returns HTTP 409 `INSUFFICIENT_AVAILABLE_STOCK`; Used
+offers return 409 `USED_OFFER_NOT_SUPPORTED`; missing listings return 404
+`LISTING_NOT_FOUND`. Validation failures return 400 `VALIDATION_ERROR`. Authentication
+and ADMIN authorization are required for both writes and audit reads.
+
+Retrieve a shipment with `GET /inventory/fba-outbounds/:id`. The existing
+`GET /products/:id/inventory-movements` also includes `fbaOutbound` metadata
+(ID, shipment reference and key; null for other movement types). No update/delete
+endpoint is provided. The new `FbaOutbound` table requires migration
+`20261025120000_add_fba_outbound_ledger`, followed by Prisma client generation/build.
+It is additive and does not backfill or modify historical inventory records.

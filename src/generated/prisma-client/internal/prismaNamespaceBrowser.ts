@@ -64,6 +64,7 @@ export const ModelName = {
   Cart: 'Cart',
   CartItem: 'CartItem',
   ProductImage: 'ProductImage',
+  FbaOutbound: 'FbaOutbound',
   InventoryMovement: 'InventoryMovement',
   InventoryAudit: 'InventoryAudit',
   Order: 'Order',
@@ -303,6 +304,19 @@ export const ProductImageScalarFieldEnum = {
 } as const
 
 export type ProductImageScalarFieldEnum = (typeof ProductImageScalarFieldEnum)[keyof typeof ProductImageScalarFieldEnum]
+
+
+export const FbaOutboundScalarFieldEnum = {
+  id: 'id',
+  movementId: 'movementId',
+  idempotencyKey: 'idempotencyKey',
+  requestHash: 'requestHash',
+  shipmentReference: 'shipmentReference',
+  currentStockAfter: 'currentStockAfter',
+  reservedStockAfter: 'reservedStockAfter'
+} as const
+
+export type FbaOutboundScalarFieldEnum = (typeof FbaOutboundScalarFieldEnum)[keyof typeof FbaOutboundScalarFieldEnum]
 
 
 export const InventoryMovementScalarFieldEnum = {

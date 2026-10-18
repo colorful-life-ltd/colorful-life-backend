@@ -83,6 +83,11 @@ export type CartItem = Prisma.CartItemModel
  */
 export type ProductImage = Prisma.ProductImageModel
 /**
+ * Model FbaOutbound
+ *
+ */
+export type FbaOutbound = Prisma.FbaOutboundModel
+/**
  * Model InventoryMovement
  *
  */

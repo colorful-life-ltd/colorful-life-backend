@@ -410,6 +410,7 @@ export const ModelName = {
   Cart: 'Cart',
   CartItem: 'CartItem',
   ProductImage: 'ProductImage',
+  FbaOutbound: 'FbaOutbound',
   InventoryMovement: 'InventoryMovement',
   InventoryAudit: 'InventoryAudit',
   Order: 'Order',
@@ -461,7 +462,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence" | "orderConfirmationJob" | "commercialInvoice" | "abuseBucket" | "paymentInitiationPolicy" | "paymentAdmission" | "paymentSecurityEvent" | "paymentFulfilmentReview" | "paymentChallengeUse"
+    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "fbaOutbound" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence" | "orderConfirmationJob" | "commercialInvoice" | "abuseBucket" | "paymentInitiationPolicy" | "paymentAdmission" | "paymentSecurityEvent" | "paymentFulfilmentReview" | "paymentChallengeUse"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1424,6 +1425,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ProductImageCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ProductImageCountAggregateOutputType> | number
+        }
+      }
+    }
+    FbaOutbound: {
+      payload: Prisma.$FbaOutboundPayload<ExtArgs>
+      fields: Prisma.FbaOutboundFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.FbaOutboundFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.FbaOutboundFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>
+        }
+        findFirst: {
+          args: Prisma.FbaOutboundFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.FbaOutboundFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>
+        }
+        findMany: {
+          args: Prisma.FbaOutboundFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>[]
+        }
+        create: {
+          args: Prisma.FbaOutboundCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>
+        }
+        createMany: {
+          args: Prisma.FbaOutboundCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.FbaOutboundCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>[]
+        }
+        delete: {
+          args: Prisma.FbaOutboundDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>
+        }
+        update: {
+          args: Prisma.FbaOutboundUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>
+        }
+        deleteMany: {
+          args: Prisma.FbaOutboundDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.FbaOutboundUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.FbaOutboundUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>[]
+        }
+        upsert: {
+          args: Prisma.FbaOutboundUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FbaOutboundPayload>
+        }
+        aggregate: {
+          args: Prisma.FbaOutboundAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFbaOutbound>
+        }
+        groupBy: {
+          args: Prisma.FbaOutboundGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FbaOutboundGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.FbaOutboundCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FbaOutboundCountAggregateOutputType> | number
         }
       }
     }
@@ -4317,6 +4392,19 @@ export const ProductImageScalarFieldEnum = {
 export type ProductImageScalarFieldEnum = (typeof ProductImageScalarFieldEnum)[keyof typeof ProductImageScalarFieldEnum]
 
 
+export const FbaOutboundScalarFieldEnum = {
+  id: 'id',
+  movementId: 'movementId',
+  idempotencyKey: 'idempotencyKey',
+  requestHash: 'requestHash',
+  shipmentReference: 'shipmentReference',
+  currentStockAfter: 'currentStockAfter',
+  reservedStockAfter: 'reservedStockAfter'
+} as const
+
+export type FbaOutboundScalarFieldEnum = (typeof FbaOutboundScalarFieldEnum)[keyof typeof FbaOutboundScalarFieldEnum]
+
+
 export const InventoryMovementScalarFieldEnum = {
   id: 'id',
   listingId: 'listingId',
@@ -5747,6 +5835,7 @@ export type GlobalOmitConfig = {
   cart?: Prisma.CartOmit
   cartItem?: Prisma.CartItemOmit
   productImage?: Prisma.ProductImageOmit
+  fbaOutbound?: Prisma.FbaOutboundOmit
   inventoryMovement?: Prisma.InventoryMovementOmit
   inventoryAudit?: Prisma.InventoryAuditOmit
   order?: Prisma.OrderOmit

@@ -245,6 +245,7 @@ export type InventoryMovementWhereInput = {
   performedByUserId?: Prisma.IntFilter<"InventoryMovement"> | number
   createdAt?: Prisma.DateTimeFilter<"InventoryMovement"> | Date | string
   listing?: Prisma.XOR<Prisma.ProductListingScalarRelationFilter, Prisma.ProductListingWhereInput>
+  fbaOutbound?: Prisma.XOR<Prisma.FbaOutboundNullableScalarRelationFilter, Prisma.FbaOutboundWhereInput> | null
   performedByUser?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }
 
@@ -257,6 +258,7 @@ export type InventoryMovementOrderByWithRelationInput = {
   performedByUserId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   listing?: Prisma.ProductListingOrderByWithRelationInput
+  fbaOutbound?: Prisma.FbaOutboundOrderByWithRelationInput
   performedByUser?: Prisma.UserOrderByWithRelationInput
 }
 
@@ -272,6 +274,7 @@ export type InventoryMovementWhereUniqueInput = Prisma.AtLeast<{
   performedByUserId?: Prisma.IntFilter<"InventoryMovement"> | number
   createdAt?: Prisma.DateTimeFilter<"InventoryMovement"> | Date | string
   listing?: Prisma.XOR<Prisma.ProductListingScalarRelationFilter, Prisma.ProductListingWhereInput>
+  fbaOutbound?: Prisma.XOR<Prisma.FbaOutboundNullableScalarRelationFilter, Prisma.FbaOutboundWhereInput> | null
   performedByUser?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }, "id">
 
@@ -309,6 +312,7 @@ export type InventoryMovementCreateInput = {
   note: string
   createdAt?: Date | string
   listing: Prisma.ProductListingCreateNestedOneWithoutInventoryMovementsInput
+  fbaOutbound?: Prisma.FbaOutboundCreateNestedOneWithoutMovementInput
   performedByUser: Prisma.UserCreateNestedOneWithoutInventoryMovementsInput
 }
 
@@ -320,6 +324,7 @@ export type InventoryMovementUncheckedCreateInput = {
   note: string
   performedByUserId: number
   createdAt?: Date | string
+  fbaOutbound?: Prisma.FbaOutboundUncheckedCreateNestedOneWithoutMovementInput
 }
 
 export type InventoryMovementUpdateInput = {
@@ -328,6 +333,7 @@ export type InventoryMovementUpdateInput = {
   note?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   listing?: Prisma.ProductListingUpdateOneRequiredWithoutInventoryMovementsNestedInput
+  fbaOutbound?: Prisma.FbaOutboundUpdateOneWithoutMovementNestedInput
   performedByUser?: Prisma.UserUpdateOneRequiredWithoutInventoryMovementsNestedInput
 }
 
@@ -339,6 +345,7 @@ export type InventoryMovementUncheckedUpdateInput = {
   note?: Prisma.StringFieldUpdateOperationsInput | string
   performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbound?: Prisma.FbaOutboundUncheckedUpdateOneWithoutMovementNestedInput
 }
 
 export type InventoryMovementCreateManyInput = {
@@ -376,6 +383,11 @@ export type InventoryMovementListRelationFilter = {
 
 export type InventoryMovementOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type InventoryMovementScalarRelationFilter = {
+  is?: Prisma.InventoryMovementWhereInput
+  isNot?: Prisma.InventoryMovementWhereInput
 }
 
 export type InventoryMovementCountOrderByAggregateInput = {
@@ -506,6 +518,20 @@ export type InventoryMovementUncheckedUpdateManyWithoutListingNestedInput = {
   deleteMany?: Prisma.InventoryMovementScalarWhereInput | Prisma.InventoryMovementScalarWhereInput[]
 }
 
+export type InventoryMovementCreateNestedOneWithoutFbaOutboundInput = {
+  create?: Prisma.XOR<Prisma.InventoryMovementCreateWithoutFbaOutboundInput, Prisma.InventoryMovementUncheckedCreateWithoutFbaOutboundInput>
+  connectOrCreate?: Prisma.InventoryMovementCreateOrConnectWithoutFbaOutboundInput
+  connect?: Prisma.InventoryMovementWhereUniqueInput
+}
+
+export type InventoryMovementUpdateOneRequiredWithoutFbaOutboundNestedInput = {
+  create?: Prisma.XOR<Prisma.InventoryMovementCreateWithoutFbaOutboundInput, Prisma.InventoryMovementUncheckedCreateWithoutFbaOutboundInput>
+  connectOrCreate?: Prisma.InventoryMovementCreateOrConnectWithoutFbaOutboundInput
+  upsert?: Prisma.InventoryMovementUpsertWithoutFbaOutboundInput
+  connect?: Prisma.InventoryMovementWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.InventoryMovementUpdateToOneWithWhereWithoutFbaOutboundInput, Prisma.InventoryMovementUpdateWithoutFbaOutboundInput>, Prisma.InventoryMovementUncheckedUpdateWithoutFbaOutboundInput>
+}
+
 export type EnumInventoryMovementTypeFieldUpdateOperationsInput = {
   set?: $Enums.InventoryMovementType
 }
@@ -516,6 +542,7 @@ export type InventoryMovementCreateWithoutPerformedByUserInput = {
   note: string
   createdAt?: Date | string
   listing: Prisma.ProductListingCreateNestedOneWithoutInventoryMovementsInput
+  fbaOutbound?: Prisma.FbaOutboundCreateNestedOneWithoutMovementInput
 }
 
 export type InventoryMovementUncheckedCreateWithoutPerformedByUserInput = {
@@ -525,6 +552,7 @@ export type InventoryMovementUncheckedCreateWithoutPerformedByUserInput = {
   type: $Enums.InventoryMovementType
   note: string
   createdAt?: Date | string
+  fbaOutbound?: Prisma.FbaOutboundUncheckedCreateNestedOneWithoutMovementInput
 }
 
 export type InventoryMovementCreateOrConnectWithoutPerformedByUserInput = {
@@ -571,6 +599,7 @@ export type InventoryMovementCreateWithoutListingInput = {
   type: $Enums.InventoryMovementType
   note: string
   createdAt?: Date | string
+  fbaOutbound?: Prisma.FbaOutboundCreateNestedOneWithoutMovementInput
   performedByUser: Prisma.UserCreateNestedOneWithoutInventoryMovementsInput
 }
 
@@ -581,6 +610,7 @@ export type InventoryMovementUncheckedCreateWithoutListingInput = {
   note: string
   performedByUserId: number
   createdAt?: Date | string
+  fbaOutbound?: Prisma.FbaOutboundUncheckedCreateNestedOneWithoutMovementInput
 }
 
 export type InventoryMovementCreateOrConnectWithoutListingInput = {
@@ -609,6 +639,60 @@ export type InventoryMovementUpdateManyWithWhereWithoutListingInput = {
   data: Prisma.XOR<Prisma.InventoryMovementUpdateManyMutationInput, Prisma.InventoryMovementUncheckedUpdateManyWithoutListingInput>
 }
 
+export type InventoryMovementCreateWithoutFbaOutboundInput = {
+  quantityChange: number
+  type: $Enums.InventoryMovementType
+  note: string
+  createdAt?: Date | string
+  listing: Prisma.ProductListingCreateNestedOneWithoutInventoryMovementsInput
+  performedByUser: Prisma.UserCreateNestedOneWithoutInventoryMovementsInput
+}
+
+export type InventoryMovementUncheckedCreateWithoutFbaOutboundInput = {
+  id?: number
+  listingId: number
+  quantityChange: number
+  type: $Enums.InventoryMovementType
+  note: string
+  performedByUserId: number
+  createdAt?: Date | string
+}
+
+export type InventoryMovementCreateOrConnectWithoutFbaOutboundInput = {
+  where: Prisma.InventoryMovementWhereUniqueInput
+  create: Prisma.XOR<Prisma.InventoryMovementCreateWithoutFbaOutboundInput, Prisma.InventoryMovementUncheckedCreateWithoutFbaOutboundInput>
+}
+
+export type InventoryMovementUpsertWithoutFbaOutboundInput = {
+  update: Prisma.XOR<Prisma.InventoryMovementUpdateWithoutFbaOutboundInput, Prisma.InventoryMovementUncheckedUpdateWithoutFbaOutboundInput>
+  create: Prisma.XOR<Prisma.InventoryMovementCreateWithoutFbaOutboundInput, Prisma.InventoryMovementUncheckedCreateWithoutFbaOutboundInput>
+  where?: Prisma.InventoryMovementWhereInput
+}
+
+export type InventoryMovementUpdateToOneWithWhereWithoutFbaOutboundInput = {
+  where?: Prisma.InventoryMovementWhereInput
+  data: Prisma.XOR<Prisma.InventoryMovementUpdateWithoutFbaOutboundInput, Prisma.InventoryMovementUncheckedUpdateWithoutFbaOutboundInput>
+}
+
+export type InventoryMovementUpdateWithoutFbaOutboundInput = {
+  quantityChange?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumInventoryMovementTypeFieldUpdateOperationsInput | $Enums.InventoryMovementType
+  note?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  listing?: Prisma.ProductListingUpdateOneRequiredWithoutInventoryMovementsNestedInput
+  performedByUser?: Prisma.UserUpdateOneRequiredWithoutInventoryMovementsNestedInput
+}
+
+export type InventoryMovementUncheckedUpdateWithoutFbaOutboundInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  listingId?: Prisma.IntFieldUpdateOperationsInput | number
+  quantityChange?: Prisma.IntFieldUpdateOperationsInput | number
+  type?: Prisma.EnumInventoryMovementTypeFieldUpdateOperationsInput | $Enums.InventoryMovementType
+  note?: Prisma.StringFieldUpdateOperationsInput | string
+  performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type InventoryMovementCreateManyPerformedByUserInput = {
   id?: number
   listingId: number
@@ -624,6 +708,7 @@ export type InventoryMovementUpdateWithoutPerformedByUserInput = {
   note?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   listing?: Prisma.ProductListingUpdateOneRequiredWithoutInventoryMovementsNestedInput
+  fbaOutbound?: Prisma.FbaOutboundUpdateOneWithoutMovementNestedInput
 }
 
 export type InventoryMovementUncheckedUpdateWithoutPerformedByUserInput = {
@@ -633,6 +718,7 @@ export type InventoryMovementUncheckedUpdateWithoutPerformedByUserInput = {
   type?: Prisma.EnumInventoryMovementTypeFieldUpdateOperationsInput | $Enums.InventoryMovementType
   note?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbound?: Prisma.FbaOutboundUncheckedUpdateOneWithoutMovementNestedInput
 }
 
 export type InventoryMovementUncheckedUpdateManyWithoutPerformedByUserInput = {
@@ -658,6 +744,7 @@ export type InventoryMovementUpdateWithoutListingInput = {
   type?: Prisma.EnumInventoryMovementTypeFieldUpdateOperationsInput | $Enums.InventoryMovementType
   note?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbound?: Prisma.FbaOutboundUpdateOneWithoutMovementNestedInput
   performedByUser?: Prisma.UserUpdateOneRequiredWithoutInventoryMovementsNestedInput
 }
 
@@ -668,6 +755,7 @@ export type InventoryMovementUncheckedUpdateWithoutListingInput = {
   note?: Prisma.StringFieldUpdateOperationsInput | string
   performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbound?: Prisma.FbaOutboundUncheckedUpdateOneWithoutMovementNestedInput
 }
 
 export type InventoryMovementUncheckedUpdateManyWithoutListingInput = {
@@ -690,6 +778,7 @@ export type InventoryMovementSelect<ExtArgs extends runtime.Types.Extensions.Int
   performedByUserId?: boolean
   createdAt?: boolean
   listing?: boolean | Prisma.ProductListingDefaultArgs<ExtArgs>
+  fbaOutbound?: boolean | Prisma.InventoryMovement$fbaOutboundArgs<ExtArgs>
   performedByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["inventoryMovement"]>
 
@@ -730,6 +819,7 @@ export type InventoryMovementSelectScalar = {
 export type InventoryMovementOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "listingId" | "quantityChange" | "type" | "note" | "performedByUserId" | "createdAt", ExtArgs["result"]["inventoryMovement"]>
 export type InventoryMovementInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   listing?: boolean | Prisma.ProductListingDefaultArgs<ExtArgs>
+  fbaOutbound?: boolean | Prisma.InventoryMovement$fbaOutboundArgs<ExtArgs>
   performedByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
 export type InventoryMovementIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -745,6 +835,7 @@ export type $InventoryMovementPayload<ExtArgs extends runtime.Types.Extensions.I
   name: "InventoryMovement"
   objects: {
     listing: Prisma.$ProductListingPayload<ExtArgs>
+    fbaOutbound: Prisma.$FbaOutboundPayload<ExtArgs> | null
     performedByUser: Prisma.$UserPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -1150,6 +1241,7 @@ readonly fields: InventoryMovementFieldRefs;
 export interface Prisma__InventoryMovementClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   listing<T extends Prisma.ProductListingDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductListingDefaultArgs<ExtArgs>>): Prisma.Prisma__ProductListingClient<runtime.Types.Result.GetResult<Prisma.$ProductListingPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  fbaOutbound<T extends Prisma.InventoryMovement$fbaOutboundArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.InventoryMovement$fbaOutboundArgs<ExtArgs>>): Prisma.Prisma__FbaOutboundClient<runtime.Types.Result.GetResult<Prisma.$FbaOutboundPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   performedByUser<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1585,6 +1677,25 @@ export type InventoryMovementDeleteManyArgs<ExtArgs extends runtime.Types.Extens
    * Limit how many InventoryMovements to delete.
    */
   limit?: number
+}
+
+/**
+ * InventoryMovement.fbaOutbound
+ */
+export type InventoryMovement$fbaOutboundArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the FbaOutbound
+   */
+  select?: Prisma.FbaOutboundSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the FbaOutbound
+   */
+  omit?: Prisma.FbaOutboundOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.FbaOutboundInclude<ExtArgs> | null
+  where?: Prisma.FbaOutboundWhereInput
 }
 
 /**
