@@ -1,3 +1,4 @@
+import { positivePriceSchema, salePriceSchema } from "../domain/products/listingPrice.js";
 import { Request, Response } from "express";
 import { Prisma } from "../generated/prisma-client/client.js";
 import { ListingCondition, InventoryMovementType } from "../generated/prisma-client/enums.js";
@@ -78,8 +79,8 @@ export const createProduct = async (req: Request, res: Response) => {
     isRetired: z.boolean().optional(),
     isPublished: z.boolean().optional(),
     condition: z.nativeEnum(ListingCondition),
-    originalPrice: z.number().positive({ message: "originalPrice must be positive" }),
-    salePrice: z.number().nonnegative().optional(),
+    originalPrice: positivePriceSchema,
+    salePrice: salePriceSchema,
     currentStock: z.number().int().nonnegative().optional(),
   });
 
@@ -190,8 +191,8 @@ export const updateProduct = async (req: Request, res: Response) => {
     .object({
       ...productMetadataUpdateFields,
       condition: z.nativeEnum(ListingCondition),
-      originalPrice: z.number().positive({ message: "originalPrice must be positive" }),
-      salePrice: z.number().nonnegative().optional(),
+      originalPrice: positivePriceSchema,
+      salePrice: salePriceSchema,
     })
     // Category and publication are product-level: PATCH /admin/products/:productId.
     .omit({ categoryId: true, isPublished: true })

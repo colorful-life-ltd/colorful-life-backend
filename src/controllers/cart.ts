@@ -1,3 +1,4 @@
+import { InvalidListingPriceError } from "../domain/products/listingPrice.js";
 import type { Request, Response } from "express";
 import { addCartItem, clearCart, getCart, removeCartItem, updateCartItem } from "../domain/cart/cartService.js";
 import { CartItemNotFoundError, InsufficientAvailableStockError, ProductListingInactiveError, ProductListingNotFoundError } from "../domain/cart/cartErrors.js";
@@ -6,7 +7,7 @@ import { CartItemSchema, UpdateCartItemSchema } from "../domain/cart/cartValidat
 function listingId(req: Request) { const id = Number(req.params.productListingId); return Number.isInteger(id) && id > 0 ? id : null; }
 function respondError(res: Response, err: unknown) {
   if (err instanceof CartItemNotFoundError || err instanceof ProductListingNotFoundError) return res.status(404).json({ error: err.message });
-  if (err instanceof ProductListingInactiveError || err instanceof InsufficientAvailableStockError) return res.status(409).json({ error: err.message });
+  if (err instanceof InvalidListingPriceError || err instanceof ProductListingInactiveError || err instanceof InsufficientAvailableStockError) return res.status(409).json({ error: err.message });
   console.error("Cart error", err); return res.status(500).json({ error: "Internal server error" });
 }
 export async function getCartHandler(req: Request, res: Response) { try { return res.status(200).json(await getCart(req.user!.id)); } catch (e) { return respondError(res, e); } }

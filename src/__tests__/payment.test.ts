@@ -11,8 +11,6 @@ let userId: number;
 let addressId: number;
 let legoProductId: number;
 let productListingId: number;
-let zeroPriceProductId: number | null = null;
-let zeroPriceListingId: number | null = null;
 const createdOrderIds: number[] = [];
 const createdPaymentIds: number[] = [];
 // ---------------------------------------------------------------------------
@@ -74,33 +72,6 @@ async function createTestOrder() {
   });
   createdOrderIds.push(order.id);
   return order;
-}
-
-/**
- * Creates a Lego product with a zero‑price listing for the “non‑positive total” test.
- */
-async function createZeroPriceListing() {
-  const product = await prisma.legoProduct.create({
-    data: {
-      setNumber: `${TEST_PREFIX}-ZERO-SET`,
-      title: `${TEST_PREFIX} Zero`,
-      theme: "TEST",
-      ageRecommendation: "0",
-      pieceCount: 0,
-    },
-  });
-  const listing = await prisma.productListing.create({
-    data: {
-
-      legoProductId: product.id,
-      condition: "NEW",
-      originalPrice: new Decimal(0),
-      salePrice: new Decimal(0),
-      currentStock: 10,
-      active: true,
-    },
-  });
-  return { productId: product.id, listingId: listing.id };
 }
 
 describe("Payment Service", () => {
@@ -250,15 +221,16 @@ describe("Payment Service", () => {
   })
 
   it("non‑positive total amount rejects payment", async () => {
-    // Create a zero‑price listing and an order that references it
-    const { productId, listingId } = await createZeroPriceListing();
-    zeroPriceProductId = productId;
-    zeroPriceListingId = listingId;
-    const order = await createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 1 }] });
+    // Seed a historical invalid total directly in the isolated test database;
+    // current checkout must never be used to manufacture a free order.
+    const order = await prisma.order.create({ data: {
+      userId, totalAmount: 0,
+      billingRecipientName: "Test User", billingLine1: "123 Test St", billingCity: "Testville", billingPostcode: "12345", billingCountryCode: "GB",
+      deliveryRecipientName: "Test User", deliveryLine1: "123 Test St", deliveryCity: "Testville", deliveryPostcode: "12345", deliveryCountryCode: "GB",
+    } });
     createdOrderIds.push(order.id);
-    // Model a historical zero-total row: new checkout now includes a delivery charge.
-    await prisma.order.update({ where: { id: order.id }, data: { totalAmount: 0 } });
-    await assert.rejects(() => createPayment(order.id, { providerReference: "zero-total" }));
+    await assert.rejects(() => createPayment(order.id, { providerReference: "zero-total" }), /Order total amount must be positive/);
+    assert.equal(await prisma.payment.count({ where: { orderId: order.id } }), 0);
   })
 
   it("payment does not alter order status or inventory", async () => {
@@ -278,13 +250,6 @@ describe("Payment Service", () => {
 // ---------------------------------------------------------------------------
 // Shared fixture teardown – runs once after all tests
 after(async () => {
-  // Clean up zero‑price listing/product if created
-  if (zeroPriceListingId) {
-    await prisma.productListing.deleteMany({ where: { id: { in: [zeroPriceListingId] } } });
-  }
-  if (zeroPriceProductId) {
-    await prisma.legoProduct.deleteMany({ where: { id: { in: [zeroPriceProductId] } } });
-  }
   // Clean up shared normal listing/product
   if (productListingId) {
     await prisma.productListing.deleteMany({ where: { id: { in: [productListingId] } } });

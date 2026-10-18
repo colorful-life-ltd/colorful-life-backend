@@ -1,3 +1,4 @@
+import { hasValidListingPrices, InvalidListingPriceError } from "../products/listingPrice.js";
 import { listingAvailability } from "../inventory/listingAvailability.js";
 import { prisma } from "../../prisma/runtime.js";
 import { lockCustomerCart, settleCartReconciliation, allocatedQuantity, reduceAllocations } from "./cartProvenanceService.js";
@@ -24,7 +25,9 @@ function present(cart: any) {
   return { ...cart, items: cart.items.map(({ orderAllocations, ...item }: any) => {
     const allocatedQuantity = orderAllocations.reduce((sum: number, row: { visibleQuantity: number }) => sum + row.visibleQuantity, 0);
     const unallocatedQuantity = item.quantity - allocatedQuantity;
-    const availability = listingAvailability(item.productListing, unallocatedQuantity);
+    const availability = hasValidListingPrices(item.productListing)
+      ? listingAvailability(item.productListing, unallocatedQuantity)
+      : { status: "UNAVAILABLE" as const, reason: "INVALID_PRICE" as const, availableQuantity: 0 };
     // Existing order allocations are never counted as stock available to a new order.
     if (unallocatedQuantity <= 0 && availability.status !== "UNAVAILABLE") {
       availability.status = "UNAVAILABLE";
@@ -46,6 +49,7 @@ export async function getCart(userId: number) {
 async function validateListing(productListingId: number, quantity: number, db: typeof prisma | Prisma.TransactionClient = prisma) {
   const listing = await db.productListing.findUnique({ where: { id: productListingId }, select: listingSelect });
   if (!listing) throw new ProductListingNotFoundError(productListingId);
+  if (!hasValidListingPrices(listing)) throw new InvalidListingPriceError(productListingId);
   // An unpublished product is private, so none of its offers can be bought.
   if (!listing.active || !listing.legoProduct.isPublished) throw new ProductListingInactiveError(productListingId);
   if (listing.condition === "USED_LIKE_NEW" && listing.usedLifecycle !== "AVAILABLE") {

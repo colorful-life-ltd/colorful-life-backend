@@ -1,3 +1,4 @@
+import { hasValidListingPrices, priceMessage } from "../domain/products/listingPrice.js";
 import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma-client/client.js";
 import { InventoryAdjustmentReason } from "../generated/prisma-client/enums.js";
@@ -15,9 +16,9 @@ export function createUsedOfferController(storage: ImageStorage) {
     const legoProductId = positiveId(req.params.productId);
     if (!legoProductId) return res.status(400).json({ error: "Invalid LegoProduct id" });
     const originalPrice = Number(req.body?.originalPrice);
-    const salePrice = req.body?.salePrice === undefined || req.body.salePrice === "" ? undefined : Number(req.body.salePrice);
+    const salePrice = req.body?.salePrice === undefined || req.body.salePrice === "" ? undefined : req.body.salePrice === null ? null : Number(req.body.salePrice);
     const reason = req.body?.reason;
-    if (!Number.isFinite(originalPrice) || originalPrice <= 0 || (salePrice !== undefined && (!Number.isFinite(salePrice) || salePrice < 0))) return res.status(400).json({ error: "Invalid offer price" });
+    if (!hasValidListingPrices({ originalPrice, salePrice })) return res.status(400).json({ error: priceMessage });
     if (reason !== undefined && !Object.values(InventoryAdjustmentReason).includes(reason)) return res.status(400).json({ error: "Invalid inventory adjustment reason" });
     try {
       const input = {
