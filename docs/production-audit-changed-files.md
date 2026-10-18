@@ -1,0 +1,172 @@
+# Issue #208 changed-file manifest
+
+Baseline: b78da7493dca8fce59b05b52978c7e9475d7ab92. Branch: feature/production-audit-remediation.
+
+155 intended files. No dependency or lockfile changes. Original checkout launcher work is excluded.
+
+## Application and configuration (75)
+
+- `src/app.ts`
+- `src/config/index.ts`
+- `src/config/production.ts`
+- `src/controllers/accountDeletionController.ts`
+- `src/controllers/addressController.ts`
+- `src/controllers/adminProductListings.ts`
+- `src/controllers/adminProducts.ts`
+- `src/controllers/authController.ts`
+- `src/controllers/businessExpenses.ts`
+- `src/controllers/cart.ts`
+- `src/controllers/catalogueArtwork.ts`
+- `src/controllers/categories.ts`
+- `src/controllers/categoryManagement.ts`
+- `src/controllers/fbaOutbound.ts`
+- `src/controllers/inventory.ts`
+- `src/controllers/orders.ts`
+- `src/controllers/passwordChange.ts`
+- `src/controllers/payments.ts`
+- `src/controllers/paypalPaymentController.ts`
+- `src/controllers/productImages.ts`
+- `src/controllers/products.ts`
+- `src/controllers/purchases.ts`
+- `src/controllers/refunds.ts`
+- `src/controllers/stripePaymentController.ts`
+- `src/controllers/stripePaymentRecoveryController.ts`
+- `src/controllers/stripeWebhookController.ts`
+- `src/controllers/usedOffers.ts`
+- `src/controllers/userProfile.ts`
+- `src/domain/auth/accountDeletionService.ts`
+- `src/domain/auth/adminBootstrap.ts`
+- `src/domain/auth/emailChangeService.ts`
+- `src/domain/auth/reauthentication.ts`
+- `src/domain/cart/cartProvenanceService.ts`
+- `src/domain/catalogueArtwork/catalogueArtworkService.ts`
+- `src/domain/categories/categoryManagementService.ts`
+- `src/domain/fulfilment/fulfilmentErrors.ts`
+- `src/domain/fulfilment/fulfilmentService.ts`
+- `src/domain/inventory/fbaOutboundService.ts`
+- `src/domain/inventory/inventoryAdjustmentService.ts`
+- `src/domain/inventory/inventoryDiscrepancy.ts`
+- `src/domain/orders/orderConfirmationService.ts`
+- `src/domain/orders/orderErrors.ts`
+- `src/domain/orders/orderService.ts`
+- `src/domain/orders/orderValidator.ts`
+- `src/domain/orders/paidCancellation.ts`
+- `src/domain/payments/paymentService.ts`
+- `src/domain/payments/paymentValidator.ts`
+- `src/domain/payments/paypalOrderService.ts`
+- `src/domain/payments/paypalWebhookReplayService.ts`
+- `src/domain/payments/providerFinancialGuard.ts`
+- `src/domain/payments/stripeDisputeService.ts`
+- `src/domain/payments/stripeResolutionService.ts`
+- `src/domain/productImages/productImageService.ts`
+- `src/domain/products/productCatalogueService.ts`
+- `src/domain/refunds/paypalRefundService.ts`
+- `src/domain/refunds/refundEvidenceService.ts`
+- `src/domain/refunds/refundLifecycleService.ts`
+- `src/domain/refunds/refundReconciliationService.ts`
+- `src/domain/refunds/refundReviewService.ts`
+- `src/domain/refunds/refundWebhookService.ts`
+- `src/domain/refunds/stripeRefundService.ts`
+- `src/domain/usedOffers/usedOfferService.ts`
+- `src/index.ts`
+- `src/middleware/auth.ts`
+- `src/routes/adminOrders.ts`
+- `src/routes/profile.ts`
+- `src/routes/purchaseAnalytics.ts`
+- `src/routes/purchaseReview.ts`
+- `src/routes/refundReviews.ts`
+- `src/routes/sitemap.ts`
+- `src/routes/users.ts`
+- `src/scripts/bootstrapAdmin.ts`
+- `src/utils/apiErrorResponse.ts`
+- `src/utils/authValidation.ts`
+- `src/utils/operationalLog.ts`
+
+## Regression tests and fixtures (55)
+
+- `src/__tests__/accountDeletionHttp.integration.test.ts`
+- `src/__tests__/addressCountryCode.integration.test.ts`
+- `src/__tests__/cartAvailability.integration.test.ts`
+- `src/__tests__/cartProvenance.integration.test.ts`
+- `src/__tests__/checkoutPaymentHardening.integration.test.ts`
+- `src/__tests__/customerPaymentWindow.integration.test.ts`
+- `src/__tests__/emailIsolation.test.ts`
+- `src/__tests__/fbaOutbound.integration.test.ts`
+- `src/__tests__/fixtures/historicalUnpaidOrder.ts`
+- `src/__tests__/helpers/manualPayment.ts`
+- `src/__tests__/listingPrice.integration.test.ts`
+- `src/__tests__/managedDeclineRecovery.integration.test.ts`
+- `src/__tests__/operationalLog.test.ts`
+- `src/__tests__/orderCancellation.integration.test.ts`
+- `src/__tests__/orderCancellation.test.ts`
+- `src/__tests__/orderCompletion.integration.test.ts`
+- `src/__tests__/orderCompletion.test.ts`
+- `src/__tests__/orderConfirmation.integration.test.ts`
+- `src/__tests__/orderConfirmation.test.ts`
+- `src/__tests__/orderConfirmationEmail.integration.test.ts`
+- `src/__tests__/orderCreation.integration.test.ts`
+- `src/__tests__/orderCreation.test.ts`
+- `src/__tests__/orderDispatch.integration.test.ts`
+- `src/__tests__/orderDispatch.test.ts`
+- `src/__tests__/orderDispatchNotification.integration.test.ts`
+- `src/__tests__/orderExpiry.test.ts`
+- `src/__tests__/orderFulfilment.integration.test.ts`
+- `src/__tests__/orderReturn.integration.test.ts`
+- `src/__tests__/orderReturn.test.ts`
+- `src/__tests__/passwordRecoverySecurity.integration.test.ts`
+- `src/__tests__/payment.integration.test.ts`
+- `src/__tests__/payment.test.ts`
+- `src/__tests__/paymentAbuse.integration.test.ts`
+- `src/__tests__/paymentAbuseRemediation.integration.test.ts`
+- `src/__tests__/paymentResolutionRuntime.integration.test.ts`
+- `src/__tests__/paymentSafeCancellationExpiry.integration.test.ts`
+- `src/__tests__/paypalPaymentSafety.integration.test.ts`
+- `src/__tests__/paypalRiskEvents.integration.test.ts`
+- `src/__tests__/productCatalogue.integration.test.ts`
+- `src/__tests__/productPublication.integration.test.ts`
+- `src/__tests__/productionAudit.integration.test.ts`
+- `src/__tests__/productionAuditMigration.integration.test.ts`
+- `src/__tests__/productionConfig.test.ts`
+- `src/__tests__/productionLifecycle.integration.test.ts`
+- `src/__tests__/refund.integration.test.ts`
+- `src/__tests__/refund.test.ts`
+- `src/__tests__/refundReviewFulfilment.integration.test.ts`
+- `src/__tests__/returnInventorySafety.integration.test.ts`
+- `src/__tests__/sellerOrderCancellation.integration.test.ts`
+- `src/__tests__/sellerOrderCancellation.test.ts`
+- `src/__tests__/shipping.integration.test.ts`
+- `src/__tests__/stripePaymentHttp.integration.test.ts`
+- `src/__tests__/stripePaymentRecovery.integration.test.ts`
+- `src/__tests__/testEnvironment.test.ts`
+- `src/__tests__/usedOffers.integration.test.ts`
+
+## Prisma schema, migrations and generated client (14)
+
+- `prisma/migrations/20261025120000_production_audit/migration.sql`
+- `prisma/migrations/20261025121000_audit_lookup_indexes/migration.sql`
+- `prisma/schema.prisma`
+- `src/generated/prisma-client/browser.ts`
+- `src/generated/prisma-client/client.ts`
+- `src/generated/prisma-client/internal/class.ts`
+- `src/generated/prisma-client/internal/prismaNamespace.ts`
+- `src/generated/prisma-client/internal/prismaNamespaceBrowser.ts`
+- `src/generated/prisma-client/models.ts`
+- `src/generated/prisma-client/models/FbaOutbound.ts`
+- `src/generated/prisma-client/models/OperationalAudit.ts`
+- `src/generated/prisma-client/models/ProductListing.ts`
+- `src/generated/prisma-client/models/Refund.ts`
+- `src/generated/prisma-client/models/User.ts`
+
+## Deployment and documentation (11)
+
+- `.dockerignore`
+- `.env.example`
+- `.github/workflows/backend.yml`
+- `Dockerfile`
+- `Dockerfile.migrations`
+- `README.md`
+- `docs/production-audit-changed-files.md`
+- `docs/production-audit-remediation.md`
+- `infra/ecs-task.template.json`
+- `infra/execution-iam.template.json`
+- `infra/runtime-iam.template.json`

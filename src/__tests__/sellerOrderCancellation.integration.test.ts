@@ -75,7 +75,7 @@ async function createDefaultBillingAddress(userId: number): Promise<void> {
       line1: "123 Billing St",
       city: "Billingville",
       postcode: "00001",
-      countryCode: "US",
+      countryCode: "GB",
       isDefaultBilling: true,
     },
   });
@@ -109,7 +109,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
             line1: "Admin St",
             city: "Adminville",
             postcode: "99999",
-            countryCode: "US",
+            countryCode: "GB",
             isDefaultBilling: true,
           },
         },
@@ -137,7 +137,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
   async function signupCustomer(email: string, password: string) {
     const res = await fetch(`${url}/auth/signup`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
     const body = await res.json();
@@ -185,7 +185,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
 
     const res = await fetch(`${url}/orders/${order.id}/seller-cancel`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },
@@ -212,7 +212,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
 
     const res = await fetch(`${url}/orders/${order.id}/seller-cancel`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${customerToken}`,
         "Content-Type": "application/json",
       },
@@ -240,7 +240,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
 
     const res = await fetch(`${url}/orders/${order.id}/seller-cancel`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -263,7 +263,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
     await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED" } });
     const res = await fetch(`${url}/orders/${order.id}/seller-cancel`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },
@@ -284,7 +284,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
     await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED" } });
     const res = await fetch(`${url}/orders/${order.id}/cancel`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${customerToken}`,
         "Content-Type": "application/json",
       },
@@ -297,7 +297,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
   it("Invalid orderId returns 400", async () => {
     const res = await fetch(`${url}/orders/abc/seller-cancel`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },
@@ -311,7 +311,7 @@ describe("Seller Order Cancellation HTTP Integration", () => {
     const fakeId = 999999999;
     const res = await fetch(`${url}/orders/${fakeId}/seller-cancel`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },

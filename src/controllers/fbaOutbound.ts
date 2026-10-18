@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { ZodError } from "zod";
 import { FbaOutboundError, recordFbaOutbound, getFbaOutbound } from "../domain/inventory/fbaOutboundService.js";
@@ -7,7 +8,7 @@ function failure(res: Response, error: unknown) {
   if (error instanceof ZodError) return sendApiError(res, 400, "VALIDATION_ERROR", "Provide a valid listing, positive whole quantity, shipment reference, note and idempotency key.");
   if (error instanceof FbaOutboundError) return sendApiError(res, error.status, error.code, error.message);
   // Do not log payloads or database errors containing shipment/idempotency details.
-  console.error("FBA outbound operation failed");
+  logOperationalError("FBA outbound operation failed");
   return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "The outbound operation could not be completed. Retry with the same idempotency key.");
 }
 export async function createFbaOutbound(req: Request, res: Response) {

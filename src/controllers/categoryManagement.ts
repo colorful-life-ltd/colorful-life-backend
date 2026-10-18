@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma-client/client.js";
 import { z } from "zod";
@@ -16,7 +17,7 @@ export function createCategoryManagementController(storage: ImageStorage) {
     if (error instanceof CategoryNotFoundError) return res.status(404).json({ error: error.message });
     if (error instanceof ImageValidationError) return res.status(400).json({ error: error.message });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return res.status(409).json({ error: "Category name already exists" });
-    console.error("Category management error", error instanceof Error ? error.message : "unknown error");
+    logOperationalError("Category management error");
     return res.status(500).json({ error: "Internal server error" });
   };
   return {

@@ -1,0 +1,10 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Effect":"Allow","Action":"ecr:GetAuthorizationToken","Resource":"*"},
+    {"Effect":"Allow","Action":["ecr:BatchCheckLayerAvailability","ecr:GetDownloadUrlForLayer","ecr:BatchGetImage"],"Resource":"arn:aws:ecr:REPLACE_REGION:REPLACE_ACCOUNT:repository/REPLACE_REPOSITORY"},
+    {"Effect":"Allow","Action":["logs:CreateLogStream","logs:PutLogEvents"],"Resource":"arn:aws:logs:REPLACE_REGION:REPLACE_ACCOUNT:log-group:REPLACE_PRECREATED_GROUP:*"},
+    {"Effect":"Allow","Action":"secretsmanager:GetSecretValue","Resource":["REPLACE_EXACT_SECRET_ARN"]},
+    {"Effect":"Allow","Action":"kms:Decrypt","Resource":"REPLACE_CUSTOM_KMS_KEY_ARN_IF_USED"}
+  ]
+}

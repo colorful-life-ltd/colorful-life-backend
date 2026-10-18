@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { Router, type Response } from "express";
 import { config } from "../config/index.js";
 import { parsePublicSiteOrigin } from "../domain/seo/publicSiteOrigin.js";
@@ -25,7 +26,7 @@ export function createSitemapRouter(options: { siteUrl?: string; maxUrlsPerSitem
     try {
       return sendXml(res, (await service.root()).xml);
     } catch (error) {
-      console.error("Sitemap generation error", error);
+      logOperationalError("Sitemap generation error", error);
       return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
     }
   });
@@ -36,7 +37,7 @@ export function createSitemapRouter(options: { siteUrl?: string; maxUrlsPerSitem
       const xml = await service.page(Number(req.params[0]));
       return xml === null ? sendApiError(res, 404, "NOT_FOUND", "Sitemap not found") : sendXml(res, xml);
     } catch (error) {
-      console.error("Sitemap generation error", error);
+      logOperationalError("Sitemap generation error", error);
       return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
     }
   });

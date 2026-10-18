@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { AdminProductLookupQuerySchema } from "../domain/products/adminProductLookupValidator.js";
 import { createAdminProductLookupService } from "../domain/products/adminProductLookupService.js";
@@ -19,7 +20,7 @@ export function createAdminProductsController() {
       try {
         return res.json(await availabilitySummary.global());
       } catch (error) {
-        console.error("Global product availability summary failed", error);
+        logOperationalError("Global product availability summary failed", error);
         return res.status(500).json({ error: "Product availability summary failed" });
       }
     },
@@ -29,7 +30,7 @@ export function createAdminProductsController() {
       try {
         return res.json(await service.search(parsed.data));
       } catch (error) {
-        console.error("Admin product lookup failed", error);
+        logOperationalError("Admin product lookup failed", error);
         return res.status(500).json({ error: "Product lookup failed" });
       }
     },
@@ -57,7 +58,7 @@ export function createAdminProductsController() {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003" && parsed.data.categoryId !== undefined) {
           return res.status(400).json({ error: "Category not found" });
         }
-        console.error("Admin product update failed", error);
+        logOperationalError("Admin product update failed", error);
         return res.status(500).json({ error: "Product update failed" });
       }
     },

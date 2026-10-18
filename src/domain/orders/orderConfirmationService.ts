@@ -1,3 +1,4 @@
+import {assertListingCommitmentAllowed} from "../inventory/inventoryDiscrepancy.js";
 import { managedResolution, markManagedConsumed } from "../payments/paymentResolutionService.js";
 import { queueCartReconciliation } from "../cart/cartProvenanceService.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
@@ -33,13 +34,15 @@ export async function confirmOrderInTransaction(tx: Prisma.TransactionClient, pe
   }
 
   const managed = await managedResolution(tx, orderId);
-  if (managed) {
+  await tx.$queryRaw`SELECT id FROM "Payment" WHERE "orderId"=${orderId} FOR UPDATE`;
+  {
     const paid = await tx.payment.findUnique({ where: { orderId } });
-    if (!paid || paid.status !== "SUCCEEDED" || !paid.paidAt) throw new OrderNotConfirmableError(orderId, order.status);
+    if (!paid || paid.status !== "SUCCEEDED" || !paid.paidAt || !paid.amount.eq(order.totalAmount) || paid.currency!=="GBP") throw new OrderNotConfirmableError(orderId, order.status);
   }
   // Validate stock and perform deductions
   for (const item of [...order.orderItems].sort((a, b) => a.productListingId - b.productListingId)) {
     await tx.$queryRaw`SELECT id FROM "ProductListing" WHERE id = ${item.productListingId} FOR UPDATE`;
+    await assertListingCommitmentAllowed(tx,item.productListingId);
     const conversionResult = await tx.$executeRaw`
       UPDATE "ProductListing"
       SET "currentStock" = "currentStock" - ${item.quantity},

@@ -1,3 +1,4 @@
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import assert from "node:assert";
 import type { Server } from "node:http";
 import { describe, it, before, after, afterEach } from "node:test";
@@ -75,7 +76,7 @@ async function createDefaultBillingAddress(userId: number): Promise<void> {
       line1: "123 Billing St",
       city: "Billingville",
       postcode: "00001",
-      countryCode: "US",
+      countryCode: "GB",
       isDefaultBilling: true,
     },
   });
@@ -109,7 +110,7 @@ describe("Order Confirmation HTTP Integration", () => {
             line1: "Admin St 1",
             city: "Adminville",
             postcode: "99999",
-            countryCode: "US",
+            countryCode: "GB",
             isDefaultBilling: true,
           },
         },
@@ -153,7 +154,7 @@ describe("Order Confirmation HTTP Integration", () => {
   async function signupCustomer(email: string, password: string) {
     const res = await fetch(`${url}/auth/signup`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
     const body = await res.json();
@@ -178,6 +179,7 @@ describe("Order Confirmation HTTP Integration", () => {
   /** Create an order for the test customer */
   async function createTestOrder(customerId: number, listingId: number) {
     const order = await createOrder(customerId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 1 }] });
+    await recordVerifiedPayment(order.id);
     orderIdsForCleanup.push(order.id);
     return order;
   }
@@ -191,7 +193,7 @@ describe("Order Confirmation HTTP Integration", () => {
     const order = await createTestOrder(userId, listingId);
     const res = await fetch(`${url}/orders/${order.id}/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
     const body = await res.json();
     assert.strictEqual(res.status, 200, JSON.stringify(body));
@@ -215,7 +217,7 @@ describe("Order Confirmation HTTP Integration", () => {
     const order = await createTestOrder(userId, listingId);
     const res = await fetch(`${url}/orders/${order.id}/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${custToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${custToken}` },
     });
     assert.strictEqual(res.status, 403);
   });
@@ -233,7 +235,7 @@ describe("Order Confirmation HTTP Integration", () => {
   it("invalid orderId returns 400", async () => {
     const res = await fetch(`${url}/orders/abc/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
     assert.strictEqual(res.status, 400);
   });
@@ -241,7 +243,7 @@ describe("Order Confirmation HTTP Integration", () => {
   it("non‑existent order returns 404", async () => {
     const res = await fetch(`${url}/orders/999999/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
     assert.strictEqual(res.status, 404);
   });
@@ -256,7 +258,7 @@ describe("Order Confirmation HTTP Integration", () => {
     await prisma.order.update({ where: { id: order.id }, data: { status: OrderStatus.CANCELLED } });
     const res = await fetch(`${url}/orders/${order.id}/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
     assert.strictEqual(res.status, 400);
   });
@@ -272,7 +274,7 @@ describe("Order Confirmation HTTP Integration", () => {
     await prisma.productListing.update({ where: { id: listingId }, data: { currentStock: 0 } });
     const res = await fetch(`${url}/orders/${order.id}/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
     assert.strictEqual(res.status, 400);
   });

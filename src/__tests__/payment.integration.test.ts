@@ -93,9 +93,12 @@ async function createTestOrder(userId: number, listingId: number) {
 }
 
 async function jsonFetch(url: string, path: string, init: RequestInit = {}) {
+  if(init.method==='POST'&&path.endsWith('/payments')&&typeof init.body==='string'){
+    init={...init,body:JSON.stringify({reason:'Synthetic verified bank receipt',evidenceReference:'test-bank-receipt',...JSON.parse(init.body)})};
+  }
   return fetch(`${url}${path}`, {
     ...init,
-    headers: {
+    headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
@@ -144,22 +147,22 @@ describe("Payment HTTP integration", () => {
   it("POST enforces auth, validates input, and reports missing orders", async () => {
     const unauthenticated = await jsonFetch(url, "/orders/1/payments", {
       method: "POST",
-      body: JSON.stringify({ providerReference: "unauth" }),
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference: "unauth" }),
     });
     assert.strictEqual(unauthenticated.status, 401);
 
     const nonAdmin = await jsonFetch(url, "/orders/1/payments", {
       method: "POST",
-      headers: { Authorization: `Bearer ${customer.token}` },
-      body: JSON.stringify({ providerReference: "non-admin" }),
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}` },
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference: "non-admin" }),
     });
     assert.strictEqual(nonAdmin.status, 403);
 
     for (const orderId of ["abc", "0", "-1"]) {
       const response = await jsonFetch(url, `/orders/${orderId}/payments`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${admin.token}` },
-        body: JSON.stringify({ providerReference: "invalid-order" }),
+        headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
+        body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference: "invalid-order" }),
       });
       assert.strictEqual(response.status, 400);
     }
@@ -167,7 +170,7 @@ describe("Payment HTTP integration", () => {
     for (const body of [{ providerReference: "" }, { providerReference: "   " }, {}]) {
       const response = await jsonFetch(url, "/orders/1/payments", {
         method: "POST",
-        headers: { Authorization: `Bearer ${admin.token}` },
+        headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
         body: JSON.stringify(body),
       });
       assert.strictEqual(response.status, 400);
@@ -175,8 +178,8 @@ describe("Payment HTTP integration", () => {
 
     const missing = await jsonFetch(url, "/orders/999999999/payments", {
       method: "POST",
-      headers: { Authorization: `Bearer ${admin.token}` },
-      body: JSON.stringify({ providerReference: `missing-${randomUUID()}` }),
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference: `missing-${randomUUID()}` }),
     });
     assert.strictEqual(missing.status, 404);
   });
@@ -192,8 +195,8 @@ describe("Payment HTTP integration", () => {
 
     const firstResponse = await jsonFetch(url, `/orders/${order.id}/payments`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${admin.token}` },
-      body: JSON.stringify({ providerReference }),
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference }),
     });
     assert.strictEqual(firstResponse.status, 201);
     const first = await firstResponse.json();
@@ -207,8 +210,8 @@ describe("Payment HTTP integration", () => {
 
     const secondResponse = await jsonFetch(url, `/orders/${order.id}/payments`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${admin.token}` },
-      body: JSON.stringify({ providerReference }),
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference }),
     });
     assert.strictEqual(secondResponse.status, 201);
     const second = await secondResponse.json();
@@ -221,8 +224,8 @@ describe("Payment HTTP integration", () => {
 
     const conflict = await jsonFetch(url, `/orders/${otherOrder.id}/payments`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${admin.token}` },
-      body: JSON.stringify({ providerReference }),
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference }),
     });
     assert.strictEqual(conflict.status, 409);
 
@@ -245,45 +248,45 @@ describe("Payment HTTP integration", () => {
     assert.strictEqual(unauthenticated.status, 401);
 
     const nonAdmin = await jsonFetch(url, `/orders/${order.id}/payments`, {
-      headers: { Authorization: `Bearer ${customer.token}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}` },
     });
     assert.strictEqual(nonAdmin.status, 403);
 
     const invalid = await jsonFetch(url, "/orders/not-an-id/payments", {
-      headers: { Authorization: `Bearer ${admin.token}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
     });
     assert.strictEqual(invalid.status, 400);
 
     const missing = await jsonFetch(url, "/orders/999999999/payments", {
-      headers: { Authorization: `Bearer ${admin.token}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
     });
     assert.strictEqual(missing.status, 404);
 
     const firstResponse = await jsonFetch(url, `/orders/${order.id}/payments`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${admin.token}` },
-      body: JSON.stringify({ providerReference: firstReference }),
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference: firstReference }),
     });
     const first = await firstResponse.json();
     paymentIds.push(first.id);
     await new Promise((resolve) => setTimeout(resolve, 5));
     const secondResponse = await jsonFetch(url, `/orders/${order.id}/payments`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${admin.token}` },
-      body: JSON.stringify({ providerReference: secondReference }),
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference: secondReference }),
     });
     assert.strictEqual(secondResponse.status, 409);
 
     const otherResponse = await jsonFetch(url, `/orders/${otherOrder.id}/payments`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${admin.token}` },
-      body: JSON.stringify({ providerReference: `other-${randomUUID()}` }),
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
+      body: JSON.stringify({ reason:"Synthetic verified bank receipt", evidenceReference:"test-bank-receipt", providerReference: `other-${randomUUID()}` }),
     });
     const other = await otherResponse.json();
     paymentIds.push(other.id);
 
     const listedResponse = await jsonFetch(url, `/orders/${order.id}/payments`, {
-      headers: { Authorization: `Bearer ${admin.token}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` },
     });
     assert.strictEqual(listedResponse.status, 200);
     const listed = await listedResponse.json();

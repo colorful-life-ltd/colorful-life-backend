@@ -1,3 +1,4 @@
+import {refundConflictEvidence} from "./refundEvidenceService.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { config } from "../../config/index.js";
 import { applyRefundObservation, DefinitiveRefundRejection, prepareExternalRefund, refundWithContext, retainUnresolved, type RefundObservation } from "./refundLifecycleService.js";
@@ -71,9 +72,9 @@ export async function createOrReusePayPalRefund(orderId:number,paymentId:number,
     }
     // The authenticated POST response belongs to its requested capture. Any supplied parent/custom ID must corroborate it.
     const parent=paypalRefundParent(response);
-    if(response.links?.some(link=>link.rel==="up")&&!parent || parent&&parent!==refund.providerPaymentReference || response.custom_id&&response.custom_id!==`cl-refund-${refund.id}`)return retainUnresolved(refund.id,"PROVIDER_EVIDENCE_MISMATCH",true);
+    if(response.links?.some(link=>link.rel==="up")&&!parent || parent&&parent!==refund.providerPaymentReference || response.custom_id&&response.custom_id!==`cl-refund-${refund.id}`)return retainUnresolved(refund.id,"PROVIDER_EVIDENCE_MISMATCH",true,refundConflictEvidence("PROVIDER_EVIDENCE_MISMATCH","POST",{observedReference:response.id,observedAmount:response.amount?.value,observedCurrency:response.amount?.currency_code,observedParent:parent}));
     const validId=typeof response.id==="string"&&/^[A-Za-z0-9_-]{1,256}$/.test(response.id);
     if(!validId||!response.amount?.value||!response.amount.currency_code)return retainUnresolved(refund.id,"INCOMPLETE_PROVIDER_RESPONSE",false,validId?{reference:response.id!}:undefined);
-    return applyRefundObservation(refund.id,paypalRefundObservation(response,parent??refund.providerPaymentReference!));
+    return applyRefundObservation(refund.id,{...paypalRefundObservation(response,parent??refund.providerPaymentReference!),source:"POST"});
   });
 }

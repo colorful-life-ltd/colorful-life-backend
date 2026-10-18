@@ -1,3 +1,4 @@
+import {logOperationalError} from "../../utils/operationalLog.js";
 import { resolvePayPalPaymentOutcome } from "./paypalResolutionService.js";
 import type Stripe from "stripe";
 import { prisma } from "../../prisma/runtime.js";
@@ -209,12 +210,14 @@ export function startPaymentResolutionWorker(intervalMs = 15_000) {
     if (running || stopped) return;
     running = true;
     try { await runPaymentResolutionSweep(resolvePaymentReservation, () => stopped);
-    } catch { console.error("Payment resolution sweep failed; durable records retained"); }
+    } catch { logOperationalError("Payment resolution sweep failed; durable records retained"); }
     // Orders from before managed enrolment have no ledger for the sweep above.
     try { if (!stopped) await expireUnledgeredUnpaidReservations();
-    } catch { console.error("Unledgered reservation expiry failed; reservations retained"); }
+    } catch { logOperationalError("Unledgered reservation expiry failed; reservations retained"); }
     finally { running = false; }
   };
-  const timer = setInterval(() => { void tick(); }, intervalMs); timer.unref(); void tick();
-  return () => { stopped = true; clearInterval(timer); };
+  let pending:Promise<void>=Promise.resolve();
+  const launch=()=>{if(!running&&!stopped)pending=tick();};
+  const timer = setInterval(launch, intervalMs); timer.unref(); launch();
+  return async () => { stopped = true; clearInterval(timer); await pending; };
 }

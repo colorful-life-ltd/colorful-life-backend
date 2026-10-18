@@ -52,7 +52,7 @@ const paths = ["preparing", "dispatch", "legacy"] as const;
 type Path = typeof paths[number];
 function action(f: Fixture, path: Path, token = f.admin.token) {
   return fetch(base + (path === "legacy" ? `/orders/${f.order.id}/dispatch` : `/admin/orders/${f.order.id}/fulfilment/${path}`), {
-    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(path === "preparing" ? {} : path === "legacy" ? { actualShippingCost: 3.5, shippingCarrier: "Royal Mail", trackingNumber: "AB123456789GB" } : royalMail),
   });
 }
@@ -187,15 +187,16 @@ for (const path of paths) {
     assert.deepEqual(after.order, before.order); assert.deepEqual(after.shipments, before.shipments); assert.deepEqual(after.events, before.events); assert.deepEqual(after.notifications, before.notifications);
     assert.equal(after.refunds[0].reviewRequired, true); assert.equal(after.refunds[0].status, "FAILED");
   });
-  it(`serializes ${path} before a later webhook without duplicate work or stock changes`, async () => {
+  it(`a durable receipt blocks queued ${path} before admission even while processing waits`, async () => {
     const f = await fixture(); const r = await refund(f, "SUCCEEDED"); const before = await snapshot(f);
     const [response] = await queued(f, () => action(f, path), () => observe(f, r.providerReference, "FAILED"));
-    assert.equal(response.status, 200);
+    // Receipt persistence precedes processing. The new provider-evidence guard
+    // conservatively sees it even though fulfilment queued for Order first.
+    await assertReviewRejected(response);
     const after = await snapshot(f);
     assert.equal(after.refunds[0].reviewRequired, true); assert.equal(after.refunds[0].status, "SUCCEEDED");
     assert.deepEqual(after.stock, before.stock); assert.deepEqual(after.movements, before.movements); assert.deepEqual(after.payment, before.payment);
-    assert.equal(after.shipments.length, path === "preparing" ? 0 : 1); assert.equal(after.events.length, 1);
-    if (path === "preparing") await assertReviewRejected(await action(f, "dispatch"));
-    else if (path === "dispatch") { assert.equal((await action(f, path)).status, 200); assert.deepEqual(await snapshot(f), after); }
+    assert.deepEqual(after.order,before.order);assert.equal(after.shipments.length,0);assert.equal(after.events.length,0);
+    await assertReviewRejected(await action(f,path));
   });
 }

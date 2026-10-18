@@ -1,3 +1,4 @@
+import {historicalUnpaidConfirmedFixture} from "./fixtures/historicalUnpaidOrder.js";
 import assert from "node:assert/strict";
 import { after, afterEach, before, describe, it } from "node:test";
 import { randomUUID } from "node:crypto";
@@ -18,7 +19,7 @@ import { recoverStripePayment } from "../domain/payments/stripePaymentRecoverySe
 import { createOrReusePayPalOrder } from "../domain/payments/paypalOrderService.js";
 import { capturePayPalOrder } from "../domain/payments/paypalCaptureService.js";
 import { reconcilePayPalWebhookEvent } from "../domain/payments/paypalReconciliationService.js";
-import { createPayment } from "../domain/payments/paymentService.js";
+import { createPayment } from "./helpers/manualPayment.js";
 import { PaymentOrderCancelledError } from "../domain/payments/paymentErrors.js";
 import { PaymentStatus, PaymentProvider } from "../generated/prisma-client/enums.js";
 
@@ -82,7 +83,7 @@ function event(f: Fixture, intentId: string, type: StripePaymentIntentEvent["typ
   return { id, type, paymentIntentId: intentId, amount: Number(f.order.totalAmount) * 100, currency: "gbp", metadata: { orderId: String(f.order.id) } };
 }
 async function cancelHttp(orderId: number, owner?: { id: number }, seller = false) {
-  return fetch(`${url}/orders/${orderId}/${seller ? "seller-cancel" : "cancel"}`, { method: "POST", headers: {
+  return fetch(`${url}/orders/${orderId}/${seller ? "seller-cancel" : "cancel"}`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
     "Content-Type": "application/json", ...(owner ? { Authorization: `Bearer ${jwt.sign({ id: owner.id }, config.JWT_SECRET)}` } : {}),
   }, body: JSON.stringify({ reason: seller ? "OUT_OF_STOCK" : "CHANGED_MIND" }) });
 }
@@ -183,7 +184,7 @@ describe("payment-safe customer cancellation and expiry", () => {
     const e = event(f, p.providerReference);
     const payload = JSON.stringify({ id: e.id, type: e.type, data: { object: { id: e.paymentIntentId, amount: e.amount, currency: e.currency, metadata: e.metadata } } });
     const signature = new Stripe("sk_test_local").webhooks.generateTestHeaderString({ payload, secret: config.STRIPE_WEBHOOK_SECRET! });
-    const post = () => fetch(`${url}/payments/stripe/webhook`, { method: "POST", headers: { "Content-Type": "application/json", "stripe-signature": signature }, body: payload });
+    const post = () => fetch(`${url}/payments/stripe/webhook`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", "stripe-signature": signature }, body: payload });
     assert.ok((await Promise.all([post(), post()])).every((r) => r.status === 200));
     const first = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
     for (const type of ["payment_intent.payment_failed", "payment_intent.canceled", "payment_intent.succeeded"] as const) await reconcileStripePaymentEvent(event(f, p.providerReference, type));
@@ -293,8 +294,9 @@ describe("payment-safe customer cancellation and expiry", () => {
     await inventory(f, 10, 2);
   });
 
-  it("restores unpaid confirmed multi-item inventory exactly once under contention", async () => {
-    const f = await fixture(true); await confirmOrder(f.owner.id, f.order.id);
+  it("restores historical unpaid confirmed multi-item inventory exactly once under contention", async () => {
+    const f = await fixture(true);
+    await historicalUnpaidConfirmedFixture(f.order.id,f.owner.id);
     const results = await contend(f.order.id, [() => cancelOrder(f.owner.id, f.order.id, "CHANGED_MIND"), () => cancelOrder(f.owner.id, f.order.id, "OTHER")]);
     assert.equal(results.filter((r) => r.status === "fulfilled").length, 1); await inventory(f, 10, 0, 1, 1);
   });

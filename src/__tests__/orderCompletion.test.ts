@@ -38,7 +38,7 @@ async function createUserWithAddress(): Promise<number> {
           line1: "123 Test St",
           city: "Testville",
           postcode: "12345",
-          countryCode: "US",
+          countryCode: "GB",
           isDefaultBilling: true,
         },
       },
@@ -122,8 +122,8 @@ describe("Order completion workflow", () => {
       items: [{ productListingId: listingId, quantity: 1 }],
     });
     createdOrderIds.push(order.id);
-    await confirmOrder(adminId, order.id);
     await recordVerifiedPayment(order.id);
+    await confirmOrder(adminId, order.id);
     await dispatchOrder(order.id, 5, "UPS", "TRACK123", adminId);
     return order.id;
   }
@@ -166,6 +166,7 @@ describe("Order completion workflow", () => {
   it("CONFIRMED order cannot be completed", async () => {
     const order = await createOrder(userId, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listingId, quantity: 1 }] });
     createdOrderIds.push(order.id);
+    await recordVerifiedPayment(order.id);
     await confirmOrder(adminId, order.id);
     await assert.rejects(() => completeOrder(order.id), (err) => err instanceof OrderNotCompletableError);
   });

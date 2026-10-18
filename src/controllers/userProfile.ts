@@ -1,3 +1,5 @@
+import {logOperationalError} from "../utils/operationalLog.js";
+import { ReauthenticationRequired } from "../domain/auth/reauthentication.js";
 import { Request, Response } from "express";
 import { prisma } from "../prisma/runtime.js";
 import { Prisma } from "../generated/prisma-client/client.js";
@@ -39,7 +41,7 @@ export const getCurrentUserProfile = async (req: Request, res: Response) => {
     }
     return res.json(user);
   } catch (err) {
-    console.error("Get current user profile error", err);
+    logOperationalError("Get current user profile error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -73,7 +75,7 @@ export const updateCurrentUserProfile = async (req: Request, res: Response) => {
     });
     return res.json(updatedUser);
   } catch (err) {
-    console.error("Update user profile error", err);
+    logOperationalError("Update user profile error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -85,19 +87,20 @@ export const changeCurrentUserEmail = async (req: Request, res: Response) => {
   if (!parseResult.success) return res.status(400).json({ error: parseResult.error.format() });
 
   try {
-    const result = await changeUnverifiedUserEmail(userId, parseResult.data.email);
+    const result = await changeUnverifiedUserEmail(userId, parseResult.data.email, new Date(), parseResult.data.password);
     const verificationUrl = `${config.FRONTEND_URL}/verify-email?token=${encodeURIComponent(result.rawToken)}`;
     try {
       await sendVerificationEmail({ recipientEmail: result.email, verificationUrl });
     } catch (emailError) {
-      console.error("Verification email delivery failed", emailError instanceof Error ? emailError.message : "unknown error");
+      logOperationalError("Verification email delivery failed", emailError);
     }
     return res.status(200).json({ message: "Email updated. Please verify your new email address." });
   } catch (err: unknown) {
+    if(err instanceof ReauthenticationRequired)return res.status(403).json({error:"REAUTHENTICATION_REQUIRED"});
     if (err instanceof EmailChangeUserNotFoundError) return res.status(404).json({ error: err.message });
     if (err instanceof EmailChangeSameEmailError || err instanceof EmailChangeVerifiedUserError) return res.status(400).json({ error: err.message });
     if (err instanceof EmailChangeDuplicateEmailError) return res.status(409).json({ error: err.message });
-    console.error("Email change error", err);
+    logOperationalError("Email change error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

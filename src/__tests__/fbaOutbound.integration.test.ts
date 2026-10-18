@@ -50,7 +50,7 @@ async function listing(currentStock = 10, reservedStock = 0, used = false) {
 }
 function input(id: number, quantity = 2) { return { productListingId: id, quantity, shipmentReference: "FBA-SHIP-123", note: "Sent from home to Amazon", idempotencyKey: randomUUID() }; }
 function request(body: unknown, token: string | undefined = admin.token) {
-  return fetch(base, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+  return fetch(base, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
 }
 async function stock(id: number) { const l = await prisma.productListing.findUniqueOrThrow({ where: { id } }); return [l.currentStock, l.reservedStock]; }
 async function assertNoLedger(id: number) { assert.equal(await prisma.inventoryMovement.count({ where: { listingId: id } }), 0); }
@@ -63,9 +63,9 @@ it("records an auditable outbound and returns reserved/available quantities and 
   assert.equal(result.outbound.note, body.note); assert.equal(result.outbound.quantity, 4);
   assert.equal(result.outbound.performedByUserId, admin.id); assert.ok(Date.parse(result.outbound.createdAt) >= before - 1000);
   assert.equal(result.outbound.movement.type, "FBA_OUTBOUND"); assert.equal(result.outbound.movement.quantityChange, -4);
-  const read = await fetch(`${base}/${result.outbound.id}`, { headers: { Authorization: `Bearer ${admin.token}` } });
+  const read = await fetch(`${base}/${result.outbound.id}`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` } });
   assert.equal(read.status, 200); const audit = await read.json(); assert.deepEqual(audit.outbound, result.outbound);
-  const history = await fetch(base.replace('/inventory/fba-outbounds', `/products/${l.id}/inventory-movements`), { headers: { Authorization: `Bearer ${admin.token}` } });
+  const history = await fetch(base.replace('/inventory/fba-outbounds', `/products/${l.id}/inventory-movements`), { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` } });
   assert.equal(history.status, 200);
   assert.deepEqual((await history.json()).movements[0].fbaOutbound, { id: result.outbound.id, shipmentReference: body.shipmentReference, idempotencyKey: body.idempotencyKey });
   assert.deepEqual(await stock(l.id), [6, 3]);
@@ -81,16 +81,15 @@ it("requires bounded reference, note, key and listing and rejects actor spoofing
   }
   await assertNoLedger(l.id); assert.deepEqual(await stock(l.id), [10, 0]);
 });
-it("rejects excess outbound and leaves website reservations untouched", async () => {
-  const l = await listing(5, 4); const response = await request(input(l.id, 2));
-  assert.equal(response.status, 409); assert.equal((await response.json()).error.code, "INSUFFICIENT_AVAILABLE_STOCK");
-  assert.deepEqual(await stock(l.id), [5, 4]); await assertNoLedger(l.id);
-  assert.equal((await request(input(l.id, 1))).status, 201); assert.deepEqual(await stock(l.id), [4, 4]);
+it("records excess physical outbound and preserves website reservations with an explicit shortfall", async () => {
+  const l=await listing(5,4);const response=await request(input(l.id,2));assert.equal(response.status,201);
+  const result=await response.json();assert.equal(result.outbound.quantity,2);assert.equal(result.outbound.appliedQuantity,1);assert.equal(result.outbound.shortfall,1);
+  assert.deepEqual(await stock(l.id),[4,4]);assert.equal((await request(input(l.id,1))).status,409);
 });
-it("protects a real pending website order reservation", async () => {
-  const l = await listing(3); const order = await createOrder(customer.id, { shippingMethod: "STANDARD", items: [{ productListingId: l.id, quantity: 2 }] });
-  assert.equal(order.status, "PENDING"); assert.equal((await request(input(l.id, 2))).status, 409);
-  assert.equal((await request(input(l.id, 1))).status, 201); assert.deepEqual(await stock(l.id), [2, 2]);
+it("records actual physical movement while preserving a real pending website reservation",async()=>{
+  const l=await listing(3);await createOrder(customer.id,{shippingMethod:'STANDARD',items:[{productListingId:l.id,quantity:2}]});
+  const response=await request(input(l.id,2));assert.equal(response.status,201);assert.equal((await response.json()).outbound.shortfall,1);
+  assert.deepEqual(await stock(l.id),[2,2]);
 });
 it("serializes concurrent outbound operations without overselling", async () => {
   const l = await listing(3); const responses = await Promise.all([request(input(l.id, 2)), request(input(l.id, 2))]);
@@ -103,8 +102,9 @@ it("serializes outbound against a website reservation for the final unit", async
     recordFbaOutbound(input(l.id, 1), admin.id),
     createOrder(customer.id, { shippingMethod: "STANDARD", items: [{ productListingId: l.id, quantity: 1 }] }),
   ]);
-  assert.equal(results.filter(r => r.status === "fulfilled").length, 1);
-  const [physical, reserved] = await stock(l.id); assert.ok(reserved >= 0 && physical >= reserved); assert.ok(physical - reserved === 0);
+  assert.equal(results[0].status,'fulfilled'); // physical fact must always be recorded
+  const [physical,reserved]=await stock(l.id);assert.ok(reserved>=0&&physical>=reserved);assert.equal(physical-reserved,0);
+  if(results[1].status==='fulfilled')assert.equal((results[0] as PromiseFulfilledResult<Awaited<ReturnType<typeof recordFbaOutbound>>>).value.outbound.shortfall,1);
 });
 it("replays simultaneous identical keys exactly once, including when no available stock remains", async () => {
   const l = await listing(2); const body = input(l.id);
@@ -115,7 +115,7 @@ it("replays simultaneous identical keys exactly once, including when no availabl
 });
 it("persists replay across processes and returns the original inventory snapshot", async () => {
   const l = await listing(); const body = input(l.id); const first = await recordFbaOutbound(body, admin.id);
-  await recordFbaOutbound(input(l.id, 1), admin.id);
+  await recordFbaOutbound({...input(l.id,1),shipmentReference:"FBA-SECOND-DISTINCT"}, admin.id);
   const moduleUrl = new URL("../domain/inventory/fbaOutboundService.js", import.meta.url).href;
   const prismaUrl = new URL("../prisma/runtime.js", import.meta.url).href;
   const script = `const {recordFbaOutbound}=await import(${JSON.stringify(moduleUrl)}); const {prisma}=await import(${JSON.stringify(prismaUrl)}); try {console.log(JSON.stringify(await recordFbaOutbound(JSON.parse(process.argv[1]), Number(process.argv[2]))));} finally {await prisma.$disconnect();}`;
@@ -160,7 +160,7 @@ it("requires Admin authorization for creation and audit reads", async () => {
   const l = await listing(); const body = input(l.id);
   assert.equal((await request(body, "")).status, 401); assert.equal((await request(body, customer.token)).status, 403);
   assert.equal((await fetch(`${base}/1`)).status, 401);
-  assert.equal((await fetch(`${base}/1`, { headers: { Authorization: `Bearer ${customer.token}` } })).status, 403);
+  assert.equal((await fetch(`${base}/1`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}` } })).status, 403);
   await assertNoLedger(l.id);
 });
 it("rejects missing listings and individually documented Used offers", async () => {
@@ -168,6 +168,6 @@ it("rejects missing listings and individually documented Used offers", async () 
   const l = await listing(1, 0, true); assert.equal((await request(input(l.id, 1))).status, 409);
   assert.deepEqual(await stock(l.id), [1, 0]); await assertNoLedger(l.id);
   for (const [id, expected] of [["bad", 400], ["2147483647", 404]] as const) {
-    assert.equal((await fetch(`${base}/${id}`, { headers: { Authorization: `Bearer ${admin.token}` } })).status, expected);
+    assert.equal((await fetch(`${base}/${id}`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${admin.token}` } })).status, expected);
   }
 });

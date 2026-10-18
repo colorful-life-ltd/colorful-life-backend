@@ -1,3 +1,4 @@
+import {logOperationalError} from "../../utils/operationalLog.js";
 import { admitFinancialOperation } from "../security/paymentAbuse.js";
 import { randomUUID } from "node:crypto";
 import { checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, PaymentResolutionUnavailableError } from "./paymentResolutionService.js";
@@ -105,6 +106,6 @@ export async function createOrReusePayPalOrder(orderId: number, userId: number, 
   // Binding has committed. Recovery uses verified durable evidence, never an
   // external provider call. The periodic worker remains authoritative on a crash.
   try { await replayPendingPayPalWebhooks({ paypalOrderId: bound.paypalOrderId }); }
-  catch { console.error("Immediate PayPal webhook replay unavailable; durable worker will retry"); }
+  catch { logOperationalError("Immediate PayPal webhook replay unavailable; durable worker will retry"); }
   return bound;
 }

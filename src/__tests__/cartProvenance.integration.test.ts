@@ -264,7 +264,7 @@ describe("durable order cart provenance", { concurrency: 1 }, () => {
   });
   it("HTTP creation exposes stable allocation conflict without weakening ownership or verified email", async () => {
     const f = await fixture(); await addCartItem(f.userId, f.a, 1); await order(f);
-    const response = await fetch(`${url}/orders`, { method: "POST", headers: { Authorization: `Bearer ${f.token}`, "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.a, quantity: 1 }] }) });
+    const response = await fetch(`${url}/orders`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${f.token}`, "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.a, quantity: 1 }] }) });
     assert.equal(response.status, 409); assert.equal((await response.json()).error.code, "CART_QUANTITY_UNAVAILABLE");
     const other = await fixture(); await addCartItem(other.userId, other.a, 1); const otherOrder = await order(other);
     await success(otherOrder.id); await reconcilePendingCarts(); assert.deepEqual(await quantities(f), { a: 1, b: 0 });
@@ -365,7 +365,7 @@ describe("durable order cart provenance", { concurrency: 1 }, () => {
   it("already allocated quantity returns the stable conflict even when the first reservation exhausted stock", async () => {
     const f = await fixture(1); await addCartItem(f.userId, f.a, 1); await order(f);
     await assert.rejects(() => order(f), CartQuantityAllocatedError);
-    const response = await fetch(`${url}/orders`, { method: "POST", headers: { Authorization: `Bearer ${f.token}`, "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.a, quantity: 1 }] }) });
+    const response = await fetch(`${url}/orders`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${f.token}`, "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.a, quantity: 1 }] }) });
     assert.equal(response.status, 409); assert.equal((await response.json()).error.code, "CART_QUANTITY_UNAVAILABLE");
     assert.equal(await prisma.order.count({ where: { userId: f.userId } }), 1);
   });

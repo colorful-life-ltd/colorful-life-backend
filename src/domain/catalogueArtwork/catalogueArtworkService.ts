@@ -1,3 +1,4 @@
+import {logOperationalError} from "../../utils/operationalLog.js";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../../generated/prisma-client/client.js";
 import { prisma as defaultPrisma } from "../../prisma/runtime.js";
@@ -37,13 +38,13 @@ export function createCatalogueArtworkService(storage: ImageStorage, db: Db = de
         });
         if (previous && previous !== stored.publicId && isCatalogueArtworkPublicId(previous)) {
           try { await storage.delete(previous); } catch (error) {
-            console.error("Catalogue artwork replacement cleanup failed", error instanceof Error ? error.message : "unknown error");
+            logOperationalError("Catalogue artwork replacement cleanup failed", error);
           }
         }
         return { url: stored.secureUrl, publicId: stored.publicId };
       } catch (error) {
         try { await storage.delete(stored.publicId); } catch (compensationError) {
-          console.error("Catalogue artwork upload compensation failed", compensationError instanceof Error ? compensationError.message : "unknown error");
+          logOperationalError("Catalogue artwork upload compensation failed", compensationError);
         }
         throw error;
       }
@@ -59,7 +60,7 @@ export function createCatalogueArtworkService(storage: ImageStorage, db: Db = de
       });
       if (previous && isCatalogueArtworkPublicId(previous)) {
         try { await storage.delete(previous); } catch (error) {
-          console.error("Catalogue artwork removal cleanup failed", error instanceof Error ? error.message : "unknown error");
+          logOperationalError("Catalogue artwork removal cleanup failed", error);
         }
       }
     },

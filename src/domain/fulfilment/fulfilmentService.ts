@@ -1,3 +1,5 @@
+import {providerFinancialHold} from "../payments/providerFinancialGuard.js";
+import {unresolvedFbaDiscrepancies} from "../inventory/inventoryDiscrepancy.js";
 import { assertNoFulfilmentHold } from "../security/paymentAbuse.js";
 import { notifyLegacyDispatch } from "../orderConfirmation/legacyDispatch.js";
 import { enqueueDispatchConfirmation } from "../orderConfirmation/dispatch.js";
@@ -52,17 +54,28 @@ async function lockOrder(tx: Prisma.TransactionClient, orderId: number) {
  * historical rows the verified payment record decides, matching managedResolution().
  */
 export async function assertPaymentVerifiedForFulfilment(tx: Prisma.TransactionClient, orderId: number) {
+  const cancellation=await tx.$queryRaw<Array<{id:bigint}>>`SELECT id FROM "OperationalAudit" WHERE "orderId"=${orderId} AND kind='PAID_CANCELLATION_REQUESTED' LIMIT 1`;
+  if(cancellation.length)throw new FulfilmentPaymentNotVerifiedError(orderId,'CANCELLATION_PENDING');
   if (!await assertNoFulfilmentHold(tx, orderId)) throw new FulfilmentPaymentNotVerifiedError(orderId, "SECURITY_REVIEW_REQUIRED");
   await tx.$queryRaw`SELECT id FROM "Payment" WHERE "orderId" = ${orderId} FOR UPDATE`;
   const payment = await tx.payment.findUnique({ where: { orderId } });
   if (!payment) throw new FulfilmentPaymentNotVerifiedError(orderId, "NO_PAYMENT");
   if (payment.status !== "SUCCEEDED" || !payment.paidAt) throw new FulfilmentPaymentNotVerifiedError(orderId, "PAYMENT_NOT_SUCCEEDED");
+  const financialOrder=await tx.order.findUniqueOrThrow({where:{id:orderId},select:{totalAmount:true}});
+  if(!payment.amount.eq(financialOrder.totalAmount)||payment.currency!=='GBP')throw new FulfilmentPaymentNotVerifiedError(orderId,'PAYMENT_AMOUNT_MISMATCH');
   // Refund/webhook writers acquire the same Order -> Payment locks before
   // updating review state. Read after locking Payment so a committed conflict
   // cannot be missed; only refunds belonging to this payment can block it.
   if (await tx.refund.findFirst({ where: { paymentId: payment.id, reviewRequired: true }, select: { id: true } })) {
     throw new FulfilmentPaymentNotVerifiedError(orderId, "REFUND_REVIEW_REQUIRED");
   }
+  const items=await tx.orderItem.findMany({where:{orderId},select:{productListingId:true},orderBy:{productListingId:'asc'}});
+  for(const item of items){
+    await tx.$queryRaw`SELECT id FROM "ProductListing" WHERE id=${item.productListingId} FOR UPDATE`;
+    if((await unresolvedFbaDiscrepancies(tx,item.productListingId)).length)throw new FulfilmentPaymentNotVerifiedError(orderId,'INVENTORY_DISCREPANCY');
+  }
+  const hold=await providerFinancialHold(tx,payment);
+  if(hold)throw new FulfilmentPaymentNotVerifiedError(orderId,hold==='REFUND'?'REFUND_REVIEW_REQUIRED':hold==='DISPUTE'?'PROVIDER_DISPUTE_REVIEW_REQUIRED':'PAYMENT_UNRESOLVED');
   if (payment.reservedRefundAmount.gt(0)) throw new FulfilmentPaymentNotVerifiedError(orderId, "REFUND_IN_PROGRESS");
   if (payment.refundedAmount.gte(payment.amount)) throw new FulfilmentPaymentNotVerifiedError(orderId, "FULLY_REFUNDED");
   const resolution = await tx.paymentResolution.findUnique({ where: { orderId } });

@@ -186,21 +186,21 @@ it('signed HTTP webhook to captured MIME exercises the actual confirmation pipel
   try {
     const payload = JSON.stringify({ id: f.event.id, type: f.event.type, data: { object: { id: f.event.paymentIntentId, amount: f.event.amount, currency: 'gbp', metadata: f.event.metadata } } });
     const signature = new Stripe('sk_test_fake').webhooks.generateTestHeaderString({ payload, secret: config.STRIPE_WEBHOOK_SECRET! });
-    const send = (signed = true) => fetch(`${base}/payments/stripe/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(signed ? { 'stripe-signature': signature } : {}) }, body: payload });
+    const send = (signed = true) => fetch(`${base}/payments/stripe/webhook`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json', ...(signed ? { 'stripe-signature': signature } : {}) }, body: payload });
     assert.equal((await send(false)).status, 400); assert.equal(await prisma.orderConfirmationJob.count({ where: { orderId: f.order.id } }), 0);
     assert.equal((await send()).status, 200); assert.equal((await send()).status, 200);
     const job = await jobFor(f.order.id), capture = captureConfirmationTransport(); await execute(job.id, capture.transport);
     const email = await simpleParser(capture.messages[0]); assert.equal(email.attachments.filter(a => a.contentType === 'application/pdf').length, 1);
     assert.ok(email.text?.includes('£28.99')); assert.equal((await jobFor(f.order.id)).state, 'SENT');
     const token = jwt.sign({ id: f.user.id, role: 'CUSTOMER' }, config.JWT_SECRET);
-    assert.equal((await fetch(`${base}/orders/${f.order.id}`, { headers: { Authorization: `Bearer ${token}` } })).status, 200);
+    assert.equal((await fetch(`${base}/orders/${f.order.id}`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token}` } })).status, 200);
   } finally { await new Promise<void>((resolve, reject) => server.close(e => e ? reject(e) : resolve())); }
 });
 it('actual HTTP checkout persists shipping and produces a valid confirmation source', async () => {
   const f = await fixture(), server = createServer(app); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address(); assert.ok(address && typeof address !== 'string');
   try {
-    const response = await fetch(`http://127.0.0.1:${address.port}/orders`, { method: 'POST', headers: { Authorization: `Bearer ${jwt.sign({ id: f.user.id, role: 'CUSTOMER' }, config.JWT_SECRET)}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
+    const response = await fetch(`http://127.0.0.1:${address.port}/orders`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${jwt.sign({ id: f.user.id, role: 'CUSTOMER' }, config.JWT_SECRET)}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
     assert.equal(response.status, 201); const order = await response.json();
     const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId: order.id } }); assert.equal(item.invoiceDescriptionSnapshot, 'Original product');
     const payment = await prisma.payment.create({ data: { orderId: order.id, provider: 'STRIPE', providerReference: `pi_${randomUUID()}`, amount: order.totalAmount, status: 'PROCESSING' } });
@@ -317,7 +317,7 @@ it('signed payment webhook remains available through SES outage, then early-disp
     await tick();
     const payload = JSON.stringify({ id: f.event.id, type: f.event.type, data: { object: { id: f.event.paymentIntentId, amount: f.event.amount, currency: 'gbp', metadata: f.event.metadata } } });
     const signature = new Stripe('sk_test_issue180_synthetic').webhooks.generateTestHeaderString({ payload, secret: config.STRIPE_WEBHOOK_SECRET! });
-    const response = await fetch(`http://127.0.0.1:${address.port}/payments/stripe/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'stripe-signature': signature }, body: payload });
+    const response = await fetch(`http://127.0.0.1:${address.port}/payments/stripe/webhook`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json', 'stripe-signature': signature }, body: payload });
     assert.equal(response.status, 200); const job = await jobFor(f.order.id); assert.equal(job.attempts, 0);
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, 'CONFIRMED');
     const admin = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: 'synthetic', role: 'ADMIN' } });

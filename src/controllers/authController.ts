@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { sendProtectionError } from "../middleware/checkoutProtection.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { Request, Response } from "express";
@@ -94,7 +95,7 @@ export const signup = async (req: Request, res: Response) => {
       try {
         await sendVerificationEmail({ recipientEmail: user.email, verificationUrl });
       } catch (emailError) {
-        console.error("Verification email delivery failed", emailError instanceof Error ? emailError.message : "unknown error");
+        logOperationalError("Verification email delivery failed", emailError);
       }
     }
     const token = jwt.sign(
@@ -114,7 +115,7 @@ export const signup = async (req: Request, res: Response) => {
           return res.status(409).json({ error: "Email already in use" });
         }
       }
-     console.error("Signup error", err);
+     logOperationalError("Signup error", err);
      return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
    }
 };
@@ -146,7 +147,7 @@ export const login = async (req: Request, res: Response) => {
       refreshExpiresAt: refreshSession.refreshExpiresAt.toISOString(),
     });
   } catch (err) {
-    console.error("Login error", err);
+    logOperationalError("Login error", err);
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 };
@@ -166,7 +167,7 @@ export const refreshSession = async (req: Request, res: Response) => {
     if (error instanceof InvalidRefreshSessionError) {
       return sendApiError(res, 401, "SESSION_INVALID", "Invalid or expired token");
     }
-    console.error("Refresh session error", error instanceof Error ? error.message : "unknown error");
+    logOperationalError("Refresh session error", error);
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 };
@@ -178,7 +179,7 @@ export const logout = async (req: Request, res: Response) => {
     await revokeRefreshSession(refreshToken);
     return res.status(204).send();
   } catch (error) {
-    console.error("Refresh session revocation error", error instanceof Error ? error.message : "unknown error");
+    logOperationalError("Refresh session revocation error", error);
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 };
@@ -193,7 +194,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
     if (err instanceof InvalidOrExpiredVerificationTokenError) {
       return res.status(400).json({ error: "Invalid or expired verification token" });
     }
-    console.error("Email verification error", err);
+    logOperationalError("Email verification error", err);
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 };
@@ -214,13 +215,13 @@ export const resendVerification = async (req: Request, res: Response) => {
         try {
           await sendVerificationEmail({ recipientEmail: user.email, verificationUrl });
         } catch (emailError) {
-          console.error("Verification email delivery failed", emailError instanceof Error ? emailError.message : "unknown error");
+          logOperationalError("Verification email delivery failed", emailError);
         }
       }
     }
     return res.status(200).json({ message: "If verification is required, a verification email has been sent" });
   } catch (err) {
-    console.error("Verification resend error", err);
+    logOperationalError("Verification resend error", err);
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 };
@@ -246,12 +247,12 @@ export const forgotPassword = async (req: Request, res: Response) => {
     try {
       await sendPasswordResetEmail({ recipientEmail: user.email, resetUrl });
     } catch (emailError) {
-      console.error("Password reset email delivery failed");
+      logOperationalError("Password reset email delivery failed", emailError);
     }
     await waitForResponse();
     return res.status(200).json(genericResponse);
   } catch (err) {
-    console.error("Forgot password failed");
+    logOperationalError("Forgot password failed", err);
     await waitForResponse();
     return res.status(200).json(genericResponse);
   }
@@ -267,7 +268,7 @@ export const resetPasswordHandler = async (req: Request, res: Response) => {
     if (err instanceof InvalidOrExpiredPasswordResetTokenError) {
       return res.status(400).json({ error: "Invalid or expired password reset token" });
     }
-    console.error("Password reset failed");
+    logOperationalError("Password reset failed", err);
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 };

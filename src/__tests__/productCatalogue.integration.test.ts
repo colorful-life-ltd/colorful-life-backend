@@ -73,7 +73,7 @@ describe("Product catalogue HTTP integration", () => {
       assert.strictEqual(item.offers.length, 1);
       assert.strictEqual(item.offers[0].id, listing.id);
       assert.strictEqual(item.offers[0].availableStock, expected);
-      assert.strictEqual(item.offers[0].currentStock, currentStock);
+      assert.strictEqual(item.offers[0].currentStock, expected);
       assert.ok(!Object.hasOwn(item.offers[0], "reservedStock"));
     });
   }

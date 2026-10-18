@@ -100,7 +100,8 @@ export const ModelName = {
   PaymentAdmission: 'PaymentAdmission',
   PaymentSecurityEvent: 'PaymentSecurityEvent',
   PaymentFulfilmentReview: 'PaymentFulfilmentReview',
-  PaymentChallengeUse: 'PaymentChallengeUse'
+  PaymentChallengeUse: 'PaymentChallengeUse',
+  OperationalAudit: 'OperationalAudit'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -307,6 +308,10 @@ export type ProductImageScalarFieldEnum = (typeof ProductImageScalarFieldEnum)[k
 
 
 export const FbaOutboundScalarFieldEnum = {
+  actualQuantity: 'actualQuantity',
+  appliedQuantity: 'appliedQuantity',
+  shortfall: 'shortfall',
+  productListingId: 'productListingId',
   id: 'id',
   movementId: 'movementId',
   idempotencyKey: 'idempotencyKey',
@@ -462,6 +467,7 @@ export const RefundScalarFieldEnum = {
   providerPaymentReference: 'providerPaymentReference',
   submissionStartedAt: 'submissionStartedAt',
   resolutionCode: 'resolutionCode',
+  reviewRevision: 'reviewRevision',
   reviewRequired: 'reviewRequired',
   reconciliationAttempts: 'reconciliationAttempts',
   providerOutcome: 'providerOutcome',
@@ -935,6 +941,22 @@ export const PaymentChallengeUseScalarFieldEnum = {
 } as const
 
 export type PaymentChallengeUseScalarFieldEnum = (typeof PaymentChallengeUseScalarFieldEnum)[keyof typeof PaymentChallengeUseScalarFieldEnum]
+
+
+export const OperationalAuditScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  actorId: 'actorId',
+  orderId: 'orderId',
+  refundId: 'refundId',
+  revision: 'revision',
+  requestKey: 'requestKey',
+  requestHash: 'requestHash',
+  details: 'details',
+  createdAt: 'createdAt'
+} as const
+
+export type OperationalAuditScalarFieldEnum = (typeof OperationalAuditScalarFieldEnum)[keyof typeof OperationalAuditScalarFieldEnum]
 
 
 export const SortOrder = {

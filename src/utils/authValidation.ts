@@ -45,6 +45,7 @@ export const forgotPasswordSchema = z.object({
 });
 
 export const changeEmailSchema = z.object({
+  password: z.string().max(72).optional(),
   email: z.string().trim().toLowerCase().email(),
 });
 

@@ -87,7 +87,7 @@ describe("order creation HTTP integration", () => {
     const listing = await makeListing();
     const response = await fetch(`${url}/orders`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] }),
     });
     assert.strictEqual(response.status, 201);
@@ -105,7 +105,7 @@ describe("order creation HTTP integration", () => {
   });
 
   it("rejects unauthenticated order creation", async () => {
-    const response = await fetch(`${url}/orders`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [] }) });
+    const response = await fetch(`${url}/orders`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json" }, body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [] }) });
     assert.strictEqual(response.status, 401);
   });
 
@@ -115,7 +115,7 @@ describe("order creation HTTP integration", () => {
     const before = await prisma.productListing.findUnique({ where: { id: listing.id } });
     const response = await fetch(`${url}/orders`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }),
     });
     assert.strictEqual(response.status, 403);
@@ -129,7 +129,7 @@ describe("order creation HTTP integration", () => {
     const listing = await makeListing();
     const request = () => fetch(`${url}/orders`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }),
     });
     assert.strictEqual((await request()).status, 403);
@@ -143,7 +143,7 @@ describe("order creation HTTP integration", () => {
 
 async function keyedCreate(customer: { token: string }, payload: unknown, key: string) {
   return fetch(`${url}/orders`, {
-    method: "POST", headers: { Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json", "Idempotency-Key": key },
+    method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json", "Idempotency-Key": key },
     body: JSON.stringify(payload),
   });
 }

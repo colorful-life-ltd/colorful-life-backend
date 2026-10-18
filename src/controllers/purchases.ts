@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { Request, Response } from "express";
 import { createHash } from "node:crypto";
 import { importAmazonPurchaseInvoice } from "../domain/purchases/purchaseImportService.js";
@@ -83,7 +84,7 @@ export const importPurchaseInvoice = async (req: Request, res: Response) => {
     ) {
       return res.status(400).json({ error: err.message });
     }
-    console.error("Purchase import error", err);
+    logOperationalError("Purchase import error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -123,7 +124,7 @@ export const receivePurchaseItem = async (req: Request, res: Response) => {
       return res.status(409).json({ error: err.message });
     }
     if (err instanceof UsedOfferPurchaseReceiptError) return res.status(409).json({ error: err.message });
-    console.error("Receive purchase item error", err);
+    logOperationalError("Receive purchase item error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -164,7 +165,7 @@ export const returnPurchaseItem = async (req: Request, res: Response) => {
     if (err instanceof ReturnInsufficientStockError) {
       return res.status(400).json({ error: err.message });
     }
-    console.error("Return purchase item error", err);
+    logOperationalError("Return purchase item error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -199,7 +200,7 @@ export const createManualPurchase = async (req: Request, res: Response) => {
     if (err instanceof ValidationError || err instanceof PurchaseNormalizationError) {
       return res.status(400).json({ error: err.message });
     }
-    console.error("Manual purchase error", err);
+    logOperationalError("Manual purchase error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -359,7 +360,7 @@ export const listPurchases = async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("List purchases error", err);
+    logOperationalError("List purchases error", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -401,7 +402,7 @@ export const getPurchaseById = async (req: Request, res: Response) => {
     }
     res.json(purchase);
   } catch (err) {
-    console.error("Get purchase error", err);
+    logOperationalError("Get purchase error", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };

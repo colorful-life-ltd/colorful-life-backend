@@ -30,7 +30,7 @@ export const DeliveryAddressSchema = z.object({
     .trim()
     .transform((value, ctx) => {
       const code = value.length === 2 ? normalizeCountryCode(value) : null;
-      if (!code) { ctx.addIssue({ code: z.ZodIssueCode.custom, message: "countryCode must be a valid two-letter ISO country code" }); return z.NEVER; }
+      if (code!=="GB") { ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Delivery is supported only in GB" }); return z.NEVER; }
       return code;
     }),
   phone: z.string().optional(),

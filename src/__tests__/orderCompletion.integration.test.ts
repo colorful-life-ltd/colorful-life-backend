@@ -50,7 +50,7 @@ async function createCustomerWithBilling(): Promise<{ id: number; token: string 
           line1: "123 Billing St",
           city: "Billingville",
           postcode: "00001",
-          countryCode: "US",
+          countryCode: "GB",
           isDefaultBilling: true,
         },
       },

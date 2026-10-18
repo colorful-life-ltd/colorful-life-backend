@@ -1,3 +1,4 @@
+import {historicalUnpaidConfirmedFixture} from "./fixtures/historicalUnpaidOrder.js";
 import assert from "node:assert/strict";
 import { after, afterEach, before, it } from "node:test";
 import { randomUUID } from "node:crypto";
@@ -24,7 +25,7 @@ async function fixture(confirmed=true,paid=false,used=false){
  const listing=await prisma.productListing.create({data:{legoProductId:product.id,condition:used?"USED_LIKE_NEW":"NEW",originalPrice:10,currentStock:used?1:10,...(used?{usedLifecycle:"AVAILABLE",damageDescription:"Fixture wear",usedConditionPhotos:{create:{url:"https://example.test/fixture.jpg",publicId:randomUUID(),sortOrder:0}}}:{})}});
  const order=await createOrder(user.id,{ shippingMethod: "STANDARD" as const,items:[{productListingId:listing.id,quantity:used?1:3}]});
  if(paid)await prisma.payment.create({data:{orderId:order.id,provider:"MANUAL",providerReference:randomUUID(),status:"SUCCEEDED",paidAt:new Date(),amount:order.totalAmount,currency:"GBP"}});
- if(confirmed)await confirmOrder(user.id,order.id);
+ if(confirmed){if(paid)await confirmOrder(user.id,order.id);else await historicalUnpaidConfirmedFixture(order.id,user.id);}
  return {user,listing,order,item:order.orderItems[0]};
 }
 type Fixture=Awaited<ReturnType<typeof fixture>>;

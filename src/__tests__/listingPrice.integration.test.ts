@@ -40,7 +40,7 @@ after(async () => {
   await new Promise<void>(r => server.close(() => r())); await prisma.$disconnect();
 });
 function request(path: string, method: string, body?: unknown, token = adminToken) {
-  return fetch(base + path, { method, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  return fetch(base + path, { method, headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
 function input() { return { setNumber: `PRICE-${randomUUID()}`, title: "Price fixture", theme: "TEST", categoryId, ageRecommendation: "8+", pieceCount: 10, condition: "NEW", originalPrice: 20, currentStock: 4 }; }
 async function listing(prices: { originalPrice?: number; salePrice?: number | null } = {}) {

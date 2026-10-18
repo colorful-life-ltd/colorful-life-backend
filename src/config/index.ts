@@ -1,3 +1,4 @@
+import { validateProduction } from "./production.js";
 import { isolateTestAwsEnvironment, testEmailMode } from "./testEmail.js";
 import { validateAbuseStartup } from "./paymentAbuse.js";
 import { isIP } from "node:net";
@@ -15,6 +16,8 @@ export const emailConfigurationLoadedAt = Date.now();
 
 // Schema for configuration validation
 const configSchema = z.object({
+  CORS_ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
+  BACKGROUND_WORKERS_ENABLED: z.enum(["true","false"]).default("true").transform(v=>v==="true"),
   DISPATCH_CONFIRMATION_EMAIL_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   // Email cutoff validation is worker-local; invalid cutoffs must not terminate the API.
   DISPATCH_CONFIRMATION_EMAIL_ACTIVE_FROM: z.string().optional(),
@@ -76,7 +79,7 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-try { validateAbuseStartup(parsed.data, process.env.NODE_ENV); }
+try { if(process.env.NODE_ENV&&!["development","test","production"].includes(process.env.NODE_ENV))throw new Error("NODE_ENV must be development, test or production"); validateAbuseStartup(parsed.data, process.env.NODE_ENV); validateProduction(parsed.data,process.env); }
 catch (error) {
   console.error("Invalid security startup configuration:", error instanceof Error ? error.message : "configuration unavailable");
   process.exit(1);

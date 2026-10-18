@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { positivePriceSchema, salePriceSchema } from "../domain/products/listingPrice.js";
 import { Request, Response } from "express";
 import { Prisma } from "../generated/prisma-client/client.js";
@@ -29,7 +30,7 @@ export const getProducts = async (req: Request, res: Response) => {
   try {
     res.json(await listCatalogueProducts(parseResult.data));
   } catch (err) {
-    console.error("Get products error", err);
+    logOperationalError("Get products error", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -43,7 +44,7 @@ export const getCatalogueProduct = async (req: Request, res: Response) => {
     if (!product) return res.status(404).json({ error: "Product not found" });
     return res.json(product);
   } catch (error) {
-    console.error("Get catalogue product error", error);
+    logOperationalError("Get catalogue product error", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -160,7 +161,7 @@ export const createProduct = async (req: Request, res: Response) => {
     if (!result) return res.status(500).json({ error: "Failed to retrieve created listing" });
     res.status(201).json(serializeListing(result));
   } catch (err) {
-    console.error("Create product error", err);
+    logOperationalError("Create product error", err);
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return res.status(409).json({ error: "setNumber already exists" });
     }
@@ -272,7 +273,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
     res.json(serializeListing(updated));
   } catch (err) {
-    console.error("Update product error", err);
+    logOperationalError("Update product error", err);
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return res.status(409).json({ error: "setNumber already exists" });
     }
@@ -300,6 +301,7 @@ export const getProductById = async (req: Request, res: Response) => {
         originalPrice: true,
         salePrice: true,
         currentStock: true,
+        reservedStock: true,
         createdAt: true,
         updatedAt: true,
         legoProduct: { include: {
@@ -314,9 +316,10 @@ export const getProductById = async (req: Request, res: Response) => {
     if (!listing) {
       return res.status(404).json({ error: "Listing not found" });
     }
-    res.json(serializeListing(listing));
+    const {reservedStock,...publicListing}=listing;
+    res.json(serializeListing({...publicListing,currentStock:Math.max(0,listing.currentStock-reservedStock)}));
   } catch (err) {
-    console.error("Get product by id error", err);
+    logOperationalError("Get product by id error", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -362,7 +365,7 @@ export const deactivateProduct = async (req: Request, res: Response) => {
     }
     res.json(serializeListing(updated));
   } catch (err) {
-    console.error("Deactivate product error", err);
+    logOperationalError("Deactivate product error", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -411,7 +414,7 @@ export const reactivateProduct = async (req: Request, res: Response) => {
     }
     res.json(serializeListing(updated));
   } catch (err) {
-    console.error("Reactivate product error", err);
+    logOperationalError("Reactivate product error", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -425,7 +428,7 @@ export const setFeatureProduct = async (req: Request, res: Response) => {
   } catch (error) {
     if (error instanceof FeatureProductNotFoundError) return res.status(404).json({ error: error.message });
     if (error instanceof FeatureProductCategoryChangedError) return res.status(409).json({ error: error.message });
-    console.error("Set feature product error", error);
+    logOperationalError("Set feature product error", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -518,7 +521,7 @@ export const adjustInventory = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Listing not found" });
     }
     if (err.message === "used_listing_is_not_adjustable") return res.status(409).json({ error: "Used offers cannot be restocked or adjusted into a pooled quantity" });
-    console.error("Inventory adjustment error", err);
+    logOperationalError("Inventory adjustment error", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -558,7 +561,7 @@ export const getInventoryMovements = async (req: Request, res: Response) => {
     });
     res.json({ listingId, movements });
   } catch (err) {
-    console.error("Get inventory movements error", err);
+    logOperationalError("Get inventory movements error", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };

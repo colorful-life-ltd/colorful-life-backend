@@ -291,3 +291,8 @@ export type PaymentFulfilmentReview = Prisma.PaymentFulfilmentReviewModel
  *
  */
 export type PaymentChallengeUse = Prisma.PaymentChallengeUseModel
+/**
+ * Model OperationalAudit
+ *
+ */
+export type OperationalAudit = Prisma.OperationalAuditModel

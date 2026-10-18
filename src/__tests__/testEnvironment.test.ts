@@ -105,7 +105,7 @@ describe("isolated payment-abuse test environment (no database connections)", ()
       assert.equal(config.PAYMENT_PAYPAL_INITIATION_ENABLED, false);
       assert.equal(config.PAYMENT_ABUSE_LIMITS_JSON, undefined);
       console.log('production-defaults-preserved');
-    `], { cwd, env: { ...base, NODE_ENV: "production", CLIENT_IP_MODE: "direct",
+    `], { cwd, env: { ...base, NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT:"production", JWT_SECRET:"1e104b8f32dc87f979d6ff7924025fc52abf245a48f28b0457c1da8500bc2bf9", FRONTEND_URL:"https://shop.colorful-life.co.uk",CORS_ALLOWED_ORIGINS:"https://shop.colorful-life.co.uk",SES_FROM_EMAIL:"no-reply@colorful-life.co.uk",PAYMENT_RESOLUTION_ENABLED:"true", CLIENT_IP_MODE: "direct",
       PAYMENT_ABUSE_HMAC_SECRET: "synthetic-production-validation-secret" }, encoding: "utf8", timeout: 10_000 });
     assert.equal(child.status, 0, child.stderr);
     assert.match(child.stdout, /production-defaults-preserved/);

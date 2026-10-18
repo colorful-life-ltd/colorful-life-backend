@@ -79,7 +79,7 @@ async function assertUnchanged(f: Fixture) {
 }
 function token(f: Fixture) { return jwt.sign({ id: f.user.id, role: f.user.role }, config.JWT_SECRET, { expiresIn: "1h" }); }
 function post(orderId: number, accessToken?: string, body?: unknown) {
-  return fetch(`${url}/orders/${orderId}/payments/stripe/reconcile`, { method: "POST", headers: { "Content-Type": "application/json", ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+  return fetch(`${url}/orders/${orderId}/payments/stripe/reconcile`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
 }
 
 describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
@@ -108,7 +108,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     const f = await fixture(); const stripe = provider(f); const event = success(f);
     const payload = JSON.stringify({ id: event.id, type: event.type, data: { object: stripe.intent } });
     const signature = new Stripe("sk_test_fake").webhooks.generateTestHeaderString({ payload, secret: config.STRIPE_WEBHOOK_SECRET! });
-    const webhook = () => fetch(`${url}/payments/stripe/webhook`, { method: "POST", headers: { "Content-Type": "application/json", "stripe-signature": signature }, body: payload });
+    const webhook = () => fetch(`${url}/payments/stripe/webhook`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", "stripe-signature": signature }, body: payload });
     const [a, b] = await Promise.all([webhook(), webhook(), recoverStripePayment(f.order.id, f.user.id, stripe.client)]);
     assert.equal(a.status, 200); assert.equal(b.status, 200); await assertConfirmed(f);
     assert.deepEqual(await reconcileStripePaymentEvent(event), { duplicate: true, handled: true });
@@ -177,7 +177,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
 
   it("does not move confirmed or fulfilled/returned orders back into normal checkout", async () => {
     for (const status of ["CONFIRMED", "DISPATCHED", "COMPLETED", "RETURNED"] as const) {
-      const f = await fixture(); await confirmOrder(f.user.id, f.order.id);
+      const f = await fixture(); await prisma.payment.update({where:{id:f.payment.id},data:{status:"SUCCEEDED",paidAt:new Date()}}); await confirmOrder(f.user.id, f.order.id);
       await prisma.order.update({ where: { id: f.order.id }, data: { status } });
       await recoverStripePayment(f.order.id, f.user.id, provider(f).client);
       const s = await state(f); assert.equal(s.order.status, status); assert.equal(s.payment.status, "SUCCEEDED");
@@ -240,7 +240,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     assert.deepEqual(Object.keys(body.payment).sort(), ["paidAt", "status"]); assert.equal(body.reservationExpiresAt, null);
     assert.equal(body.payments, undefined); assert.equal(body.refunds, undefined); assert.equal(body.clientSecret, undefined);
     assert.equal(JSON.stringify(body).includes(f.payment.providerReference), false);
-    const read = await fetch(`${url}/orders/${f.order.id}`, { headers: { Authorization: `Bearer ${token(f)}` } });
+    const read = await fetch(`${url}/orders/${f.order.id}`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token(f)}` } });
     const refreshed = await read.json();
     assert.ok(Date.parse(refreshed.paymentWindow.evaluatedAt) >= Date.parse(body.paymentWindow.evaluatedAt));
     refreshed.paymentWindow.evaluatedAt = body.paymentWindow.evaluatedAt;
@@ -250,7 +250,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
   it("HTTP non-success stays pending and normal GETs never retrieve Stripe", async () => {
     const f = await fixture(); const stripe = provider(f, { status: "processing", amount_received: 0 }); restoreClient = setStripeRecoveryClientForTests(stripe.client);
     for (let i = 0; i < 3; i++) {
-      const read = await fetch(`${url}/orders/${f.order.id}`, { headers: { Authorization: `Bearer ${token(f)}` } });
+      const read = await fetch(`${url}/orders/${f.order.id}`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token(f)}` } });
       assert.equal((await read.json()).status, "PENDING");
     }
     assert.equal(stripe.calls(), 0);
@@ -263,7 +263,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     assert.equal((await post(f.order.id)).status, 401);
     const forbidden = await post(f.order.id, token(other)); assert.equal(forbidden.status, 404); assert.deepEqual(await forbidden.json(), { error: "Order not found" });
     assert.equal((await post(2147483647, token(f))).status, 404);
-    const invalid = await fetch(`${url}/orders/bad/payments/stripe/reconcile`, { method: "POST", headers: { Authorization: `Bearer ${token(f)}` } }); assert.equal(invalid.status, 400);
+    const invalid = await fetch(`${url}/orders/bad/payments/stripe/reconcile`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token(f)}` } }); assert.equal(invalid.status, 400);
     await prisma.user.update({ where: { id: f.user.id }, data: { emailVerified: false } });
     const unverified = await post(f.order.id, token(f)); assert.equal(unverified.status, 403); assert.equal((await unverified.json()).error.code, "EMAIL_VERIFICATION_REQUIRED");
     assert.equal(stripe.calls(), 0); await assertUnchanged(f);

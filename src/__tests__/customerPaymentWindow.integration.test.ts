@@ -51,7 +51,7 @@ async function fixture(managed: boolean, ageMinutes = 0) {
   return { user, listing, order };
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
-function headers(f: Fixture) { return { Authorization: `Bearer ${jwt.sign({ id: f.user.id, role: "CUSTOMER" }, config.JWT_SECRET)}`, "Content-Type": "application/json" }; }
+function headers(f: Fixture) { return { "Idempotency-Key":randomUUID(), Authorization: `Bearer ${jwt.sign({ id: f.user.id, role: "CUSTOMER" }, config.JWT_SECRET)}`, "Content-Type": "application/json" }; }
 async function read(f: Fixture) { return (await getCustomerOrder(f.user.id, f.order.id))!.paymentWindow; }
 function stable(w: CustomerPaymentWindow) { const { evaluatedAt: _time, ...rest } = w; return rest; }
 function intent(f: Fixture, id = `pi_${randomUUID()}`): Stripe.PaymentIntent {
@@ -90,7 +90,7 @@ describe("authoritative customer payment windows", { concurrency: 1 }, () => {
     it(`exposes initial eligibility consistently on create, list, detail, status and idempotent replay (managed=${managed})`, async () => {
       const f = await fixture(managed);
       const key = randomUUID();
-      const post = () => fetch(`${base}/orders`, { method: "POST", headers: { ...headers(f), "Idempotency-Key": key }, body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
+      const post = () => fetch(`${base}/orders`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, ...headers(f), "Idempotency-Key": key }, body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: f.listing.id, quantity: 1 }] }) });
       const response = await post(); assert.equal(response.status, 201); const created = await response.json(); orderIds.push(created.id);
       assert.equal(created.paymentWindow.state, "INITIAL_PAYMENT"); assert.equal(created.paymentWindow.initiationEligibility, "ELIGIBLE");
       assert.ok(created.reservationExpiresAt); assert.ok(created.orderItems);
@@ -234,7 +234,7 @@ describe("authoritative customer payment windows", { concurrency: 1 }, () => {
     const listed = await listCustomerOrders(f.user.id); assert.equal(listed.length, 205);
     assert.ok(listed.every(o => ids.includes(o.id) && o.paymentWindow.state === "INITIAL_PAYMENT"));
   });
-  it(`a creation projection failure rolls back order and stock before an unkeyed retry (managed=${managed})`, async () => {
+  it(`a creation projection failure rolls back order and stock before an idempotent retry (managed=${managed})`, async () => {
     const f = await fixture(managed); const before = await snapshot(f);
     const originalTransaction = prisma.$transaction;
     const original = originalTransaction.bind(prisma);

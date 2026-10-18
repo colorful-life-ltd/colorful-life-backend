@@ -1,3 +1,4 @@
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import assert from "node:assert";
 import { afterEach, describe, it } from "node:test";
@@ -101,6 +102,7 @@ async function createFixture(quantity = 3) {
   const order = await createOrder(customer.id, { shippingMethod: "STANDARD" as const,
     items: [{ productListingId: listing.id, quantity }],
   });
+  await recordVerifiedPayment(order.id);
   await confirmOrder(customer.id, order.id);
   orderIds.push(order.id);
   return { customer, listing, order, orderItem: order.orderItems[0] };
@@ -263,7 +265,7 @@ describe("Order return domain service", () => {
   it("authorizes a REQUESTED return without changing business side effects", async () => {
     const { customer, listing, order, orderItem } = await createFixture(3);
     const requested = await requestReturn(order.id, orderItem.id, 2, customer.id, ReturnReason.DAMAGED, "Damaged packaging", ReturnShippingPayer.SELLER, 4.5);
-    const payment = await prisma.payment.create({ data: { orderId: order.id, amount: order.totalAmount, currency: "GBP", provider: PaymentProvider.MANUAL, providerReference: `authorize-${randomUUID()}`, status: PaymentStatus.SUCCEEDED, paidAt: new Date() } });
+    const payment = await prisma.payment.findUniqueOrThrow({where:{orderId:order.id}});
     paymentIds.push(payment.id);
     const itemBefore = await prisma.orderItem.findUnique({ where: { id: orderItem.id } });
     const listingBefore = await prisma.productListing.findUnique({ where: { id: listing.id } });
@@ -460,7 +462,7 @@ describe("Order return domain service", () => {
   it("has no business side effects at INSPECTED", async () => {
     const { customer, listing, order, orderItem } = await createFixture(3);
     const received = await createReceivedReturn(order.id, orderItem.id, customer.id, 2);
-    const payment = await prisma.payment.create({ data: { orderId: order.id, amount: order.totalAmount, currency: "GBP", provider: PaymentProvider.MANUAL, providerReference: `inspect-${randomUUID()}`, status: PaymentStatus.SUCCEEDED, paidAt: new Date() } });
+    const payment = await prisma.payment.findUniqueOrThrow({where:{orderId:order.id}});
     paymentIds.push(payment.id);
     const itemBefore = await prisma.orderItem.findUnique({ where: { id: orderItem.id } });
     const listingBefore = await prisma.productListing.findUnique({ where: { id: listing.id } });

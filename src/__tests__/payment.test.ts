@@ -1,6 +1,6 @@
 import { prisma } from "../prisma/runtime.js";
 import { Decimal } from "@prisma/client/runtime/client";
-import { createPayment } from "../domain/payments/paymentService.js";
+import { createPayment } from "./helpers/manualPayment.js";
 import { PaymentAlreadySucceededError, PaymentConflictError, PaymentExpiredError, PaymentNotFoundError } from "../domain/payments/paymentErrors.js";
 import { createOrder } from "../domain/orders/orderService.js";
 import { strict as assert } from "node:assert";
@@ -29,7 +29,7 @@ before(async () => {
           line1: "123 Test St",
           city: "Testville",
           postcode: "12345",
-          countryCode: "US",
+          countryCode: "GB",
           isDefaultBilling: true,
         },
       },

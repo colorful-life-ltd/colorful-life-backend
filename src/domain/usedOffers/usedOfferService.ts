@@ -1,3 +1,4 @@
+import {logOperationalError} from "../../utils/operationalLog.js";
 import { hasValidListingPrices, priceMessage } from "../products/listingPrice.js";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../../generated/prisma-client/client.js";
@@ -48,7 +49,7 @@ async function deleteUploaded(storage: ImageStorage, uploaded: Awaited<ReturnTyp
   const results = await Promise.allSettled(uploaded.map((image) => storage.delete(image.publicId)));
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
-      console.error("Used condition photo compensation failed", uploaded[index]?.publicId, result.reason instanceof Error ? result.reason.message : "unknown error");
+      logOperationalError("Used condition photo compensation failed");
     }
   }
 }

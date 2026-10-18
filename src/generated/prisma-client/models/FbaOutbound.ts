@@ -27,6 +27,10 @@ export type AggregateFbaOutbound = {
 }
 
 export type FbaOutboundAvgAggregateOutputType = {
+  actualQuantity: number | null
+  appliedQuantity: number | null
+  shortfall: number | null
+  productListingId: number | null
   id: number | null
   movementId: number | null
   currentStockAfter: number | null
@@ -34,6 +38,10 @@ export type FbaOutboundAvgAggregateOutputType = {
 }
 
 export type FbaOutboundSumAggregateOutputType = {
+  actualQuantity: number | null
+  appliedQuantity: number | null
+  shortfall: number | null
+  productListingId: number | null
   id: number | null
   movementId: number | null
   currentStockAfter: number | null
@@ -41,6 +49,10 @@ export type FbaOutboundSumAggregateOutputType = {
 }
 
 export type FbaOutboundMinAggregateOutputType = {
+  actualQuantity: number | null
+  appliedQuantity: number | null
+  shortfall: number | null
+  productListingId: number | null
   id: number | null
   movementId: number | null
   idempotencyKey: string | null
@@ -51,6 +63,10 @@ export type FbaOutboundMinAggregateOutputType = {
 }
 
 export type FbaOutboundMaxAggregateOutputType = {
+  actualQuantity: number | null
+  appliedQuantity: number | null
+  shortfall: number | null
+  productListingId: number | null
   id: number | null
   movementId: number | null
   idempotencyKey: string | null
@@ -61,6 +77,10 @@ export type FbaOutboundMaxAggregateOutputType = {
 }
 
 export type FbaOutboundCountAggregateOutputType = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  productListingId: number
   id: number
   movementId: number
   idempotencyKey: number
@@ -73,6 +93,10 @@ export type FbaOutboundCountAggregateOutputType = {
 
 
 export type FbaOutboundAvgAggregateInputType = {
+  actualQuantity?: true
+  appliedQuantity?: true
+  shortfall?: true
+  productListingId?: true
   id?: true
   movementId?: true
   currentStockAfter?: true
@@ -80,6 +104,10 @@ export type FbaOutboundAvgAggregateInputType = {
 }
 
 export type FbaOutboundSumAggregateInputType = {
+  actualQuantity?: true
+  appliedQuantity?: true
+  shortfall?: true
+  productListingId?: true
   id?: true
   movementId?: true
   currentStockAfter?: true
@@ -87,6 +115,10 @@ export type FbaOutboundSumAggregateInputType = {
 }
 
 export type FbaOutboundMinAggregateInputType = {
+  actualQuantity?: true
+  appliedQuantity?: true
+  shortfall?: true
+  productListingId?: true
   id?: true
   movementId?: true
   idempotencyKey?: true
@@ -97,6 +129,10 @@ export type FbaOutboundMinAggregateInputType = {
 }
 
 export type FbaOutboundMaxAggregateInputType = {
+  actualQuantity?: true
+  appliedQuantity?: true
+  shortfall?: true
+  productListingId?: true
   id?: true
   movementId?: true
   idempotencyKey?: true
@@ -107,6 +143,10 @@ export type FbaOutboundMaxAggregateInputType = {
 }
 
 export type FbaOutboundCountAggregateInputType = {
+  actualQuantity?: true
+  appliedQuantity?: true
+  shortfall?: true
+  productListingId?: true
   id?: true
   movementId?: true
   idempotencyKey?: true
@@ -204,6 +244,10 @@ export type FbaOutboundGroupByArgs<ExtArgs extends runtime.Types.Extensions.Inte
 }
 
 export type FbaOutboundGroupByOutputType = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  productListingId: number
   id: number
   movementId: number
   idempotencyKey: string
@@ -237,6 +281,10 @@ export type FbaOutboundWhereInput = {
   AND?: Prisma.FbaOutboundWhereInput | Prisma.FbaOutboundWhereInput[]
   OR?: Prisma.FbaOutboundWhereInput[]
   NOT?: Prisma.FbaOutboundWhereInput | Prisma.FbaOutboundWhereInput[]
+  actualQuantity?: Prisma.IntFilter<"FbaOutbound"> | number
+  appliedQuantity?: Prisma.IntFilter<"FbaOutbound"> | number
+  shortfall?: Prisma.IntFilter<"FbaOutbound"> | number
+  productListingId?: Prisma.IntFilter<"FbaOutbound"> | number
   id?: Prisma.IntFilter<"FbaOutbound"> | number
   movementId?: Prisma.IntFilter<"FbaOutbound"> | number
   idempotencyKey?: Prisma.StringFilter<"FbaOutbound"> | string
@@ -244,10 +292,15 @@ export type FbaOutboundWhereInput = {
   shipmentReference?: Prisma.StringFilter<"FbaOutbound"> | string
   currentStockAfter?: Prisma.IntFilter<"FbaOutbound"> | number
   reservedStockAfter?: Prisma.IntFilter<"FbaOutbound"> | number
+  productListing?: Prisma.XOR<Prisma.ProductListingScalarRelationFilter, Prisma.ProductListingWhereInput>
   movement?: Prisma.XOR<Prisma.InventoryMovementScalarRelationFilter, Prisma.InventoryMovementWhereInput>
 }
 
 export type FbaOutboundOrderByWithRelationInput = {
+  actualQuantity?: Prisma.SortOrder
+  appliedQuantity?: Prisma.SortOrder
+  shortfall?: Prisma.SortOrder
+  productListingId?: Prisma.SortOrder
   id?: Prisma.SortOrder
   movementId?: Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrder
@@ -255,6 +308,7 @@ export type FbaOutboundOrderByWithRelationInput = {
   shipmentReference?: Prisma.SortOrder
   currentStockAfter?: Prisma.SortOrder
   reservedStockAfter?: Prisma.SortOrder
+  productListing?: Prisma.ProductListingOrderByWithRelationInput
   movement?: Prisma.InventoryMovementOrderByWithRelationInput
 }
 
@@ -262,17 +316,27 @@ export type FbaOutboundWhereUniqueInput = Prisma.AtLeast<{
   id?: number
   movementId?: number
   idempotencyKey?: string
+  shipmentReference_productListingId?: Prisma.FbaOutboundShipmentReferenceProductListingIdCompoundUniqueInput
   AND?: Prisma.FbaOutboundWhereInput | Prisma.FbaOutboundWhereInput[]
   OR?: Prisma.FbaOutboundWhereInput[]
   NOT?: Prisma.FbaOutboundWhereInput | Prisma.FbaOutboundWhereInput[]
+  actualQuantity?: Prisma.IntFilter<"FbaOutbound"> | number
+  appliedQuantity?: Prisma.IntFilter<"FbaOutbound"> | number
+  shortfall?: Prisma.IntFilter<"FbaOutbound"> | number
+  productListingId?: Prisma.IntFilter<"FbaOutbound"> | number
   requestHash?: Prisma.StringFilter<"FbaOutbound"> | string
   shipmentReference?: Prisma.StringFilter<"FbaOutbound"> | string
   currentStockAfter?: Prisma.IntFilter<"FbaOutbound"> | number
   reservedStockAfter?: Prisma.IntFilter<"FbaOutbound"> | number
+  productListing?: Prisma.XOR<Prisma.ProductListingScalarRelationFilter, Prisma.ProductListingWhereInput>
   movement?: Prisma.XOR<Prisma.InventoryMovementScalarRelationFilter, Prisma.InventoryMovementWhereInput>
-}, "id" | "movementId" | "idempotencyKey">
+}, "id" | "movementId" | "idempotencyKey" | "shipmentReference_productListingId">
 
 export type FbaOutboundOrderByWithAggregationInput = {
+  actualQuantity?: Prisma.SortOrder
+  appliedQuantity?: Prisma.SortOrder
+  shortfall?: Prisma.SortOrder
+  productListingId?: Prisma.SortOrder
   id?: Prisma.SortOrder
   movementId?: Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrder
@@ -291,6 +355,10 @@ export type FbaOutboundScalarWhereWithAggregatesInput = {
   AND?: Prisma.FbaOutboundScalarWhereWithAggregatesInput | Prisma.FbaOutboundScalarWhereWithAggregatesInput[]
   OR?: Prisma.FbaOutboundScalarWhereWithAggregatesInput[]
   NOT?: Prisma.FbaOutboundScalarWhereWithAggregatesInput | Prisma.FbaOutboundScalarWhereWithAggregatesInput[]
+  actualQuantity?: Prisma.IntWithAggregatesFilter<"FbaOutbound"> | number
+  appliedQuantity?: Prisma.IntWithAggregatesFilter<"FbaOutbound"> | number
+  shortfall?: Prisma.IntWithAggregatesFilter<"FbaOutbound"> | number
+  productListingId?: Prisma.IntWithAggregatesFilter<"FbaOutbound"> | number
   id?: Prisma.IntWithAggregatesFilter<"FbaOutbound"> | number
   movementId?: Prisma.IntWithAggregatesFilter<"FbaOutbound"> | number
   idempotencyKey?: Prisma.StringWithAggregatesFilter<"FbaOutbound"> | string
@@ -301,15 +369,23 @@ export type FbaOutboundScalarWhereWithAggregatesInput = {
 }
 
 export type FbaOutboundCreateInput = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
   idempotencyKey: string
   requestHash: string
   shipmentReference: string
   currentStockAfter: number
   reservedStockAfter: number
+  productListing: Prisma.ProductListingCreateNestedOneWithoutFbaOutboundsInput
   movement: Prisma.InventoryMovementCreateNestedOneWithoutFbaOutboundInput
 }
 
 export type FbaOutboundUncheckedCreateInput = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  productListingId: number
   id?: number
   movementId: number
   idempotencyKey: string
@@ -320,15 +396,23 @@ export type FbaOutboundUncheckedCreateInput = {
 }
 
 export type FbaOutboundUpdateInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
   idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
   requestHash?: Prisma.StringFieldUpdateOperationsInput | string
   shipmentReference?: Prisma.StringFieldUpdateOperationsInput | string
   currentStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
   reservedStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
+  productListing?: Prisma.ProductListingUpdateOneRequiredWithoutFbaOutboundsNestedInput
   movement?: Prisma.InventoryMovementUpdateOneRequiredWithoutFbaOutboundNestedInput
 }
 
 export type FbaOutboundUncheckedUpdateInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
+  productListingId?: Prisma.IntFieldUpdateOperationsInput | number
   id?: Prisma.IntFieldUpdateOperationsInput | number
   movementId?: Prisma.IntFieldUpdateOperationsInput | number
   idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
@@ -339,6 +423,10 @@ export type FbaOutboundUncheckedUpdateInput = {
 }
 
 export type FbaOutboundCreateManyInput = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  productListingId: number
   id?: number
   movementId: number
   idempotencyKey: string
@@ -349,6 +437,9 @@ export type FbaOutboundCreateManyInput = {
 }
 
 export type FbaOutboundUpdateManyMutationInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
   idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
   requestHash?: Prisma.StringFieldUpdateOperationsInput | string
   shipmentReference?: Prisma.StringFieldUpdateOperationsInput | string
@@ -357,6 +448,10 @@ export type FbaOutboundUpdateManyMutationInput = {
 }
 
 export type FbaOutboundUncheckedUpdateManyInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
+  productListingId?: Prisma.IntFieldUpdateOperationsInput | number
   id?: Prisma.IntFieldUpdateOperationsInput | number
   movementId?: Prisma.IntFieldUpdateOperationsInput | number
   idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
@@ -366,7 +461,26 @@ export type FbaOutboundUncheckedUpdateManyInput = {
   reservedStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
+export type FbaOutboundListRelationFilter = {
+  every?: Prisma.FbaOutboundWhereInput
+  some?: Prisma.FbaOutboundWhereInput
+  none?: Prisma.FbaOutboundWhereInput
+}
+
+export type FbaOutboundOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
+}
+
+export type FbaOutboundShipmentReferenceProductListingIdCompoundUniqueInput = {
+  shipmentReference: string
+  productListingId: number
+}
+
 export type FbaOutboundCountOrderByAggregateInput = {
+  actualQuantity?: Prisma.SortOrder
+  appliedQuantity?: Prisma.SortOrder
+  shortfall?: Prisma.SortOrder
+  productListingId?: Prisma.SortOrder
   id?: Prisma.SortOrder
   movementId?: Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrder
@@ -377,6 +491,10 @@ export type FbaOutboundCountOrderByAggregateInput = {
 }
 
 export type FbaOutboundAvgOrderByAggregateInput = {
+  actualQuantity?: Prisma.SortOrder
+  appliedQuantity?: Prisma.SortOrder
+  shortfall?: Prisma.SortOrder
+  productListingId?: Prisma.SortOrder
   id?: Prisma.SortOrder
   movementId?: Prisma.SortOrder
   currentStockAfter?: Prisma.SortOrder
@@ -384,6 +502,10 @@ export type FbaOutboundAvgOrderByAggregateInput = {
 }
 
 export type FbaOutboundMaxOrderByAggregateInput = {
+  actualQuantity?: Prisma.SortOrder
+  appliedQuantity?: Prisma.SortOrder
+  shortfall?: Prisma.SortOrder
+  productListingId?: Prisma.SortOrder
   id?: Prisma.SortOrder
   movementId?: Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrder
@@ -394,6 +516,10 @@ export type FbaOutboundMaxOrderByAggregateInput = {
 }
 
 export type FbaOutboundMinOrderByAggregateInput = {
+  actualQuantity?: Prisma.SortOrder
+  appliedQuantity?: Prisma.SortOrder
+  shortfall?: Prisma.SortOrder
+  productListingId?: Prisma.SortOrder
   id?: Prisma.SortOrder
   movementId?: Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrder
@@ -404,6 +530,10 @@ export type FbaOutboundMinOrderByAggregateInput = {
 }
 
 export type FbaOutboundSumOrderByAggregateInput = {
+  actualQuantity?: Prisma.SortOrder
+  appliedQuantity?: Prisma.SortOrder
+  shortfall?: Prisma.SortOrder
+  productListingId?: Prisma.SortOrder
   id?: Prisma.SortOrder
   movementId?: Prisma.SortOrder
   currentStockAfter?: Prisma.SortOrder
@@ -413,6 +543,48 @@ export type FbaOutboundSumOrderByAggregateInput = {
 export type FbaOutboundNullableScalarRelationFilter = {
   is?: Prisma.FbaOutboundWhereInput | null
   isNot?: Prisma.FbaOutboundWhereInput | null
+}
+
+export type FbaOutboundCreateNestedManyWithoutProductListingInput = {
+  create?: Prisma.XOR<Prisma.FbaOutboundCreateWithoutProductListingInput, Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput> | Prisma.FbaOutboundCreateWithoutProductListingInput[] | Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput[]
+  connectOrCreate?: Prisma.FbaOutboundCreateOrConnectWithoutProductListingInput | Prisma.FbaOutboundCreateOrConnectWithoutProductListingInput[]
+  createMany?: Prisma.FbaOutboundCreateManyProductListingInputEnvelope
+  connect?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+}
+
+export type FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput = {
+  create?: Prisma.XOR<Prisma.FbaOutboundCreateWithoutProductListingInput, Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput> | Prisma.FbaOutboundCreateWithoutProductListingInput[] | Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput[]
+  connectOrCreate?: Prisma.FbaOutboundCreateOrConnectWithoutProductListingInput | Prisma.FbaOutboundCreateOrConnectWithoutProductListingInput[]
+  createMany?: Prisma.FbaOutboundCreateManyProductListingInputEnvelope
+  connect?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+}
+
+export type FbaOutboundUpdateManyWithoutProductListingNestedInput = {
+  create?: Prisma.XOR<Prisma.FbaOutboundCreateWithoutProductListingInput, Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput> | Prisma.FbaOutboundCreateWithoutProductListingInput[] | Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput[]
+  connectOrCreate?: Prisma.FbaOutboundCreateOrConnectWithoutProductListingInput | Prisma.FbaOutboundCreateOrConnectWithoutProductListingInput[]
+  upsert?: Prisma.FbaOutboundUpsertWithWhereUniqueWithoutProductListingInput | Prisma.FbaOutboundUpsertWithWhereUniqueWithoutProductListingInput[]
+  createMany?: Prisma.FbaOutboundCreateManyProductListingInputEnvelope
+  set?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+  disconnect?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+  delete?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+  connect?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+  update?: Prisma.FbaOutboundUpdateWithWhereUniqueWithoutProductListingInput | Prisma.FbaOutboundUpdateWithWhereUniqueWithoutProductListingInput[]
+  updateMany?: Prisma.FbaOutboundUpdateManyWithWhereWithoutProductListingInput | Prisma.FbaOutboundUpdateManyWithWhereWithoutProductListingInput[]
+  deleteMany?: Prisma.FbaOutboundScalarWhereInput | Prisma.FbaOutboundScalarWhereInput[]
+}
+
+export type FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput = {
+  create?: Prisma.XOR<Prisma.FbaOutboundCreateWithoutProductListingInput, Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput> | Prisma.FbaOutboundCreateWithoutProductListingInput[] | Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput[]
+  connectOrCreate?: Prisma.FbaOutboundCreateOrConnectWithoutProductListingInput | Prisma.FbaOutboundCreateOrConnectWithoutProductListingInput[]
+  upsert?: Prisma.FbaOutboundUpsertWithWhereUniqueWithoutProductListingInput | Prisma.FbaOutboundUpsertWithWhereUniqueWithoutProductListingInput[]
+  createMany?: Prisma.FbaOutboundCreateManyProductListingInputEnvelope
+  set?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+  disconnect?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+  delete?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+  connect?: Prisma.FbaOutboundWhereUniqueInput | Prisma.FbaOutboundWhereUniqueInput[]
+  update?: Prisma.FbaOutboundUpdateWithWhereUniqueWithoutProductListingInput | Prisma.FbaOutboundUpdateWithWhereUniqueWithoutProductListingInput[]
+  updateMany?: Prisma.FbaOutboundUpdateManyWithWhereWithoutProductListingInput | Prisma.FbaOutboundUpdateManyWithWhereWithoutProductListingInput[]
+  deleteMany?: Prisma.FbaOutboundScalarWhereInput | Prisma.FbaOutboundScalarWhereInput[]
 }
 
 export type FbaOutboundCreateNestedOneWithoutMovementInput = {
@@ -447,7 +619,24 @@ export type FbaOutboundUncheckedUpdateOneWithoutMovementNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.FbaOutboundUpdateToOneWithWhereWithoutMovementInput, Prisma.FbaOutboundUpdateWithoutMovementInput>, Prisma.FbaOutboundUncheckedUpdateWithoutMovementInput>
 }
 
-export type FbaOutboundCreateWithoutMovementInput = {
+export type FbaOutboundCreateWithoutProductListingInput = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  idempotencyKey: string
+  requestHash: string
+  shipmentReference: string
+  currentStockAfter: number
+  reservedStockAfter: number
+  movement: Prisma.InventoryMovementCreateNestedOneWithoutFbaOutboundInput
+}
+
+export type FbaOutboundUncheckedCreateWithoutProductListingInput = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  id?: number
+  movementId: number
   idempotencyKey: string
   requestHash: string
   shipmentReference: string
@@ -455,7 +644,66 @@ export type FbaOutboundCreateWithoutMovementInput = {
   reservedStockAfter: number
 }
 
+export type FbaOutboundCreateOrConnectWithoutProductListingInput = {
+  where: Prisma.FbaOutboundWhereUniqueInput
+  create: Prisma.XOR<Prisma.FbaOutboundCreateWithoutProductListingInput, Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput>
+}
+
+export type FbaOutboundCreateManyProductListingInputEnvelope = {
+  data: Prisma.FbaOutboundCreateManyProductListingInput | Prisma.FbaOutboundCreateManyProductListingInput[]
+  skipDuplicates?: boolean
+}
+
+export type FbaOutboundUpsertWithWhereUniqueWithoutProductListingInput = {
+  where: Prisma.FbaOutboundWhereUniqueInput
+  update: Prisma.XOR<Prisma.FbaOutboundUpdateWithoutProductListingInput, Prisma.FbaOutboundUncheckedUpdateWithoutProductListingInput>
+  create: Prisma.XOR<Prisma.FbaOutboundCreateWithoutProductListingInput, Prisma.FbaOutboundUncheckedCreateWithoutProductListingInput>
+}
+
+export type FbaOutboundUpdateWithWhereUniqueWithoutProductListingInput = {
+  where: Prisma.FbaOutboundWhereUniqueInput
+  data: Prisma.XOR<Prisma.FbaOutboundUpdateWithoutProductListingInput, Prisma.FbaOutboundUncheckedUpdateWithoutProductListingInput>
+}
+
+export type FbaOutboundUpdateManyWithWhereWithoutProductListingInput = {
+  where: Prisma.FbaOutboundScalarWhereInput
+  data: Prisma.XOR<Prisma.FbaOutboundUpdateManyMutationInput, Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingInput>
+}
+
+export type FbaOutboundScalarWhereInput = {
+  AND?: Prisma.FbaOutboundScalarWhereInput | Prisma.FbaOutboundScalarWhereInput[]
+  OR?: Prisma.FbaOutboundScalarWhereInput[]
+  NOT?: Prisma.FbaOutboundScalarWhereInput | Prisma.FbaOutboundScalarWhereInput[]
+  actualQuantity?: Prisma.IntFilter<"FbaOutbound"> | number
+  appliedQuantity?: Prisma.IntFilter<"FbaOutbound"> | number
+  shortfall?: Prisma.IntFilter<"FbaOutbound"> | number
+  productListingId?: Prisma.IntFilter<"FbaOutbound"> | number
+  id?: Prisma.IntFilter<"FbaOutbound"> | number
+  movementId?: Prisma.IntFilter<"FbaOutbound"> | number
+  idempotencyKey?: Prisma.StringFilter<"FbaOutbound"> | string
+  requestHash?: Prisma.StringFilter<"FbaOutbound"> | string
+  shipmentReference?: Prisma.StringFilter<"FbaOutbound"> | string
+  currentStockAfter?: Prisma.IntFilter<"FbaOutbound"> | number
+  reservedStockAfter?: Prisma.IntFilter<"FbaOutbound"> | number
+}
+
+export type FbaOutboundCreateWithoutMovementInput = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  idempotencyKey: string
+  requestHash: string
+  shipmentReference: string
+  currentStockAfter: number
+  reservedStockAfter: number
+  productListing: Prisma.ProductListingCreateNestedOneWithoutFbaOutboundsInput
+}
+
 export type FbaOutboundUncheckedCreateWithoutMovementInput = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  productListingId: number
   id?: number
   idempotencyKey: string
   requestHash: string
@@ -481,6 +729,23 @@ export type FbaOutboundUpdateToOneWithWhereWithoutMovementInput = {
 }
 
 export type FbaOutboundUpdateWithoutMovementInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
+  idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
+  requestHash?: Prisma.StringFieldUpdateOperationsInput | string
+  shipmentReference?: Prisma.StringFieldUpdateOperationsInput | string
+  currentStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
+  reservedStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
+  productListing?: Prisma.ProductListingUpdateOneRequiredWithoutFbaOutboundsNestedInput
+}
+
+export type FbaOutboundUncheckedUpdateWithoutMovementInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
+  productListingId?: Prisma.IntFieldUpdateOperationsInput | number
+  id?: Prisma.IntFieldUpdateOperationsInput | number
   idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
   requestHash?: Prisma.StringFieldUpdateOperationsInput | string
   shipmentReference?: Prisma.StringFieldUpdateOperationsInput | string
@@ -488,8 +753,50 @@ export type FbaOutboundUpdateWithoutMovementInput = {
   reservedStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
-export type FbaOutboundUncheckedUpdateWithoutMovementInput = {
+export type FbaOutboundCreateManyProductListingInput = {
+  actualQuantity: number
+  appliedQuantity: number
+  shortfall: number
+  id?: number
+  movementId: number
+  idempotencyKey: string
+  requestHash: string
+  shipmentReference: string
+  currentStockAfter: number
+  reservedStockAfter: number
+}
+
+export type FbaOutboundUpdateWithoutProductListingInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
+  idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
+  requestHash?: Prisma.StringFieldUpdateOperationsInput | string
+  shipmentReference?: Prisma.StringFieldUpdateOperationsInput | string
+  currentStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
+  reservedStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
+  movement?: Prisma.InventoryMovementUpdateOneRequiredWithoutFbaOutboundNestedInput
+}
+
+export type FbaOutboundUncheckedUpdateWithoutProductListingInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  movementId?: Prisma.IntFieldUpdateOperationsInput | number
+  idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
+  requestHash?: Prisma.StringFieldUpdateOperationsInput | string
+  shipmentReference?: Prisma.StringFieldUpdateOperationsInput | string
+  currentStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
+  reservedStockAfter?: Prisma.IntFieldUpdateOperationsInput | number
+}
+
+export type FbaOutboundUncheckedUpdateManyWithoutProductListingInput = {
+  actualQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  appliedQuantity?: Prisma.IntFieldUpdateOperationsInput | number
+  shortfall?: Prisma.IntFieldUpdateOperationsInput | number
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  movementId?: Prisma.IntFieldUpdateOperationsInput | number
   idempotencyKey?: Prisma.StringFieldUpdateOperationsInput | string
   requestHash?: Prisma.StringFieldUpdateOperationsInput | string
   shipmentReference?: Prisma.StringFieldUpdateOperationsInput | string
@@ -500,6 +807,10 @@ export type FbaOutboundUncheckedUpdateWithoutMovementInput = {
 
 
 export type FbaOutboundSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  actualQuantity?: boolean
+  appliedQuantity?: boolean
+  shortfall?: boolean
+  productListingId?: boolean
   id?: boolean
   movementId?: boolean
   idempotencyKey?: boolean
@@ -507,10 +818,15 @@ export type FbaOutboundSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   shipmentReference?: boolean
   currentStockAfter?: boolean
   reservedStockAfter?: boolean
+  productListing?: boolean | Prisma.ProductListingDefaultArgs<ExtArgs>
   movement?: boolean | Prisma.InventoryMovementDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["fbaOutbound"]>
 
 export type FbaOutboundSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  actualQuantity?: boolean
+  appliedQuantity?: boolean
+  shortfall?: boolean
+  productListingId?: boolean
   id?: boolean
   movementId?: boolean
   idempotencyKey?: boolean
@@ -518,10 +834,15 @@ export type FbaOutboundSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   shipmentReference?: boolean
   currentStockAfter?: boolean
   reservedStockAfter?: boolean
+  productListing?: boolean | Prisma.ProductListingDefaultArgs<ExtArgs>
   movement?: boolean | Prisma.InventoryMovementDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["fbaOutbound"]>
 
 export type FbaOutboundSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  actualQuantity?: boolean
+  appliedQuantity?: boolean
+  shortfall?: boolean
+  productListingId?: boolean
   id?: boolean
   movementId?: boolean
   idempotencyKey?: boolean
@@ -529,10 +850,15 @@ export type FbaOutboundSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   shipmentReference?: boolean
   currentStockAfter?: boolean
   reservedStockAfter?: boolean
+  productListing?: boolean | Prisma.ProductListingDefaultArgs<ExtArgs>
   movement?: boolean | Prisma.InventoryMovementDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["fbaOutbound"]>
 
 export type FbaOutboundSelectScalar = {
+  actualQuantity?: boolean
+  appliedQuantity?: boolean
+  shortfall?: boolean
+  productListingId?: boolean
   id?: boolean
   movementId?: boolean
   idempotencyKey?: boolean
@@ -542,23 +868,31 @@ export type FbaOutboundSelectScalar = {
   reservedStockAfter?: boolean
 }
 
-export type FbaOutboundOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "movementId" | "idempotencyKey" | "requestHash" | "shipmentReference" | "currentStockAfter" | "reservedStockAfter", ExtArgs["result"]["fbaOutbound"]>
+export type FbaOutboundOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"actualQuantity" | "appliedQuantity" | "shortfall" | "productListingId" | "id" | "movementId" | "idempotencyKey" | "requestHash" | "shipmentReference" | "currentStockAfter" | "reservedStockAfter", ExtArgs["result"]["fbaOutbound"]>
 export type FbaOutboundInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  productListing?: boolean | Prisma.ProductListingDefaultArgs<ExtArgs>
   movement?: boolean | Prisma.InventoryMovementDefaultArgs<ExtArgs>
 }
 export type FbaOutboundIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  productListing?: boolean | Prisma.ProductListingDefaultArgs<ExtArgs>
   movement?: boolean | Prisma.InventoryMovementDefaultArgs<ExtArgs>
 }
 export type FbaOutboundIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  productListing?: boolean | Prisma.ProductListingDefaultArgs<ExtArgs>
   movement?: boolean | Prisma.InventoryMovementDefaultArgs<ExtArgs>
 }
 
 export type $FbaOutboundPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "FbaOutbound"
   objects: {
+    productListing: Prisma.$ProductListingPayload<ExtArgs>
     movement: Prisma.$InventoryMovementPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
+    actualQuantity: number
+    appliedQuantity: number
+    shortfall: number
+    productListingId: number
     id: number
     movementId: number
     idempotencyKey: string
@@ -649,8 +983,8 @@ export interface FbaOutboundDelegate<ExtArgs extends runtime.Types.Extensions.In
    * // Get first 10 FbaOutbounds
    * const fbaOutbounds = await prisma.fbaOutbound.findMany({ take: 10 })
    *
-   * // Only select the `id`
-   * const fbaOutboundWithIdOnly = await prisma.fbaOutbound.findMany({ select: { id: true } })
+   * // Only select the `actualQuantity`
+   * const fbaOutboundWithActualQuantityOnly = await prisma.fbaOutbound.findMany({ select: { actualQuantity: true } })
    *
    */
   findMany<T extends FbaOutboundFindManyArgs>(args?: Prisma.SelectSubset<T, FbaOutboundFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FbaOutboundPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
@@ -694,9 +1028,9 @@ export interface FbaOutboundDelegate<ExtArgs extends runtime.Types.Extensions.In
    *   ]
    * })
    *
-   * // Create many FbaOutbounds and only return the `id`
-   * const fbaOutboundWithIdOnly = await prisma.fbaOutbound.createManyAndReturn({
-   *   select: { id: true },
+   * // Create many FbaOutbounds and only return the `actualQuantity`
+   * const fbaOutboundWithActualQuantityOnly = await prisma.fbaOutbound.createManyAndReturn({
+   *   select: { actualQuantity: true },
    *   data: [
    *     // ... provide data here
    *   ]
@@ -785,9 +1119,9 @@ export interface FbaOutboundDelegate<ExtArgs extends runtime.Types.Extensions.In
    *   ]
    * })
    *
-   * // Update zero or more FbaOutbounds and only return the `id`
-   * const fbaOutboundWithIdOnly = await prisma.fbaOutbound.updateManyAndReturn({
-   *   select: { id: true },
+   * // Update zero or more FbaOutbounds and only return the `actualQuantity`
+   * const fbaOutboundWithActualQuantityOnly = await prisma.fbaOutbound.updateManyAndReturn({
+   *   select: { actualQuantity: true },
    *   where: {
    *     // ... provide filter here
    *   },
@@ -960,6 +1294,7 @@ readonly fields: FbaOutboundFieldRefs;
  */
 export interface Prisma__FbaOutboundClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  productListing<T extends Prisma.ProductListingDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductListingDefaultArgs<ExtArgs>>): Prisma.Prisma__ProductListingClient<runtime.Types.Result.GetResult<Prisma.$ProductListingPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   movement<T extends Prisma.InventoryMovementDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.InventoryMovementDefaultArgs<ExtArgs>>): Prisma.Prisma__InventoryMovementClient<runtime.Types.Result.GetResult<Prisma.$InventoryMovementPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -990,6 +1325,10 @@ export interface Prisma__FbaOutboundClient<T, Null = never, ExtArgs extends runt
  * Fields of the FbaOutbound model
  */
 export interface FbaOutboundFieldRefs {
+  readonly actualQuantity: Prisma.FieldRef<"FbaOutbound", 'Int'>
+  readonly appliedQuantity: Prisma.FieldRef<"FbaOutbound", 'Int'>
+  readonly shortfall: Prisma.FieldRef<"FbaOutbound", 'Int'>
+  readonly productListingId: Prisma.FieldRef<"FbaOutbound", 'Int'>
   readonly id: Prisma.FieldRef<"FbaOutbound", 'Int'>
   readonly movementId: Prisma.FieldRef<"FbaOutbound", 'Int'>
   readonly idempotencyKey: Prisma.FieldRef<"FbaOutbound", 'String'>

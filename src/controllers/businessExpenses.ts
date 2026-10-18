@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { BusinessExpenseCreateSchema } from "../domain/businessExpenseValidator.js";
 import { prisma } from "../prisma/runtime.js";
@@ -32,7 +33,7 @@ export const createBusinessExpense = async (req: Request, res: Response) => {
     });
     return res.status(201).json(expense);
   } catch (err: unknown) {
-    console.error("Business expense creation error", err);
+    logOperationalError("Business expense creation error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -52,7 +53,7 @@ export const listBusinessExpenses = async (req: Request, res: Response) => {
     });
     return res.json(expenses);
   } catch (err: unknown) {
-    console.error("Business expense listing error", err);
+    logOperationalError("Business expense listing error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

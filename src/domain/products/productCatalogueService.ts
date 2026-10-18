@@ -53,6 +53,7 @@ function presentProduct(product: any, query?: ProductCatalogueQuery) {
     .filter((listing: any) => query ? offerMatchesQuery(listing, query) : offerMatchesQuery(listing, {} as ProductCatalogueQuery))
     .map(({ reservedStock, ...listing }: any) => ({
       ...listing,
+      currentStock: Math.max(0,listing.currentStock-reservedStock),
       availableStock: Math.max(0, listing.currentStock - reservedStock),
       effectivePrice: listing.salePrice ?? listing.originalPrice,
     }));

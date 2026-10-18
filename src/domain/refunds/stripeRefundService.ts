@@ -1,3 +1,4 @@
+import {refundConflictEvidence} from "./refundEvidenceService.js";
 import Stripe from "stripe";
 import { Decimal } from "@prisma/client/runtime/client";
 import { config } from "../../config/index.js";
@@ -47,10 +48,10 @@ export async function createOrReuseStripeRefund(orderId:number,paymentId:number,
       if(code)return applyRefundObservation(refund.id,{provider:"STRIPE",parentReference:refund.providerPaymentReference!,amount:refund.amount.toString(),currency:refund.currency,status:"FAILED",rejectionCode:code});
       return retainUnresolved(refund.id,"PROVIDER_OUTCOME_UNKNOWN");
     }
-    if(!stripeRefundMetadataMatches(response,refund.id,orderId))return retainUnresolved(refund.id,"PROVIDER_EVIDENCE_MISMATCH",true);
+    if(!stripeRefundMetadataMatches(response,refund.id,orderId))return retainUnresolved(refund.id,"PROVIDER_EVIDENCE_MISMATCH",true,refundConflictEvidence("PROVIDER_EVIDENCE_MISMATCH","POST",{observedReference:response.id,observedAmount:response.amount,observedCurrency:response.currency}));
     let observation:RefundObservation;
     try{if(!Number.isSafeInteger(response.amount)||response.amount<=0||!response.id)throw new Error();observation=stripeRefundObservation(response);}
     catch{return retainUnresolved(refund.id,"INVALID_PROVIDER_RESPONSE",true);}
-    return applyRefundObservation(refund.id,observation);
+    return applyRefundObservation(refund.id,{...observation,source:"POST"});
   });
 }

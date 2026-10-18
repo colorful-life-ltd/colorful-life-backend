@@ -1,3 +1,5 @@
+import {historicalUnpaidConfirmedFixture} from "./fixtures/historicalUnpaidOrder.js";
+import {recordVerifiedPayment} from "./fixtures/verifiedPayment.js";
 import { OrderReturnEligibilityError } from "../domain/orders/returnInventorySafety.js";
 import { strict as assert } from "node:assert";
 import { after, afterEach, before, describe, it } from "node:test";
@@ -145,13 +147,13 @@ describe("per-item Used offers", () => {
     assert.deepEqual(item.conditionPhotoSnapshot, listing.usedConditionPhotos.map((p: any) => ({ id: p.id, url: p.url, publicId: p.publicId, sortOrder: p.sortOrder })));
     assert.equal(Number(item.unitPrice), 39.99);
 
-    const adjustment = await fetch(`${base}/products/${listing.id}/inventory-adjustments`, { method: "POST", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ quantity: 1 }) });
+    const adjustment = await fetch(`${base}/products/${listing.id}/inventory-adjustments`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ quantity: 1 }) });
     assert.equal(adjustment.status, 409);
-    const stocktake = await fetch(`${base}/inventory/stocktakes`, { method: "POST", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ productListingId: listing.id, actualStock: 2 }) });
+    const stocktake = await fetch(`${base}/inventory/stocktakes`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ productListingId: listing.id, actualStock: 2 }) });
     assert.equal(stocktake.status, 400);
-    const patch = await fetch(`${base}/products/${listing.id}`, { method: "PATCH", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ condition: "NEW" }) });
+    const patch = await fetch(`${base}/products/${listing.id}`, { method: "PATCH", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ condition: "NEW" }) });
     assert.equal(patch.status, 400);
-    const stockPatch = await fetch(`${base}/products/${listing.id}`, { method: "PATCH", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ currentStock: 2 }) });
+    const stockPatch = await fetch(`${base}/products/${listing.id}`, { method: "PATCH", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ currentStock: 2 }) });
     assert.equal(stockPatch.status, 400);
   });
 
@@ -477,7 +479,7 @@ describe("per-item Used offers", () => {
       addresses: { create: { recipientName: "Buyer", line1: "1 High Street", city: "London", postcode: "SW1A 1AA", countryCode: "GB", isDefaultBilling: true } } } });
     users.push(buyer.id);
     const order = await createOrder(buyer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }); orders.push(order.id);
-    await confirmOrder(adminId, order.id);
+    await historicalUnpaidConfirmedFixture(order.id,adminId);
     const sold = await prisma.productListing.findUniqueOrThrow({ where: { id: listing.id } });
     assert.equal(sold.currentStock, 0); assert.equal(sold.usedLifecycle, "SOLD");
     await assert.rejects(() => prisma.usedConditionPhoto.deleteMany({ where: { listingId: listing.id } }));
@@ -493,6 +495,7 @@ describe("per-item Used offers", () => {
     assert.equal(returnResponse.status, 201);
     const returnListing = await returnResponse.json(); listings.push(returnListing.id);
     const returnOrder = await createOrder(buyer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: returnListing.id, quantity: 1 }] }); orders.push(returnOrder.id);
+    await recordVerifiedPayment(returnOrder.id);
     await confirmOrder(adminId, returnOrder.id);
     const orderItem = await prisma.orderItem.findFirstOrThrow({ where: { orderId: returnOrder.id } });
     const returnedItem = await requestOrderReturn(returnOrder.id, orderItem.id, 1, ReturnReason.DAMAGED, "Box damaged in transit", ReturnShippingPayer.SELLER, undefined, buyer.id);
@@ -513,7 +516,7 @@ describe("per-item Used offers", () => {
     assert.equal((historicalOrderItem.conditionPhotoSnapshot as any[]).length, 1);
     assert.notEqual(replacementListing.usedConditionPhotos[0].id, (historicalOrderItem.conditionPhotoSnapshot as any[])[0].id);
     await assert.rejects(() => prisma.productListing.update({ where: { id: listing.id }, data: { currentStock: 1 } }));
-    const reactivate = await fetch(`${base}/products/${listing.id}/reactivate`, { method: "PATCH", headers: { Authorization: `Bearer ${adminToken}` } });
+    const reactivate = await fetch(`${base}/products/${listing.id}/reactivate`, { method: "PATCH", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` } });
     assert.equal(reactivate.status, 409);
   });
 });

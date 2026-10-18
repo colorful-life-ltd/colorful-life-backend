@@ -76,7 +76,7 @@ function call(path: string, init: RequestInit & { token?: string } = {}) {
   const { token, ...rest } = init;
   return fetch(`${url}${path}`, {
     ...rest,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(rest.headers ?? {}) },
+    headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(rest.headers ?? {}) },
   });
 }
 

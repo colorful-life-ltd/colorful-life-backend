@@ -1,3 +1,5 @@
+import {assertListingCommitmentAllowed} from "../inventory/inventoryDiscrepancy.js";
+import {UnsupportedDeliveryCountryError} from "./orderErrors.js";
 import { hasValidListingPrices, InvalidListingPriceError } from "../products/listingPrice.js";
 import { admitOrderCreation } from "../security/paymentAbuse.js";
 import { orderFinancials, resolveShipping, shippingMethodSchema } from "./shipping.js";
@@ -160,6 +162,7 @@ export async function createOrder(
     await lockCustomerCart(tx, userId);
     for (const listingId of [...listingIdsSet].sort((a, b) => a - b)) {
       await tx.$queryRaw`SELECT id FROM "ProductListing" WHERE id = ${listingId} FOR UPDATE`;
+      await assertListingCommitmentAllowed(tx,listingId);
     }
     await settleCartReconciliation(tx, userId);
 
@@ -192,6 +195,7 @@ export async function createOrder(
 
     // 2b. Delivery snapshot – use billing if not provided
     const delivery = input.deliveryAddress ?? billing;
+    if(normalizeCountryCode(delivery.countryCode)!=="GB")throw new UnsupportedDeliveryCountryError();
 
     // 2c. Load product listings for requested ids
     const distinctIds = Array.from(listingIdsSet);

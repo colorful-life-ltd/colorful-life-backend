@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/index.js";
@@ -37,7 +38,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   try {
     user = await lookupUser(userId);
   } catch (error) {
-    console.error("Authentication user lookup failed", error);
+    logOperationalError("Authentication user lookup failed", error);
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 

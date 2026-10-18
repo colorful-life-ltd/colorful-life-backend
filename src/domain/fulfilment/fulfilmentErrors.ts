@@ -15,6 +15,10 @@ export class FulfilmentTransitionError extends Error {
 
 export type PaymentIneligibility =
   | "SECURITY_REVIEW_REQUIRED"
+  | "PROVIDER_DISPUTE_REVIEW_REQUIRED"
+  | "CANCELLATION_PENDING"
+  | "PAYMENT_AMOUNT_MISMATCH"
+  | "INVENTORY_DISCREPANCY"
   | "NO_PAYMENT"
   | "PAYMENT_NOT_SUCCEEDED"
   | "PAYMENT_UNRESOLVED"

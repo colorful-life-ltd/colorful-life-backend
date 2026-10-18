@@ -36,7 +36,7 @@ async function createUserWithAddress() {
           line1: "123 Test St",
           city: "Testville",
           postcode: "12345",
-          countryCode: "US",
+          countryCode: "GB",
            isDefaultBilling: true,
         },
       },
@@ -164,7 +164,7 @@ describe("Order Creation Domain Integration Tests", () => {
         line1: "456 Test Ave",
         city: "Testville",
         postcode: "67890",
-        countryCode: "US",
+        countryCode: "GB",
         isDefaultBilling: true,
       },
     });
@@ -181,7 +181,7 @@ describe("Order Creation Domain Integration Tests", () => {
       line1: "999 Override Rd",
       city: "Overtown",
       postcode: "00000",
-      countryCode: "US",
+      countryCode: "GB",
     };
     const order = await recordOrder({ shippingMethod: "STANDARD" as const,
       items: [{ productListingId: productListingIds[0], quantity: 1 }],

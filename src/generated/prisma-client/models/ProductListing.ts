@@ -292,6 +292,7 @@ export type ProductListingWhereInput = {
   active?: Prisma.BoolFilter<"ProductListing"> | boolean
   createdAt?: Prisma.DateTimeFilter<"ProductListing"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ProductListing"> | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundListRelationFilter
   legoProduct?: Prisma.XOR<Prisma.LegoProductScalarRelationFilter, Prisma.LegoProductWhereInput>
   usedConditionPhotos?: Prisma.UsedConditionPhotoListRelationFilter
   inventoryMovements?: Prisma.InventoryMovementListRelationFilter
@@ -315,6 +316,7 @@ export type ProductListingOrderByWithRelationInput = {
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  fbaOutbounds?: Prisma.FbaOutboundOrderByRelationAggregateInput
   legoProduct?: Prisma.LegoProductOrderByWithRelationInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoOrderByRelationAggregateInput
   inventoryMovements?: Prisma.InventoryMovementOrderByRelationAggregateInput
@@ -341,6 +343,7 @@ export type ProductListingWhereUniqueInput = Prisma.AtLeast<{
   active?: Prisma.BoolFilter<"ProductListing"> | boolean
   createdAt?: Prisma.DateTimeFilter<"ProductListing"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ProductListing"> | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundListRelationFilter
   legoProduct?: Prisma.XOR<Prisma.LegoProductScalarRelationFilter, Prisma.LegoProductWhereInput>
   usedConditionPhotos?: Prisma.UsedConditionPhotoListRelationFilter
   inventoryMovements?: Prisma.InventoryMovementListRelationFilter
@@ -400,6 +403,7 @@ export type ProductListingCreateInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
@@ -423,6 +427,7 @@ export type ProductListingUncheckedCreateInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -443,6 +448,7 @@ export type ProductListingUpdateInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
@@ -466,6 +472,7 @@ export type ProductListingUncheckedUpdateInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
@@ -687,6 +694,20 @@ export type ProductListingUpdateOneRequiredWithoutCartItemsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProductListingUpdateToOneWithWhereWithoutCartItemsInput, Prisma.ProductListingUpdateWithoutCartItemsInput>, Prisma.ProductListingUncheckedUpdateWithoutCartItemsInput>
 }
 
+export type ProductListingCreateNestedOneWithoutFbaOutboundsInput = {
+  create?: Prisma.XOR<Prisma.ProductListingCreateWithoutFbaOutboundsInput, Prisma.ProductListingUncheckedCreateWithoutFbaOutboundsInput>
+  connectOrCreate?: Prisma.ProductListingCreateOrConnectWithoutFbaOutboundsInput
+  connect?: Prisma.ProductListingWhereUniqueInput
+}
+
+export type ProductListingUpdateOneRequiredWithoutFbaOutboundsNestedInput = {
+  create?: Prisma.XOR<Prisma.ProductListingCreateWithoutFbaOutboundsInput, Prisma.ProductListingUncheckedCreateWithoutFbaOutboundsInput>
+  connectOrCreate?: Prisma.ProductListingCreateOrConnectWithoutFbaOutboundsInput
+  upsert?: Prisma.ProductListingUpsertWithoutFbaOutboundsInput
+  connect?: Prisma.ProductListingWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ProductListingUpdateToOneWithWhereWithoutFbaOutboundsInput, Prisma.ProductListingUpdateWithoutFbaOutboundsInput>, Prisma.ProductListingUncheckedUpdateWithoutFbaOutboundsInput>
+}
+
 export type ProductListingCreateNestedOneWithoutInventoryMovementsInput = {
   create?: Prisma.XOR<Prisma.ProductListingCreateWithoutInventoryMovementsInput, Prisma.ProductListingUncheckedCreateWithoutInventoryMovementsInput>
   connectOrCreate?: Prisma.ProductListingCreateOrConnectWithoutInventoryMovementsInput
@@ -772,6 +793,7 @@ export type ProductListingCreateWithoutLegoProductInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemCreateNestedManyWithoutProductListingInput
@@ -793,6 +815,7 @@ export type ProductListingUncheckedCreateWithoutLegoProductInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -857,6 +880,7 @@ export type ProductListingCreateWithoutUsedConditionPhotosInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemCreateNestedManyWithoutProductListingInput
@@ -879,6 +903,7 @@ export type ProductListingUncheckedCreateWithoutUsedConditionPhotosInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -914,6 +939,7 @@ export type ProductListingUpdateWithoutUsedConditionPhotosInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUpdateManyWithoutProductListingNestedInput
@@ -936,6 +962,7 @@ export type ProductListingUncheckedUpdateWithoutUsedConditionPhotosInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutProductListingNestedInput
@@ -955,6 +982,7 @@ export type ProductListingCreateWithoutCartItemsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
@@ -977,6 +1005,7 @@ export type ProductListingUncheckedCreateWithoutCartItemsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -1012,6 +1041,7 @@ export type ProductListingUpdateWithoutCartItemsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
@@ -1034,10 +1064,113 @@ export type ProductListingUncheckedUpdateWithoutCartItemsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutProductListingNestedInput
+  sourceInventoryAudits?: Prisma.InventoryAuditUncheckedUpdateManyWithoutSourceProductListingNestedInput
+  targetInventoryAudits?: Prisma.InventoryAuditUncheckedUpdateManyWithoutTargetProductListingNestedInput
+}
+
+export type ProductListingCreateWithoutFbaOutboundsInput = {
+  condition: $Enums.ListingCondition
+  damageDescription?: string | null
+  usedLifecycle?: $Enums.UsedOfferLifecycle | null
+  originalPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  salePrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currentStock?: number
+  reservedStock?: number
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
+  usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
+  inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
+  purchaseItems?: Prisma.PurchaseItemCreateNestedManyWithoutProductListingInput
+  orderItems?: Prisma.OrderItemCreateNestedManyWithoutProductListingInput
+  cartItems?: Prisma.CartItemCreateNestedManyWithoutProductListingInput
+  sourceInventoryAudits?: Prisma.InventoryAuditCreateNestedManyWithoutSourceProductListingInput
+  targetInventoryAudits?: Prisma.InventoryAuditCreateNestedManyWithoutTargetProductListingInput
+}
+
+export type ProductListingUncheckedCreateWithoutFbaOutboundsInput = {
+  id?: number
+  legoProductId: number
+  condition: $Enums.ListingCondition
+  damageDescription?: string | null
+  usedLifecycle?: $Enums.UsedOfferLifecycle | null
+  originalPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  salePrice?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currentStock?: number
+  reservedStock?: number
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
+  inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
+  purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
+  orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutProductListingInput
+  cartItems?: Prisma.CartItemUncheckedCreateNestedManyWithoutProductListingInput
+  sourceInventoryAudits?: Prisma.InventoryAuditUncheckedCreateNestedManyWithoutSourceProductListingInput
+  targetInventoryAudits?: Prisma.InventoryAuditUncheckedCreateNestedManyWithoutTargetProductListingInput
+}
+
+export type ProductListingCreateOrConnectWithoutFbaOutboundsInput = {
+  where: Prisma.ProductListingWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProductListingCreateWithoutFbaOutboundsInput, Prisma.ProductListingUncheckedCreateWithoutFbaOutboundsInput>
+}
+
+export type ProductListingUpsertWithoutFbaOutboundsInput = {
+  update: Prisma.XOR<Prisma.ProductListingUpdateWithoutFbaOutboundsInput, Prisma.ProductListingUncheckedUpdateWithoutFbaOutboundsInput>
+  create: Prisma.XOR<Prisma.ProductListingCreateWithoutFbaOutboundsInput, Prisma.ProductListingUncheckedCreateWithoutFbaOutboundsInput>
+  where?: Prisma.ProductListingWhereInput
+}
+
+export type ProductListingUpdateToOneWithWhereWithoutFbaOutboundsInput = {
+  where?: Prisma.ProductListingWhereInput
+  data: Prisma.XOR<Prisma.ProductListingUpdateWithoutFbaOutboundsInput, Prisma.ProductListingUncheckedUpdateWithoutFbaOutboundsInput>
+}
+
+export type ProductListingUpdateWithoutFbaOutboundsInput = {
+  condition?: Prisma.EnumListingConditionFieldUpdateOperationsInput | $Enums.ListingCondition
+  damageDescription?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usedLifecycle?: Prisma.NullableEnumUsedOfferLifecycleFieldUpdateOperationsInput | $Enums.UsedOfferLifecycle | null
+  originalPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  salePrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currentStock?: Prisma.IntFieldUpdateOperationsInput | number
+  reservedStock?: Prisma.IntFieldUpdateOperationsInput | number
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
+  usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
+  inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
+  purchaseItems?: Prisma.PurchaseItemUpdateManyWithoutProductListingNestedInput
+  orderItems?: Prisma.OrderItemUpdateManyWithoutProductListingNestedInput
+  cartItems?: Prisma.CartItemUpdateManyWithoutProductListingNestedInput
+  sourceInventoryAudits?: Prisma.InventoryAuditUpdateManyWithoutSourceProductListingNestedInput
+  targetInventoryAudits?: Prisma.InventoryAuditUpdateManyWithoutTargetProductListingNestedInput
+}
+
+export type ProductListingUncheckedUpdateWithoutFbaOutboundsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  legoProductId?: Prisma.IntFieldUpdateOperationsInput | number
+  condition?: Prisma.EnumListingConditionFieldUpdateOperationsInput | $Enums.ListingCondition
+  damageDescription?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  usedLifecycle?: Prisma.NullableEnumUsedOfferLifecycleFieldUpdateOperationsInput | $Enums.UsedOfferLifecycle | null
+  originalPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  salePrice?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  currentStock?: Prisma.IntFieldUpdateOperationsInput | number
+  reservedStock?: Prisma.IntFieldUpdateOperationsInput | number
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
+  inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
+  purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
+  orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutProductListingNestedInput
+  cartItems?: Prisma.CartItemUncheckedUpdateManyWithoutProductListingNestedInput
   sourceInventoryAudits?: Prisma.InventoryAuditUncheckedUpdateManyWithoutSourceProductListingNestedInput
   targetInventoryAudits?: Prisma.InventoryAuditUncheckedUpdateManyWithoutTargetProductListingNestedInput
 }
@@ -1053,6 +1186,7 @@ export type ProductListingCreateWithoutInventoryMovementsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemCreateNestedManyWithoutProductListingInput
@@ -1075,6 +1209,7 @@ export type ProductListingUncheckedCreateWithoutInventoryMovementsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -1110,6 +1245,7 @@ export type ProductListingUpdateWithoutInventoryMovementsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUpdateManyWithoutProductListingNestedInput
@@ -1132,6 +1268,7 @@ export type ProductListingUncheckedUpdateWithoutInventoryMovementsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutProductListingNestedInput
@@ -1151,6 +1288,7 @@ export type ProductListingCreateWithoutSourceInventoryAuditsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
@@ -1173,6 +1311,7 @@ export type ProductListingUncheckedCreateWithoutSourceInventoryAuditsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -1197,6 +1336,7 @@ export type ProductListingCreateWithoutTargetInventoryAuditsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
@@ -1219,6 +1359,7 @@ export type ProductListingUncheckedCreateWithoutTargetInventoryAuditsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -1254,6 +1395,7 @@ export type ProductListingUpdateWithoutSourceInventoryAuditsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
@@ -1276,6 +1418,7 @@ export type ProductListingUncheckedUpdateWithoutSourceInventoryAuditsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
@@ -1306,6 +1449,7 @@ export type ProductListingUpdateWithoutTargetInventoryAuditsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
@@ -1328,6 +1472,7 @@ export type ProductListingUncheckedUpdateWithoutTargetInventoryAuditsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
@@ -1347,6 +1492,7 @@ export type ProductListingCreateWithoutOrderItemsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
@@ -1369,6 +1515,7 @@ export type ProductListingUncheckedCreateWithoutOrderItemsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
   purchaseItems?: Prisma.PurchaseItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -1404,6 +1551,7 @@ export type ProductListingUpdateWithoutOrderItemsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
@@ -1426,6 +1574,7 @@ export type ProductListingUncheckedUpdateWithoutOrderItemsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
@@ -1445,6 +1594,7 @@ export type ProductListingCreateWithoutPurchaseItemsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundCreateNestedManyWithoutProductListingInput
   legoProduct: Prisma.LegoProductCreateNestedOneWithoutProductListingsInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutListingInput
@@ -1467,6 +1617,7 @@ export type ProductListingUncheckedCreateWithoutPurchaseItemsInput = {
   active?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedCreateNestedManyWithoutProductListingInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedCreateNestedManyWithoutListingInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutListingInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutProductListingInput
@@ -1502,6 +1653,7 @@ export type ProductListingUpdateWithoutPurchaseItemsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   legoProduct?: Prisma.LegoProductUpdateOneRequiredWithoutProductListingsNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
@@ -1524,6 +1676,7 @@ export type ProductListingUncheckedUpdateWithoutPurchaseItemsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutProductListingNestedInput
@@ -1557,6 +1710,7 @@ export type ProductListingUpdateWithoutLegoProductInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUpdateManyWithoutProductListingNestedInput
@@ -1578,6 +1732,7 @@ export type ProductListingUncheckedUpdateWithoutLegoProductInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  fbaOutbounds?: Prisma.FbaOutboundUncheckedUpdateManyWithoutProductListingNestedInput
   usedConditionPhotos?: Prisma.UsedConditionPhotoUncheckedUpdateManyWithoutListingNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutListingNestedInput
   purchaseItems?: Prisma.PurchaseItemUncheckedUpdateManyWithoutProductListingNestedInput
@@ -1607,6 +1762,7 @@ export type ProductListingUncheckedUpdateManyWithoutLegoProductInput = {
  */
 
 export type ProductListingCountOutputType = {
+  fbaOutbounds: number
   usedConditionPhotos: number
   inventoryMovements: number
   purchaseItems: number
@@ -1617,6 +1773,7 @@ export type ProductListingCountOutputType = {
 }
 
 export type ProductListingCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  fbaOutbounds?: boolean | ProductListingCountOutputTypeCountFbaOutboundsArgs
   usedConditionPhotos?: boolean | ProductListingCountOutputTypeCountUsedConditionPhotosArgs
   inventoryMovements?: boolean | ProductListingCountOutputTypeCountInventoryMovementsArgs
   purchaseItems?: boolean | ProductListingCountOutputTypeCountPurchaseItemsArgs
@@ -1634,6 +1791,13 @@ export type ProductListingCountOutputTypeDefaultArgs<ExtArgs extends runtime.Typ
    * Select specific fields to fetch from the ProductListingCountOutputType
    */
   select?: Prisma.ProductListingCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * ProductListingCountOutputType without action
+ */
+export type ProductListingCountOutputTypeCountFbaOutboundsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.FbaOutboundWhereInput
 }
 
 /**
@@ -1699,6 +1863,7 @@ export type ProductListingSelect<ExtArgs extends runtime.Types.Extensions.Intern
   active?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  fbaOutbounds?: boolean | Prisma.ProductListing$fbaOutboundsArgs<ExtArgs>
   legoProduct?: boolean | Prisma.LegoProductDefaultArgs<ExtArgs>
   usedConditionPhotos?: boolean | Prisma.ProductListing$usedConditionPhotosArgs<ExtArgs>
   inventoryMovements?: boolean | Prisma.ProductListing$inventoryMovementsArgs<ExtArgs>
@@ -1759,6 +1924,7 @@ export type ProductListingSelectScalar = {
 
 export type ProductListingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "legoProductId" | "condition" | "damageDescription" | "usedLifecycle" | "originalPrice" | "salePrice" | "currentStock" | "reservedStock" | "active" | "createdAt" | "updatedAt", ExtArgs["result"]["productListing"]>
 export type ProductListingInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  fbaOutbounds?: boolean | Prisma.ProductListing$fbaOutboundsArgs<ExtArgs>
   legoProduct?: boolean | Prisma.LegoProductDefaultArgs<ExtArgs>
   usedConditionPhotos?: boolean | Prisma.ProductListing$usedConditionPhotosArgs<ExtArgs>
   inventoryMovements?: boolean | Prisma.ProductListing$inventoryMovementsArgs<ExtArgs>
@@ -1779,6 +1945,7 @@ export type ProductListingIncludeUpdateManyAndReturn<ExtArgs extends runtime.Typ
 export type $ProductListingPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "ProductListing"
   objects: {
+    fbaOutbounds: Prisma.$FbaOutboundPayload<ExtArgs>[]
     legoProduct: Prisma.$LegoProductPayload<ExtArgs>
     usedConditionPhotos: Prisma.$UsedConditionPhotoPayload<ExtArgs>[]
     inventoryMovements: Prisma.$InventoryMovementPayload<ExtArgs>[]
@@ -2195,6 +2362,7 @@ readonly fields: ProductListingFieldRefs;
  */
 export interface Prisma__ProductListingClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  fbaOutbounds<T extends Prisma.ProductListing$fbaOutboundsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductListing$fbaOutboundsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FbaOutboundPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   legoProduct<T extends Prisma.LegoProductDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.LegoProductDefaultArgs<ExtArgs>>): Prisma.Prisma__LegoProductClient<runtime.Types.Result.GetResult<Prisma.$LegoProductPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   usedConditionPhotos<T extends Prisma.ProductListing$usedConditionPhotosArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductListing$usedConditionPhotosArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UsedConditionPhotoPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   inventoryMovements<T extends Prisma.ProductListing$inventoryMovementsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductListing$inventoryMovementsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InventoryMovementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -2642,6 +2810,30 @@ export type ProductListingDeleteManyArgs<ExtArgs extends runtime.Types.Extension
    * Limit how many ProductListings to delete.
    */
   limit?: number
+}
+
+/**
+ * ProductListing.fbaOutbounds
+ */
+export type ProductListing$fbaOutboundsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the FbaOutbound
+   */
+  select?: Prisma.FbaOutboundSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the FbaOutbound
+   */
+  omit?: Prisma.FbaOutboundOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.FbaOutboundInclude<ExtArgs> | null
+  where?: Prisma.FbaOutboundWhereInput
+  orderBy?: Prisma.FbaOutboundOrderByWithRelationInput | Prisma.FbaOutboundOrderByWithRelationInput[]
+  cursor?: Prisma.FbaOutboundWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.FbaOutboundScalarFieldEnum | Prisma.FbaOutboundScalarFieldEnum[]
 }
 
 /**

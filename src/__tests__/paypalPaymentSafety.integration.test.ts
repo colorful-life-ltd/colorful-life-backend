@@ -98,7 +98,7 @@ async function receipt(id: string) {
   return prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: "PAYPAL", providerEventId: id } } });
 }
 async function deliver(e: ReturnType<typeof event>) {
-  return fetch(`${url}/payments/paypal/webhook`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+  return fetch(`${url}/payments/paypal/webhook`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json" }, body: JSON.stringify({
     id: e.id, event_type: e.eventType, resource: { id: e.captureId, amount: { value: e.amount, currency_code: e.currency },
       supplementary_data: { related_ids: { order_id: e.paypalOrderId } } },
   }) });
@@ -126,7 +126,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
     const f = await fixture(), other = await user(), entered = gate(), release = gate();
     const c = captureClient(f); let calls = 0;
     const restore = setPayPalCaptureClientForTests({ captureOrder: async (...args) => { calls++; entered.resolve(); await release.promise; return c.client.captureOrder(args[0]); } });
-    const post = (id: number) => fetch(`${url}/orders/${f.order.id}/payments/paypal/capture`, { method: "POST", headers: { Authorization: `Bearer ${jwt.sign({ id }, config.JWT_SECRET)}` } });
+    const post = (id: number) => fetch(`${url}/orders/${f.order.id}/payments/paypal/capture`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${jwt.sign({ id }, config.JWT_SECRET)}` } });
     const first = post(f.owner.id);
     try {
       await entered.promise;
@@ -241,7 +241,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
   it("rolls back financial processing on unrelated uniqueness failures while retaining durable evidence and HTTP 500", async () => {
     const f = await fixture(), other = await fixture(), c = captureClient(f), e = event(f, c.captureId), held = await holdOrder(f.order.id);
     const restore = setPayPalWebhookVerifierForTests(async () => true);
-    const post = () => fetch(`${url}/payments/paypal/webhook`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: e.id, event_type: e.eventType, resource: { id: c.captureId, amount: { value: e.amount, currency_code: e.currency }, supplementary_data: { related_ids: { order_id: e.paypalOrderId } } } }) });
+    const post = () => fetch(`${url}/payments/paypal/webhook`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json" }, body: JSON.stringify({ id: e.id, event_type: e.eventType, resource: { id: c.captureId, amount: { value: e.amount, currency_code: e.currency }, supplementary_data: { related_ids: { order_id: e.paypalOrderId } } } }) });
     const request = post();
     try {
       await held.wait();

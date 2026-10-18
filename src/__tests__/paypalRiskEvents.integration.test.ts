@@ -44,7 +44,7 @@ function resource(f: Fixture, type: string) {
   return { id: f.captureId, status: type.endsWith('DECLINED') ? 'DECLINED' : 'REVERSED', amount: { value: f.payment.amount.toFixed(2), currency_code: 'GBP' }, supplementary_data: { related_ids: { order_id: f.payment.providerReference } } };
 }
 async function post(type: string, body: unknown, id: string = randomUUID()) {
-  const response = await fetch(`${base}/payments/paypal/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, event_type: type, resource: body }) });
+  const response = await fetch(`${base}/payments/paypal/webhook`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json' }, body: JSON.stringify({ id, event_type: type, resource: body }) });
   assert.equal(response.status, 200); return prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: 'PAYPAL', providerEventId: id } } });
 }
 async function unchanged(f: Fixture, paid = false) {
@@ -86,7 +86,7 @@ it('resolved then older created/updated events remain separate observations and 
 });
 it('invalid signatures cause no durable receipt or review', async () => {
   restoreVerifier?.(); restoreVerifier = setPayPalWebhookVerifierForTests(async () => false);
-  const id = randomUUID(); const response = await fetch(`${base}/payments/paypal/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, event_type: 'CUSTOMER.DISPUTE.CREATED', resource: {} }) });
+  const id = randomUUID(); const response = await fetch(`${base}/payments/paypal/webhook`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json' }, body: JSON.stringify({ id, event_type: 'CUSTOMER.DISPUTE.CREATED', resource: {} }) });
   assert.equal(response.status, 400); assert.equal(await prisma.paymentWebhookEvent.count({ where: { providerEventId: id } }), 0);
 });
 for (const body of [null, [], 'malformed', { id: 42, disputed_transactions: {} }, { id: 'DISPUTE', disputed_transactions: [{ buyer_transaction_id: 'buyer-only' }] }]) it(`malformed dispute ${JSON.stringify(body)} remains auditable without financial effects`, async () => {
@@ -131,7 +131,7 @@ it('admin review requires authentication and ADMIN; concurrent acknowledgement i
   const token = (u: typeof f.user) => jwt.sign({ id: u.id, role: u.role }, config.JWT_SECRET);
   const url = `${base}/admin/paypal/webhook-reviews`;
   assert.equal((await fetch(url)).status, 401);
-  assert.equal((await fetch(url, { headers: { Authorization: `Bearer ${token(f.user)}` } })).status, 403);
+  assert.equal((await fetch(url, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token(f.user)}` } })).status, 403);
   const headers = { Authorization: `Bearer ${token(admin)}`, 'Content-Type': 'application/json' };
   const list = await fetch(`${url}?afterId=${receipt.id-1}`, { headers }); assert.equal(list.status, 200); assert.ok((await list.json() as any).reviews.some((r: any) => r.id === receipt.id));
   const acknowledged = await Promise.all(Array.from({ length: 4 }, () => fetch(`${url}/${receipt.id}/acknowledge`, { method: 'POST', headers, body: '{}' })));
@@ -167,7 +167,7 @@ it('an in-flight provider decline loses to verified success despite concurrent r
 });
 it('conflicting content for an existing event ID cannot replace immutable provider evidence or review', async () => {
   const f = await fixture(); const first = await post('CUSTOMER.DISPUTE.CREATED', resource(f, 'CUSTOMER.DISPUTE.CREATED'));
-  const response = await fetch(`${base}/payments/paypal/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: first.providerEventId, event_type: first.eventType, resource: { ...resource(f, first.eventType), status: 'RESOLVED' } }) });
+  const response = await fetch(`${base}/payments/paypal/webhook`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: first.providerEventId, event_type: first.eventType, resource: { ...resource(f, first.eventType), status: 'RESOLVED' } }) });
   assert.equal(response.status, 500); const current = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { id: first.id } });
   assert.deepEqual(current.evidence, first.evidence); assert.deepEqual(current.reviewDetails, first.reviewDetails); await unchanged(f);
 });

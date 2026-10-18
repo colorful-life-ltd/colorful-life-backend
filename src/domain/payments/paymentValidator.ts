@@ -5,6 +5,8 @@ import { z } from "zod"
 // but it is not part of the body.
 
 export const CreatePaymentSchema = z.object({
+  reason:z.string().trim().min(10).max(1000).optional(),
+  evidenceReference:z.string().trim().min(5).max(256).optional(),
   providerReference: z.string().trim().min(1, { message: "providerReference cannot be empty" }),
 })
 
