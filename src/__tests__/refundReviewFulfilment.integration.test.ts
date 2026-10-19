@@ -82,8 +82,9 @@ async function snapshot(f: Fixture) {
 async function assertReviewRejected(response: Response) {
   assert.equal(response.status, 409);
   const body = await response.json();
-  assert.deepEqual(Object.keys(body.error).sort(), ["code", "message"]);
+  assert.deepEqual(Object.keys(body.error).sort(), ["code", "message", "reason"]);
   assert.equal(body.error.code, "REFUND_REVIEW_REQUIRED");
+  assert.equal(body.error.reason, "REFUND_REVIEW_REQUIRED");
   assert.match(body.error.message, /Resolve the refund review before preparing or dispatching/);
   assert.doesNotMatch(JSON.stringify(body), /pi_|re_|providerReference|reviewEvidence|clientRequestKey/);
 }

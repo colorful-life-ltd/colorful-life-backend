@@ -1,3 +1,4 @@
+import { activePaidCancellation } from './paidCancellationState.js';
 import { orderFinancials } from "./shipping.js";
 import { readCustomerPaymentWindow, readCustomerPaymentWindows } from "../payments/customerPaymentWindow.js";
 import { prisma } from "../../prisma/runtime.js";
@@ -6,6 +7,8 @@ import { customerShipmentSelect, presentFulfilment } from "../fulfilment/fulfilm
 const orderReadSelect = {
   id: true,
   status: true,
+  cancelledAt: true, cancellationReason: true,
+  refunds: { select: { id: true, amount: true, currency: true, status: true, reviewRequired: true, createdAt: true } },
   totalAmount: true,
   confirmationDeliverySnapshot: true,
   createdAt: true,
@@ -25,6 +28,7 @@ const orderReadSelect = {
       conditionSnapshot: true,
       damageDescriptionSnapshot: true,
       conditionPhotoSnapshot: true,
+      returns: { select: { id: true, quantity: true, status: true, requestedAt: true, authorizedAt: true, receivedAt: true, completedAt: true } },
       productListing: {
         select: {
           id: true,
@@ -50,7 +54,10 @@ export async function listCustomerOrders(userId: number) {
       where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: orderReadSelect,
     });
     const windows = await readCustomerPaymentWindows(tx, userId, orders.map(order => order.id));
-    return orders.map(order => ({ ...withFulfilment(order), paymentWindow: windows.get(order.id)! }));
+    return Promise.all(orders.map(async order => ({ ...withFulfilment(order), cancellation: {
+      state: order.status === 'CANCELLED' ? 'CANCELLED' : await activePaidCancellation(tx,order.id) ? 'REQUESTED' : 'NONE',
+      cancelledAt: order.cancelledAt,
+    }, paymentWindow: windows.get(order.id)! })));
   }, { isolationLevel: "RepeatableRead" });
 }
 
@@ -72,7 +79,10 @@ export async function getCustomerOrder(userId: number, orderId: number) {
     });
     if (!order) return null;
     const { payments, ...safeOrder } = order;
-    return { ...withFulfilment(safeOrder), payment: payments[0] ?? null, paymentWindow: await readCustomerPaymentWindow(tx, userId, order.id) };
+    return { ...withFulfilment(safeOrder), cancellation: {
+      state: order.status === 'CANCELLED' ? 'CANCELLED' : await activePaidCancellation(tx,order.id) ? 'REQUESTED' : 'NONE',
+      cancelledAt: order.cancelledAt,
+    }, payment: payments[0] ?? null, paymentWindow: await readCustomerPaymentWindow(tx, userId, order.id) };
   }, { isolationLevel: "RepeatableRead" });
 }
 
@@ -129,7 +139,7 @@ export async function getAdminOrder(orderId: number) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
-      ...orderReadSelect, ...adminOrderSummarySelect,
+      ...orderReadSelect, ...adminOrderSummarySelect, refunds: false,
       actualShippingCost: true, reservationExpiresAt: true,
       cancelledAt: true, cancelledBy: true, cancellationReason: true,
       deliveryRecipientName: true, deliveryLine1: true, deliveryLine2: true,
@@ -146,5 +156,6 @@ export async function getAdminOrder(orderId: number) {
   });
   if (!order) return null;
   const { shipments, fulfilmentEvents, confirmationDeliverySnapshot: _delivery, ...rest } = projectAdminPayment(order);
-  return { ...rest, financials: orderFinancials(order), fulfilmentStage: presentFulfilment(order).stage, fulfilment: presentFulfilment(order), shipments: shipments.map(({ trackingState: _internal, ...safe }) => safe), fulfilmentEvents };
+  const cancellation = await activePaidCancellation(prisma,orderId);
+  return { ...rest, cancellation: { activeRequestId: cancellation?.id.toString() ?? null }, financials: orderFinancials(order), fulfilmentStage: presentFulfilment(order).stage, fulfilment: presentFulfilment(order), shipments: shipments.map(({ trackingState: _internal, ...safe }) => safe), fulfilmentEvents };
 }

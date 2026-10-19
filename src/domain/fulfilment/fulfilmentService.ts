@@ -174,3 +174,18 @@ export async function dispatchLegacyOrder(tx: Prisma.TransactionClient, performe
 
 export const carrierDisplayName = (carrier: ShippingCarrier, otherName?: string) =>
   carrier === "OTHER" ? otherName! : CARRIERS[carrier].name;
+
+/** Same locked checks as dispatch; the result is advisory and rechecked on mutation. */
+export async function fulfilmentEligibility(orderId: number) {
+  return prisma.$transaction(async tx => {
+    const order = await lockOrder(tx, orderId);
+    if (order.status !== 'CONFIRMED') return { eligible: false, reason: 'ORDER_NOT_CONFIRMED' };
+    try {
+      await assertPaymentVerifiedForFulfilment(tx,orderId);
+      return { eligible: true, reason: null };
+    } catch (error) {
+      if (error instanceof FulfilmentPaymentNotVerifiedError) return { eligible: false, reason: error.reason };
+      throw error;
+    }
+  });
+}

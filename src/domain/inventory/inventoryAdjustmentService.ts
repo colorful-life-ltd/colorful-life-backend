@@ -1,3 +1,4 @@
+import { inventoryOperation, inventoryOperationKey } from './inventoryOperationJournal.js';
 import {unresolvedFbaDiscrepancies} from "./inventoryDiscrepancy.js";
 import { prisma } from "../../prisma/runtime.js";
 import {
@@ -118,12 +119,13 @@ function normalizedReasonNote(reasonNote: string | undefined): string | undefine
   return trimmed || undefined;
 }
 
-export async function reconcileStocktake(input: StocktakeReconciliationInput) {
+export async function reconcileStocktake(input: StocktakeReconciliationInput, idempotencyKey?: string) {
   if (!Number.isInteger(input.actualStock) || input.actualStock < 0 || input.actualStock > 2_147_483_647) {
     throw new InvalidStocktakeQuantityError();
   }
 
-  return prisma.$transaction(async (tx) => {
+  inventoryOperationKey(idempotencyKey);
+  return prisma.$transaction(async (tx) => inventoryOperation(tx,idempotencyKey,{...input,operation: 'reconcileStocktake'},async () => {
     // Lock the listing before reading its authoritative stock. Other stock
     // mutations must acquire this row lock to update the same ProductListing.
     const rows = await tx.$queryRaw<Array<{ id: number; currentStock: number; reservedStock: number }>>`
@@ -180,7 +182,7 @@ export async function reconcileStocktake(input: StocktakeReconciliationInput) {
     });
 
     return { listing: { id: listing.id, currentStock: input.actualStock }, movement };
-  });
+  }));
 }
 
 export async function conditionAdjustInventory(input: ConditionAdjustmentInput) {
@@ -192,11 +194,12 @@ export async function conditionAdjustInventory(input: ConditionAdjustmentInput) 
   throw new InvalidConditionAdjustmentError();
 }
 
-export async function writeOffInventory(input: WriteOffInput) {
+export async function writeOffInventory(input: WriteOffInput, idempotencyKey?: string) {
   validateQuantity(input.quantity);
   validateReason(input.reason);
 
-  return prisma.$transaction(async (tx) => {
+  inventoryOperationKey(idempotencyKey);
+  return prisma.$transaction(async (tx) => inventoryOperation(tx,idempotencyKey,{...input,operation: 'writeOffInventory'},async () => {
     const source = await tx.productListing.findUnique({
       where: { id: input.sourceProductListingId },
       select: { id: true, condition: true, usedLifecycle: true },
@@ -240,5 +243,5 @@ export async function writeOffInventory(input: WriteOffInput) {
     });
 
     return { movement, audit };
-  });
+  }));
 }

@@ -4381,6 +4381,8 @@ export const LegoProductScalarFieldEnum = {
   catalogueArtworkPublicId: 'catalogueArtworkPublicId',
   isFeatureProduct: 'isFeatureProduct',
   isPublished: 'isPublished',
+  everPublished: 'everPublished',
+  availabilityState: 'availabilityState',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

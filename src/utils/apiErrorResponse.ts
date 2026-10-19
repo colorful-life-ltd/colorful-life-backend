@@ -49,6 +49,6 @@ export type ApiErrorCode =
 
 /** Sends a stable machine-readable API error envelope. */
 export function sendApiError(res: Response, status: number, code: ApiErrorCode, message: string,
-  details?: { productListingId: number; reason?: string; availableQuantity?: number; requestedQuantity?: number }) {
+  details?: { productListingId?: number; reason?: string; availableQuantity?: number; requestedQuantity?: number }) {
   return res.status(status).json({ error: { code, message, ...details } });
 }

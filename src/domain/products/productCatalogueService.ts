@@ -42,15 +42,15 @@ function offerMatchesQuery(listing: any, query: ProductCatalogueQuery) {
     && (query.maxPrice === undefined || effectivePrice <= query.maxPrice);
 }
 
-export type ProductAvailability = "IN_STOCK" | "OUT_OF_STOCK";
+export type ProductAvailability = "IN_STOCK" | "OUT_OF_STOCK" | "MORE_ON_THE_WAY" | "DISCONTINUED";
 
 function presentProduct(product: any, query?: ProductCatalogueQuery) {
   const { category, productListings, ...shared } = product;
   // Offers stay sellable-only; availability ignores search price bounds.
-  const availability: ProductAvailability = productListings.some((listing: any) => offerMatchesQuery(listing, {} as ProductCatalogueQuery))
-    ? "IN_STOCK" : "OUT_OF_STOCK";
+  const availability: ProductAvailability = product.availabilityState === "DISCONTINUED" ? "DISCONTINUED" : product.isPublished && productListings.some((listing: any) => offerMatchesQuery(listing, {} as ProductCatalogueQuery))
+    ? "IN_STOCK" : product.availabilityState === "MORE_ON_THE_WAY" ? "MORE_ON_THE_WAY" : "OUT_OF_STOCK";
   const offers = productListings
-    .filter((listing: any) => query ? offerMatchesQuery(listing, query) : offerMatchesQuery(listing, {} as ProductCatalogueQuery))
+    .filter((listing: any) => product.isPublished && product.availabilityState !== "DISCONTINUED" && (query ? offerMatchesQuery(listing, query) : offerMatchesQuery(listing, {} as ProductCatalogueQuery)))
     .map(({ reservedStock, ...listing }: any) => ({
       ...listing,
       currentStock: Math.max(0,listing.currentStock-reservedStock),
@@ -103,7 +103,7 @@ export async function listCatalogueProducts(query: ProductCatalogueQuery) {
 
 export async function getCatalogueProductById(productId: number) {
   const product = await prisma.legoProduct.findUnique({
-    where: { id: productId, isPublished: true },
+    where: { id: productId, OR: [{ isPublished: true }, { everPublished: true }] },
     include: {
       category: { select: { id: true, name: true, subtitle: true, description: true, imageUrl: true, thumbnailUrl: true } },
       productImages,

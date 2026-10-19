@@ -20,7 +20,7 @@ export function storefrontSellableListingExistsPredicate(
     ? Prisma.sql`AND ${Prisma.join(pricePredicates, " AND ")}`
     : Prisma.empty;
 
-  return Prisma.sql`EXISTS (
+  return Prisma.sql`(lp."availabilityState" <> 'DISCONTINUED' AND EXISTS (
     SELECT 1 FROM "ProductListing" pl
     WHERE pl."legoProductId" = lp."id"
       AND pl."active" = TRUE
@@ -29,5 +29,5 @@ export function storefrontSellableListingExistsPredicate(
       AND pl."currentStock" > pl."reservedStock"
       AND (pl."condition" = 'NEW' OR (pl."condition" = 'USED_LIKE_NEW' AND pl."usedLifecycle" = 'AVAILABLE'))
       ${pricePredicate}
-  )`;
+  ))`;
 }

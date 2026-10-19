@@ -273,10 +273,10 @@ describe("Admin ProductListing feed", () => {
     const items = await allItems();
     assert.deepEqual(items.find((item) => item.id === zero.id), {
       id: zero.id, condition: "NEW", active: true, usedLifecycle: null,
-      currentStock: 0, availableStock: 0,
+      currentStock: 0, availableStock: 0, originalPrice: "30", salePrice: null, discrepancies: [],
       legoProduct: {
         id: zeroProduct.id, setNumber: zeroProduct.setNumber, title: zeroProduct.title,
-        isFeatureProduct: true, isPublished: true,
+        isFeatureProduct: true, isPublished: true, availabilityState: "STANDARD",
         catalogueArtworkUrl: "https://images.test/juniors.jpg",
         catalogueArtworkPublicId: "colorful-life/catalogue-artwork/juniors",
         productImages: [], category: { id: category.id, name: category.name },
@@ -284,10 +284,10 @@ describe("Admin ProductListing feed", () => {
     });
     assert.deepEqual(items.find((item) => item.id === stocked.id), {
       id: stocked.id, condition: "NEW", active: true, usedLifecycle: null,
-      currentStock: 5, availableStock: 3,
+      currentStock: 5, availableStock: 3, originalPrice: "30", salePrice: null, discrepancies: [],
       legoProduct: {
         id: stockedProduct.id, setNumber: stockedProduct.setNumber, title: stockedProduct.title,
-        isFeatureProduct: false, isPublished: true, catalogueArtworkUrl: null, catalogueArtworkPublicId: null,
+        isFeatureProduct: false, isPublished: true, availabilityState: "STANDARD", catalogueArtworkUrl: null, catalogueArtworkPublicId: null,
         productImages: [], category: { id: category.id, name: category.name },
       },
     });
@@ -303,7 +303,7 @@ describe("Admin ProductListing feed", () => {
     assert.deepEqual(lookup.items, [{
       id: zeroProduct.id, setNumber: zeroProduct.setNumber, title: zeroProduct.title,
       description: null, theme: "Test", ageRecommendation: "8+", pieceCount: 100,
-      isRetired: false, isPublished: true, category: { id: category.id, name: category.name }, usedOfferStatus: "NONE",
+      isRetired: false, isPublished: true, availabilityState: "STANDARD", category: { id: category.id, name: category.name }, usedOfferStatus: "NONE",
     }]);
     assert.equal((await request("/admin/products")).status, 400, "existing lookup still requires q");
     assert.deepEqual(await snapshot(), before, "GET requests must not mutate listing, product or inventory data");

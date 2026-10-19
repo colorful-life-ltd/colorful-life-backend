@@ -52,6 +52,8 @@ export type LegoProductMinAggregateOutputType = {
   catalogueArtworkPublicId: string | null
   isFeatureProduct: boolean | null
   isPublished: boolean | null
+  everPublished: boolean | null
+  availabilityState: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -70,6 +72,8 @@ export type LegoProductMaxAggregateOutputType = {
   catalogueArtworkPublicId: string | null
   isFeatureProduct: boolean | null
   isPublished: boolean | null
+  everPublished: boolean | null
+  availabilityState: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -88,6 +92,8 @@ export type LegoProductCountAggregateOutputType = {
   catalogueArtworkPublicId: number
   isFeatureProduct: number
   isPublished: number
+  everPublished: number
+  availabilityState: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -120,6 +126,8 @@ export type LegoProductMinAggregateInputType = {
   catalogueArtworkPublicId?: true
   isFeatureProduct?: true
   isPublished?: true
+  everPublished?: true
+  availabilityState?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -138,6 +146,8 @@ export type LegoProductMaxAggregateInputType = {
   catalogueArtworkPublicId?: true
   isFeatureProduct?: true
   isPublished?: true
+  everPublished?: true
+  availabilityState?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -156,6 +166,8 @@ export type LegoProductCountAggregateInputType = {
   catalogueArtworkPublicId?: true
   isFeatureProduct?: true
   isPublished?: true
+  everPublished?: true
+  availabilityState?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -261,6 +273,8 @@ export type LegoProductGroupByOutputType = {
   catalogueArtworkPublicId: string | null
   isFeatureProduct: boolean
   isPublished: boolean
+  everPublished: boolean
+  availabilityState: string
   createdAt: Date
   updatedAt: Date
   _count: LegoProductCountAggregateOutputType | null
@@ -302,6 +316,8 @@ export type LegoProductWhereInput = {
   catalogueArtworkPublicId?: Prisma.StringNullableFilter<"LegoProduct"> | string | null
   isFeatureProduct?: Prisma.BoolFilter<"LegoProduct"> | boolean
   isPublished?: Prisma.BoolFilter<"LegoProduct"> | boolean
+  everPublished?: Prisma.BoolFilter<"LegoProduct"> | boolean
+  availabilityState?: Prisma.StringFilter<"LegoProduct"> | string
   createdAt?: Prisma.DateTimeFilter<"LegoProduct"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"LegoProduct"> | Date | string
   category?: Prisma.XOR<Prisma.CategoryNullableScalarRelationFilter, Prisma.CategoryWhereInput> | null
@@ -323,6 +339,8 @@ export type LegoProductOrderByWithRelationInput = {
   catalogueArtworkPublicId?: Prisma.SortOrderInput | Prisma.SortOrder
   isFeatureProduct?: Prisma.SortOrder
   isPublished?: Prisma.SortOrder
+  everPublished?: Prisma.SortOrder
+  availabilityState?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   category?: Prisma.CategoryOrderByWithRelationInput
@@ -347,6 +365,8 @@ export type LegoProductWhereUniqueInput = Prisma.AtLeast<{
   catalogueArtworkPublicId?: Prisma.StringNullableFilter<"LegoProduct"> | string | null
   isFeatureProduct?: Prisma.BoolFilter<"LegoProduct"> | boolean
   isPublished?: Prisma.BoolFilter<"LegoProduct"> | boolean
+  everPublished?: Prisma.BoolFilter<"LegoProduct"> | boolean
+  availabilityState?: Prisma.StringFilter<"LegoProduct"> | string
   createdAt?: Prisma.DateTimeFilter<"LegoProduct"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"LegoProduct"> | Date | string
   category?: Prisma.XOR<Prisma.CategoryNullableScalarRelationFilter, Prisma.CategoryWhereInput> | null
@@ -368,6 +388,8 @@ export type LegoProductOrderByWithAggregationInput = {
   catalogueArtworkPublicId?: Prisma.SortOrderInput | Prisma.SortOrder
   isFeatureProduct?: Prisma.SortOrder
   isPublished?: Prisma.SortOrder
+  everPublished?: Prisma.SortOrder
+  availabilityState?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.LegoProductCountOrderByAggregateInput
@@ -394,6 +416,8 @@ export type LegoProductScalarWhereWithAggregatesInput = {
   catalogueArtworkPublicId?: Prisma.StringNullableWithAggregatesFilter<"LegoProduct"> | string | null
   isFeatureProduct?: Prisma.BoolWithAggregatesFilter<"LegoProduct"> | boolean
   isPublished?: Prisma.BoolWithAggregatesFilter<"LegoProduct"> | boolean
+  everPublished?: Prisma.BoolWithAggregatesFilter<"LegoProduct"> | boolean
+  availabilityState?: Prisma.StringWithAggregatesFilter<"LegoProduct"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"LegoProduct"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"LegoProduct"> | Date | string
 }
@@ -410,6 +434,8 @@ export type LegoProductCreateInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   category?: Prisma.CategoryCreateNestedOneWithoutLegoProductsInput
@@ -431,6 +457,8 @@ export type LegoProductUncheckedCreateInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   productListings?: Prisma.ProductListingUncheckedCreateNestedManyWithoutLegoProductInput
@@ -449,6 +477,8 @@ export type LegoProductUpdateInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   category?: Prisma.CategoryUpdateOneWithoutLegoProductsNestedInput
@@ -470,6 +500,8 @@ export type LegoProductUncheckedUpdateInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productListings?: Prisma.ProductListingUncheckedUpdateManyWithoutLegoProductNestedInput
@@ -490,6 +522,8 @@ export type LegoProductCreateManyInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -506,6 +540,8 @@ export type LegoProductUpdateManyMutationInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -524,6 +560,8 @@ export type LegoProductUncheckedUpdateManyInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -542,6 +580,8 @@ export type LegoProductCountOrderByAggregateInput = {
   catalogueArtworkPublicId?: Prisma.SortOrder
   isFeatureProduct?: Prisma.SortOrder
   isPublished?: Prisma.SortOrder
+  everPublished?: Prisma.SortOrder
+  availabilityState?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -566,6 +606,8 @@ export type LegoProductMaxOrderByAggregateInput = {
   catalogueArtworkPublicId?: Prisma.SortOrder
   isFeatureProduct?: Prisma.SortOrder
   isPublished?: Prisma.SortOrder
+  everPublished?: Prisma.SortOrder
+  availabilityState?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -584,6 +626,8 @@ export type LegoProductMinOrderByAggregateInput = {
   catalogueArtworkPublicId?: Prisma.SortOrder
   isFeatureProduct?: Prisma.SortOrder
   isPublished?: Prisma.SortOrder
+  everPublished?: Prisma.SortOrder
+  availabilityState?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -691,6 +735,8 @@ export type LegoProductCreateWithoutCategoryInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   productListings?: Prisma.ProductListingCreateNestedManyWithoutLegoProductInput
@@ -710,6 +756,8 @@ export type LegoProductUncheckedCreateWithoutCategoryInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   productListings?: Prisma.ProductListingUncheckedCreateNestedManyWithoutLegoProductInput
@@ -759,6 +807,8 @@ export type LegoProductScalarWhereInput = {
   catalogueArtworkPublicId?: Prisma.StringNullableFilter<"LegoProduct"> | string | null
   isFeatureProduct?: Prisma.BoolFilter<"LegoProduct"> | boolean
   isPublished?: Prisma.BoolFilter<"LegoProduct"> | boolean
+  everPublished?: Prisma.BoolFilter<"LegoProduct"> | boolean
+  availabilityState?: Prisma.StringFilter<"LegoProduct"> | string
   createdAt?: Prisma.DateTimeFilter<"LegoProduct"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"LegoProduct"> | Date | string
 }
@@ -775,6 +825,8 @@ export type LegoProductCreateWithoutProductListingsInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   category?: Prisma.CategoryCreateNestedOneWithoutLegoProductsInput
@@ -795,6 +847,8 @@ export type LegoProductUncheckedCreateWithoutProductListingsInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   productImages?: Prisma.ProductImageUncheckedCreateNestedManyWithoutLegoProductInput
@@ -828,6 +882,8 @@ export type LegoProductUpdateWithoutProductListingsInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   category?: Prisma.CategoryUpdateOneWithoutLegoProductsNestedInput
@@ -848,6 +904,8 @@ export type LegoProductUncheckedUpdateWithoutProductListingsInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productImages?: Prisma.ProductImageUncheckedUpdateManyWithoutLegoProductNestedInput
@@ -865,6 +923,8 @@ export type LegoProductCreateWithoutProductImagesInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   category?: Prisma.CategoryCreateNestedOneWithoutLegoProductsInput
@@ -885,6 +945,8 @@ export type LegoProductUncheckedCreateWithoutProductImagesInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   productListings?: Prisma.ProductListingUncheckedCreateNestedManyWithoutLegoProductInput
@@ -918,6 +980,8 @@ export type LegoProductUpdateWithoutProductImagesInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   category?: Prisma.CategoryUpdateOneWithoutLegoProductsNestedInput
@@ -938,6 +1002,8 @@ export type LegoProductUncheckedUpdateWithoutProductImagesInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productListings?: Prisma.ProductListingUncheckedUpdateManyWithoutLegoProductNestedInput
@@ -956,6 +1022,8 @@ export type LegoProductCreateManyCategoryInput = {
   catalogueArtworkPublicId?: string | null
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -972,6 +1040,8 @@ export type LegoProductUpdateWithoutCategoryInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productListings?: Prisma.ProductListingUpdateManyWithoutLegoProductNestedInput
@@ -991,6 +1061,8 @@ export type LegoProductUncheckedUpdateWithoutCategoryInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productListings?: Prisma.ProductListingUncheckedUpdateManyWithoutLegoProductNestedInput
@@ -1010,6 +1082,8 @@ export type LegoProductUncheckedUpdateManyWithoutCategoryInput = {
   catalogueArtworkPublicId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isFeatureProduct?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  everPublished?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  availabilityState?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1068,6 +1142,8 @@ export type LegoProductSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   catalogueArtworkPublicId?: boolean
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   category?: boolean | Prisma.LegoProduct$categoryArgs<ExtArgs>
@@ -1090,6 +1166,8 @@ export type LegoProductSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   catalogueArtworkPublicId?: boolean
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   category?: boolean | Prisma.LegoProduct$categoryArgs<ExtArgs>
@@ -1109,6 +1187,8 @@ export type LegoProductSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   catalogueArtworkPublicId?: boolean
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   category?: boolean | Prisma.LegoProduct$categoryArgs<ExtArgs>
@@ -1128,11 +1208,13 @@ export type LegoProductSelectScalar = {
   catalogueArtworkPublicId?: boolean
   isFeatureProduct?: boolean
   isPublished?: boolean
+  everPublished?: boolean
+  availabilityState?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type LegoProductOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "setNumber" | "categoryId" | "title" | "description" | "theme" | "ageRecommendation" | "pieceCount" | "isRetired" | "catalogueArtworkUrl" | "catalogueArtworkPublicId" | "isFeatureProduct" | "isPublished" | "createdAt" | "updatedAt", ExtArgs["result"]["legoProduct"]>
+export type LegoProductOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "setNumber" | "categoryId" | "title" | "description" | "theme" | "ageRecommendation" | "pieceCount" | "isRetired" | "catalogueArtworkUrl" | "catalogueArtworkPublicId" | "isFeatureProduct" | "isPublished" | "everPublished" | "availabilityState" | "createdAt" | "updatedAt", ExtArgs["result"]["legoProduct"]>
 export type LegoProductInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   category?: boolean | Prisma.LegoProduct$categoryArgs<ExtArgs>
   productListings?: boolean | Prisma.LegoProduct$productListingsArgs<ExtArgs>
@@ -1167,6 +1249,8 @@ export type $LegoProductPayload<ExtArgs extends runtime.Types.Extensions.Interna
     catalogueArtworkPublicId: string | null
     isFeatureProduct: boolean
     isPublished: boolean
+    everPublished: boolean
+    availabilityState: string
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["legoProduct"]>
@@ -1608,6 +1692,8 @@ export interface LegoProductFieldRefs {
   readonly catalogueArtworkPublicId: Prisma.FieldRef<"LegoProduct", 'String'>
   readonly isFeatureProduct: Prisma.FieldRef<"LegoProduct", 'Boolean'>
   readonly isPublished: Prisma.FieldRef<"LegoProduct", 'Boolean'>
+  readonly everPublished: Prisma.FieldRef<"LegoProduct", 'Boolean'>
+  readonly availabilityState: Prisma.FieldRef<"LegoProduct", 'String'>
   readonly createdAt: Prisma.FieldRef<"LegoProduct", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"LegoProduct", 'DateTime'>
 }

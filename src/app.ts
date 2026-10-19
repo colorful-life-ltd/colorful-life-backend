@@ -1,5 +1,6 @@
 import {logOperationalError} from "./utils/operationalLog.js";
 import refundReviews from "./routes/refundReviews.js";
+import adminOperatorIntents from "./routes/adminOperatorIntents.js";
 import { prisma } from "./prisma/runtime.js";
 import adminPaymentSecurity from "./routes/adminPaymentSecurity.js";
 import adminPayPalWebhookReviewsRouter from './routes/adminPayPalWebhookReviews.js';
@@ -55,6 +56,7 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/purchase-analytics", purchaseAnalyticsRouter);
   app.use("/purchase-items", purchaseItemsRouter);
   app.use("/admin/refund-reviews",refundReviews);
+  app.use("/admin/operator-intents", adminOperatorIntents);
   app.use("/admin/payment-security", adminPaymentSecurity);
 app.use("/admin/orders", adminOrdersRouter);
   app.use("/admin/paypal/webhook-reviews", adminPayPalWebhookReviewsRouter);
