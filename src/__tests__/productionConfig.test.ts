@@ -19,3 +19,35 @@ it('staging explicitly permits test providers under production runtime hardening
 it('staging rejects live payment credentials',()=>assert.throws(()=>validateProduction({...valid,STRIPE_SECRET_KEY:'sk_live_synthetic'},{...env,DEPLOYMENT_ENVIRONMENT:'staging'}),/STRIPE_PROVIDER_CONFIGURATION/));
 it('production rejects test payment credentials even with initiation disabled',()=>assert.throws(()=>validateProduction({...valid,STRIPE_SECRET_KEY:'sk_test_synthetic'},env),/STRIPE_PROVIDER_CONFIGURATION/));
 it('rejects trivially repeated long JWT secrets',()=>assert.throws(()=>validateProduction({...valid,JWT_SECRET:'a'.repeat(64)},env),/JWT_SECRET/));
+
+// Exercise the real startup boundary, including schema defaults, without importing
+// application services or opening a database/provider connection.
+for (const [name, override, expected] of [
+    ['legacy payment mode', { PAYMENT_RESOLUTION_ENABLED: 'false' }, 'PAYMENT_RESOLUTION_ENABLED'],
+    ['HTTP storefront', { FRONTEND_URL: 'http://private-canary.invalid' }, 'FRONTEND_URL'],
+    ['untrusted CORS configuration', { CORS_ALLOWED_ORIGINS: 'https://private-canary.invalid' }, 'CORS_ALLOWED_ORIGINS'],
+    ['example sender', { SES_FROM_EMAIL: 'private-canary@example.com' }, 'SES_FROM_EMAIL'],
+    ['weak JWT', { JWT_SECRET: 'private-canary' }, 'JWT_SECRET'],
+    ['sandbox PayPal', { PAYPAL_CLIENT_ID: 'private-canary', PAYPAL_BASE_URL: 'https://api-m.sandbox.paypal.com' }, 'PAYPAL_BASE_URL'],
+] as const) it(`real production startup rejects ${name} before connecting and sanitizes diagnostics`, async () => {
+    const { spawnSync } = await import('node:child_process');
+    const childEnv: NodeJS.ProcessEnv = {
+        ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT: 'production',
+        DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect',
+        JWT_SECRET: valid.JWT_SECRET, FRONTEND_URL: valid.FRONTEND_URL,
+        SES_FROM_EMAIL: valid.SES_FROM_EMAIL, CORS_ALLOWED_ORIGINS: valid.CORS_ALLOWED_ORIGINS,
+        PAYMENT_RESOLUTION_ENABLED: 'true', CLIENT_IP_MODE: 'direct', TRUSTED_PROXY_CIDRS: '',
+        PAYMENT_ABUSE_HMAC_SECRET: 'synthetic-startup-validation-key-only',
+        PAYMENT_ABUSE_LIMITS_JSON: '', PAYMENT_STRIPE_INITIATION_ENABLED: 'false',
+        PAYMENT_PAYPAL_INITIATION_ENABLED: 'false', STRIPE_SECRET_KEY: 'sk_live_synthetic_never_used',
+        PAYPAL_CLIENT_ID: '', PAYPAL_CLIENT_SECRET: '', PAYPAL_WEBHOOK_ID: '',
+        PAYPAL_BASE_URL: 'https://api-m.paypal.com', ...override,
+    };
+    delete childEnv.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e',
+        'await import("./dist/config/index.js"); console.log("unexpected-startup-success")'],
+        { env: childEnv, encoding: 'utf8', timeout: 10_000 });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, new RegExp(expected));
+    assert.doesNotMatch(result.stdout + result.stderr, /private-canary|unexpected-startup-success|ECONNREFUSED/);
+});

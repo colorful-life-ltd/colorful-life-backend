@@ -446,3 +446,38 @@ it('manual review HTTP contract rejects financial overrides and protects evidenc
  assert.equal((await fetch(path+'/resolve',{method:'POST',headers:headers(f.admin.id),body:JSON.stringify(input)})).status,200);
  assert.equal((await prisma.refund.findUniqueOrThrow({where:{id:r.id}})).status,'SUCCEEDED');
 });
+
+it('a dispute received after dispatch retains evidence and alerts without reversing money or stock', async () => {
+    const f = await fixture();
+    await dispatchShipment(f.admin.id, f.order.id, { carrier: 'ROYAL_MAIL', carrierName: 'Royal Mail', trackingNumber: 'AB123456789GB', actualShippingCost: 3 });
+    const paymentBefore = await prisma.payment.findUniqueOrThrow({ where: { id: f.payment!.id } });
+    const listingBefore = await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } });
+    const original = console.warn;
+    const warnings: string[] = [];
+    const eventId = randomUUID();
+    console.warn = message => { warnings.push(String(message)); };
+    try {
+        await retainStripeDispute(eventId, 'charge.dispute.updated', {
+            id: `dp_${randomUUID()}`, payment_intent: f.payment!.providerReference,
+            status: 'under_review', amount: 2399, currency: 'gbp',
+        } as Stripe.Dispute);
+    } finally { console.warn = original; }
+    assert.ok(warnings.some(message => JSON.parse(message).kind === 'PROVIDER_DISPUTE_REVIEW_REQUIRED'));
+    const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: 'STRIPE', providerEventId: eventId } } });
+    assert.equal(receipt.processingError, 'STRIPE_DISPUTE_REVIEW_REQUIRED');
+    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, 'DISPATCHED');
+    assert.deepEqual(await prisma.payment.findUniqueOrThrow({ where: { id: f.payment!.id } }), paymentBefore);
+    assert.deepEqual(await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } }), listingBefore);
+});
+
+it('paid cancellation refuses dispatched orders even after a finalized full external refund', async () => {
+    const { requestPaidCancellation } = await import('../domain/orders/paidCancellation.js');
+    const f = await fixture();
+    await dispatchShipment(f.admin.id, f.order.id, { carrier: 'ROYAL_MAIL', carrierName: 'Royal Mail', trackingNumber: 'AB123456789GB', actualShippingCost: 3 });
+    await event(f, f.order.totalAmount.toString());
+    const before = await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } });
+    await assert.rejects(requestPaidCancellation(f.admin.id, f.order.id, 'Cancellation arrived after shipment', randomUUID()), /ORDER_NOT_CANCELLABLE/);
+    await assert.rejects(cancelFullyRefundedOrder(f.admin.id, f.order.id, 'Cancellation arrived after shipment', randomUUID()), /ORDER_NOT_CANCELLABLE/);
+    assert.deepEqual(await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } }), before);
+    assert.equal(await prisma.inventoryMovement.count({ where: { listingId: f.listing.id, type: 'ORDER_CANCELLATION_RETURN' } }), 0);
+});
