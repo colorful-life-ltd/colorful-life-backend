@@ -42,7 +42,7 @@ On 2026-10-19 the owner explicitly confirmed:
 ## Verification status before the owner-controlled build gate
 
 - Complete Admin unit suite: **519 passed**, 34 files; no failures/skips. Admin renderer and Electron no-emit typechecks and lint passed.
-- Complete Storefront suite: **972 passed**, 70 files; no failures/skips. No-emit typecheck and lint passed. The existing Sold Out tests were updated to the owner's required wording while retaining no-price, disabled-purchase and permanent-link assertions.
+- Complete Storefront suite: **972 passed**, 69 files; no failures/skips. No-emit typecheck and lint passed. The existing Sold Out tests were updated to the owner's required wording while retaining no-price, disabled-purchase and permanent-link assertions.
 - Shared canonical fixture checks passed locally for both clients; no cross-repository drift.
 - Backend no-emit typecheck and Prisma validation passed. New Backend service regressions are written but have not been executed yet.
 - No application build, application/server launch, Electron runtime, packaging, Backend integration/full suite or CI has been run for this change. The owner explicitly required permission for builds/application starts. These are required verification gates, not passing claims.
