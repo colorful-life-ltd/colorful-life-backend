@@ -1266,3 +1266,52 @@ It is additive and does not backfill or modify historical inventory records.
 ## Production audit remediation
 
 See [the Issue #208 remediation matrix, API changes and deployment safeguards](docs/production-audit-remediation.md). Docker/ECS artefacts are templates requiring owner review and isolated staging acceptance. No deployment is authorized by these instructions.
+
+## Local HTTP-only Admin PR #42 smoke launcher
+
+`start:local-http` is a separate local-only entry point. It reuses the existing Express app and its authentication/authorization without importing `index.ts` or starting workers. Normal `npm start` behaviour is unchanged. **Do not use `npm start` for this smoke test**: it starts cart reconciliation and PayPal webhook replay workers.
+
+The launcher fails closed before listening unless the effective connection is `colorful_life` on the approved PostgreSQL 18 Windows cluster (system identifier `7668309425915929176`). Accepted hosts are literal `127.0.0.1`, `localhost`, `[::1]` or the current Windows WSL adapter `172.27.32.1`, on port 5432. A read-only connection verifies the actual database, version and cluster identity. Host/database/options query overrides and alternate schemas are rejected. If the cluster is replaced, review the launcher pin rather than bypassing it.
+
+After reading `.env` without modifying it, this process generates a fresh cryptographically random 32-byte HMAC key in memory. It never prints or saves the key and does not use `NODE_ENV=test` to bypass startup protections. The key lasts only for this process; restarting changes the local abuse-bucket identity. All eight payment initiation, payment/refund reconciliation, tracking, durable email and challenge activation flags are forced false in this process. Proxy trust is disabled. No worker or provider readiness probe is invoked.
+
+Only these methods and exact paths reach the underlying app:
+
+| Method | Allowed paths | Allowed query keys |
+| --- | --- | --- |
+| POST | `/auth/login`, `/auth/refresh`, `/auth/logout` | none |
+| GET | `/health`, `/profile` | none |
+| GET | `/products`, `/admin/product-listings`, `/admin/orders` | `page`, `pageSize` |
+| GET | `/admin/products` | `q`, `page`, `pageSize` |
+| GET | `/admin/products/product-availability`, `/admin/categories` | none |
+| GET | `/admin/categories/:positiveId/product-availability` | none |
+| GET | `/products/by-product/:positiveId/images`, `/admin/orders/:positiveId` | none |
+
+Everything else returns **403 `LOCAL_SMOKE_FORBIDDEN` before Express, authentication, body parsing, storage or business handlers**. This includes signup, password recovery, email triggers, webhooks, payments/refunds, security-review decisions, order preparation/dispatch/cancellation, inventory changes, purchases, uploads and all other mutations. Encoded/noncanonical paths, duplicate/unknown query keys, non-loopback peers, unexpected Host headers, method overrides, HEAD and OPTIONS are denied. Existing Backend authorization still applies to every admitted request. Admin controls can remain visible, but blocked actions must not be treated as supported smoke scenarios.
+
+This supports real Admin login/session renewal/logout, catalogue and existing image reads, category availability, and order list/detail inspection. Login/refresh/logout are **not database-read-only**: existing handlers create/rotate/revoke refresh sessions and update abuse counters. They do not change product/order/payment business records. Starting the launcher itself only performs read-only identity verification. This task's verification does not call authentication endpoints or modify existing data.
+
+Add Product file selection displays a renderer-local `blob:` preview before submission. File-picker/blob-preview inspection can be performed without clicking a create/upload action; no preview HTTP endpoint is opened. Actual uploads, image replacement/deletion and listing creation are blocked. Category/artwork controls that immediately upload on selection are excluded. The launcher does not proxy or fetch media: existing Cloudinary images are fetched by the renderer under its CSP.
+
+Controlled commands, **run only after launcher review and approval to start HTTP**:
+
+```bash
+cd /home/yejun_guan/projects/colorful-life-backend
+npm run build
+npm run start:local-http
+```
+
+It binds exclusively to `127.0.0.1:3000` by default; optional process-scoped `PORT` must be an integer from 1024 to 65535. A busy port fails startup, with no fallback host/port. No secret needs to be entered in the shell. For Electron, use `COLORFUL_LIFE_BACKEND_URL=http://127.0.0.1:3000` in the Admin process environment; never replace its URL with a remote endpoint for this launcher.
+
+Shutdown: press **Ctrl+C** in the launch terminal, or send **SIGTERM** to the launcher Node process. Shutdown stops accepting HTTP, closes idle connections, waits up to five seconds for active requests, then force-closes lingering HTTP connections and disconnects Prisma. Duplicate stop calls share cleanup. Startup/shutdown errors are sanitized and use a nonzero exit status.
+
+Verification without starting an HTTP server or connecting to a database:
+
+```bash
+node ./node_modules/typescript/bin/tsc --noEmit -p .
+npm run build
+node --test dist/__tests__/localHttp.test.js dist/__tests__/testDatabaseSafety.test.js
+git diff --check
+```
+
+These focused tests mock listener/database dependencies and guard the real app import against listeners, worker intervals and outbound connections. Do not use the complete integration-test bootstrap against the valuable local database; it targets the separately guarded test database and applies test migrations.

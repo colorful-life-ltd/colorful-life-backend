@@ -7,6 +7,7 @@
   "scripts": {
     "build": "node ./node_modules/typescript/bin/tsc -p .",
     "start": "node dist/index.js",
+    "start:local-http": "node dist/localHttp.js",
     "test": "npm run build && node dist/testing/runTests.js run",
     "test:db:check": "npm run build && node dist/testing/runTests.js check",
     "test:db:prepare": "npm run build && node dist/testing/runTests.js prepare",
