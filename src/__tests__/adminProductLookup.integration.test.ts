@@ -125,7 +125,7 @@ describe("Admin LegoProduct lookup", () => {
       pieceCount: 100,
       category: { id: product.categoryId, name: "Others" },
       isRetired: false,
-      isPublished: true,
+      isPublished: true, availabilityState: "STANDARD",
       usedOfferStatus: "NONE",
     });
     assert.equal(bySetNumber.pagination.totalItems, 1);
