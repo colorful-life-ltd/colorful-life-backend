@@ -11,6 +11,7 @@ export const productMetadataUpdateFields = {
   isPublished: z.boolean(),
   permanentDiscontinuationConfirmed: z.boolean(),
   restockExpectationConfirmed: z.boolean(),
+  discontinuationReversalConfirmed: z.boolean(),
   availabilityReason: z.string().trim().min(10).max(1000),
   availabilityState: z.enum(["STANDARD", "MORE_ON_THE_WAY", "DISCONTINUED"]),
   categoryId: z.number().int().positive(),

@@ -45,8 +45,11 @@ export function createAdminProductUpdateService(db = defaultPrisma) {
             throw new AdminProductPolicyError('Explicit confirmation that the product will never be restocked or sold again is required.');
           if (fields.availabilityState === 'MORE_ON_THE_WAY' && fields.restockExpectationConfirmed !== true)
             throw new AdminProductPolicyError('Explicit confirmation of a genuine restock expectation is required.');
+          // Leaving a permanent discontinuation is as deliberate as entering it.
+          if (product.availabilityState === 'DISCONTINUED' && fields.availabilityState !== 'DISCONTINUED' && fields.discontinuationReversalConfirmed !== true)
+            throw new AdminProductPolicyError('Explicit confirmation is required to reverse a permanent discontinuation.');
           await tx.operationalAudit.create({ data: { kind: 'PRODUCT_AVAILABILITY_UPDATED', actorId, details: {
-            productId, previous: product.availabilityState, availabilityState: fields.availabilityState, permanentDiscontinuationConfirmed: fields.permanentDiscontinuationConfirmed === true, restockExpectationConfirmed: fields.restockExpectationConfirmed === true, reason: fields.availabilityReason.trim(),
+            productId, previous: product.availabilityState, availabilityState: fields.availabilityState, permanentDiscontinuationConfirmed: fields.permanentDiscontinuationConfirmed === true, restockExpectationConfirmed: fields.restockExpectationConfirmed === true, discontinuationReversalConfirmed: fields.discontinuationReversalConfirmed === true, reason: fields.availabilityReason.trim(),
           } } });
         } else if (fields.availabilityReason !== undefined) throw new AdminProductPolicyError('Availability reason requires an explicit policy state.');
         if (fields.categoryId !== undefined) {

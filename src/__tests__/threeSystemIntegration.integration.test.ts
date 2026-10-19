@@ -50,7 +50,8 @@ it('explicit availability policy never derives Discontinued from stock; it block
  await update.update(f.product.id,{isPublished:false});assert.ok(await getCatalogueProductById(f.product.id));
  const draft=await prisma.legoProduct.create({data:{setNumber:randomUUID(),title:'Private draft',theme:'TEST',ageRecommendation:'8+',pieceCount:1,isPublished:false}});
  assert.equal(await getCatalogueProductById(draft.id),null);
- await update.update(f.product.id,{isPublished:true,availabilityState:'STANDARD',availabilityReason:'Administrator restored regular availability'},f.admin.id);
+ await assert.rejects(update.update(f.product.id,{isPublished:true,availabilityState:'STANDARD',availabilityReason:'Administrator restored regular availability'},f.admin.id),/reverse a permanent discontinuation/);
+ await update.update(f.product.id,{isPublished:true,availabilityState:'STANDARD',discontinuationReversalConfirmed:true,availabilityReason:'Administrator restored regular availability'},f.admin.id);
  assert.equal((await getCatalogueProductById(f.product.id))?.availability,'IN_STOCK');
  const empty=await fixture(0);assert.equal((await getCatalogueProductById(empty.product.id))?.availability,'OUT_OF_STOCK');
  await update.update(empty.product.id,{availabilityState:'MORE_ON_THE_WAY',availabilityReason:'Confirmed supplier replenishment expected',restockExpectationConfirmed:true},empty.admin.id);
