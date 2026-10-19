@@ -196,7 +196,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       salePrice: salePriceSchema,
     })
     // Category and publication are product-level: PATCH /admin/products/:productId.
-    .omit({ categoryId: true, isPublished: true })
+    .omit({ categoryId: true, isPublished: true, availabilityState: true, availabilityReason: true })
     .partial();
 
   const parseResult = updateSchema.safeParse(req.body);
@@ -293,7 +293,7 @@ export const getProductById = async (req: Request, res: Response) => {
   }
   try {
     const listing = await prisma.productListing.findUnique({
-      where: { id, active: true, legoProduct: { isPublished: true } },
+      where: { id, active: true, legoProduct: { isPublished: true, availabilityState: { not: "DISCONTINUED" } } },
       select: {
         id: true,
         legoProductId: true,

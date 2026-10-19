@@ -201,7 +201,7 @@ export async function createOrder(
     const distinctIds = Array.from(listingIdsSet);
     const listings = await tx.productListing.findMany({
       where: { id: { in: distinctIds } },
-      include: { usedConditionPhotos: { orderBy: { sortOrder: "asc" } }, legoProduct: { select: { isPublished: true, title: true, setNumber: true } } },
+      include: { usedConditionPhotos: { orderBy: { sortOrder: "asc" } }, legoProduct: { select: { isPublished: true, availabilityState: true, title: true, setNumber: true } } },
     });
 
     // Validate existence

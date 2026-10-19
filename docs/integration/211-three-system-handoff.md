@@ -1,0 +1,61 @@
+# Three-system integration — master issue #211
+
+Authoritative baseline: [complete independent audit preserved in PR #210](https://github.com/colorful-life-ltd/colorful-life-backend/pull/210), not a repeated audit. Backend implementation starts at `3afb2ca`; Admin `d1b4ea1`; Storefront `5621da1`. One coordinated [master issue](https://github.com/colorful-life-ltd/colorful-life-backend/issues/211) covers all thirteen proposals; there are no per-finding issues.
+
+## Shared contract and release order
+
+Backend remains authoritative for authorization, payment proof/finality, exact GBP amounts, fulfilment eligibility, cancellation versions and inventory reservations. No client acknowledgement releases financial uncertainty. Electron credentials and API access stay in its main process; the renderer receives an allowlisted operation API and sanitized DTOs. Customer reads are owner-filtered and project only minimal refund, cancellation, fulfilment and return fields.
+
+`contracts/integration-v1.json` is the canonical versioned fixture. Both clients carry byte-identical copies tested by their actual parsers. Client CI compares the copy against an immutable Backend commit before testing. Backend's new integration tests exercise actual service output and the financial/inventory conditions represented by the fixture. Migration and additive Backend API changes must precede client rollout; do not deploy a client against a Backend lacking these contracts.
+
+## Implementation map
+
+| Audit proposal | Repository and implementation | Evidence / acceptance |
+|---|---|---|
+| 1: external refund actor (P1-1) | Admin `electron/order-financials.ts`, `src/OrderFinancialDetails.tsx` accept null and label Provider dashboard / external. Invalid non-null actors remain rejected. | Financial parser and shared-contract regressions; a finalized partial refund keeps dispatch eligibility when Backend permits. |
+| 2: FBA shortfall and journal (P1-2/P3-1) | Admin `inventory-service.ts` validates actual = applied + shortfall, movement = -applied. `Inventory.tsx` shows quantities/open discrepancies. Existing uncertain requests replay only their saved key/payload; confirmed legacy full-deduction journals upgrade in memory without another POST. | Shortfall and zero-applied cases; process restart, duplicate replay, conflicts and no-discard uncertainty tests. |
+| 3: financial operations (P1-3) | Admin `operations-contract.ts`, `operations-service.ts`, `Operations.tsx` provide reasoned refunds/reconciliation, staged paid cancellation, exact string requestId withdrawal and cancel-refunded. Durable main-process intent is flushed before I/O. | IPC/service/UI tests preserve IDs above JS safe-integer range, payload/key across lost responses, explicit confirmation, version conflicts and post-action authoritative refresh. |
+| 4: inventory discrepancy (P1-4) | Admin stocktake/write-off forms; Backend `adminProductListingService.ts` exposes unresolved actual/applied/shortfall. Existing audited stocktake resolves discrepancies. New `inventoryOperationJournal.ts` stores idempotent stocktake/write-off result and movement atomically. | Client validation; new Backend tests for below-reservation refusal, immutable discrepancy resolution and exact/concurrent stock replay after later counts. |
+| 5: precise block reasons (P2-1) | Backend returns structured `error.reason` and ADMIN `GET /admin/orders/:id/fulfilment/eligibility` using the same locked guards as dispatch. Admin maps reasons with corrective guidance. | Each financial/inventory reason has a parser/service regression. Advisory eligibility is always rechecked on mutation. Existing explanation audits remain deduplicated. |
+| 6: audit history | Admin reads bounded order/refund audit, including active cancellation request ID projected in Admin detail. | DTO allowlist removes private provider outcomes/credentials; exact request generation is visible without calculating it from a truncated history. |
+| 7: product management (P2-2) | Admin workflows edit regular/sale prices, clear sale prices, publication, activation and availability. Stock changes use reasoned stocktake. Backend protects state/publication changes with checkout's listing locks. | Existing price/reservation/Used lifecycle safeguards retained; new catalogue/cart/order tests. |
+| 8: reviews/security (P2-6) | Admin refund review queues/detail/revision resolution, retained evidence replay, security monitoring/hold/release/maintenance/provider policy and PayPal acknowledgement. Evidence remains an allowlisted normalized view. | Active ADMIN boundary, strict operation/field validation; revision mismatch messages; no force-clear or provider/credential access from the renderer. Environment initiation gates remain authoritative. |
+| 9: customer after-sales (P2-4) | Backend `orderReadService.ts` projects minimal refunds, cancellation state and item return summaries. Storefront `experience.ts` and `OrderProgress.tsx` validate/display them. | Owner filtering, no private notes/provider identity; uncertain/refund-review status never shown as final success. |
+| 10: completion/progress (P2-3/P3-3) | Admin calls existing order completion transition. Both clients accept In transit/Delivered projections. Storefront uses shipment list and HTTPS tracking links; legacy dispatch display remains. | Admin stage regressions and Storefront progress/parser/UI tests. Completion is an explicit ADMIN declaration for a dispatched order; it does not create carrier evidence. |
+| 11: returns (P2-5) | Admin request/authorize/receive/inspect/complete/cancel; Storefront read-only progress and instructions to arrange returns with the team; the existing request API remains ADMIN-only. Photo-backed physical condition conversion uses the supported conversion API. | Return requests do not refund or restock. Backend retains received/inspection/quantity/Used safeguards; Customer self-service writes are intentionally not added to an ADMIN-only contract. |
+| 12: CI/packaging (P2-7) | New client workflows typecheck/lint/test/build; Admin adds boundary/Electron runtime checks and unsigned Electron packaging with archive content checks. | Build/runtime/CI gate requires owner authorization. Signing, notarization and installed-platform acceptance remain release work. |
+| 13: lifecycle definitions | Backend schema/migration + both clients implement explicit policy. Details below. | No zero-stock, age or supplier-based automatic transition. |
+
+Legacy contracts remain for compatibility: `/orders/:id/dispatch` and `/confirm` are not used for Admin shipping; `/business-expenses` and `/purchase-items/:id/receive|return` remain existing bounded APIs. The old generic condition-adjustment function refuses unsupported physical Used conversions; the new Admin photo-backed conversion uses `/inventory/condition-conversions/:productId`. No endpoint was removed merely because this audit found no current client.
+
+## Recorded owner decisions
+
+F10 remains the owner-accepted **staged** audited intent → chosen durable refund → cancel/restock only after full finalized refund. Withdrawal is possible only before any refund initiation and references the exact immutable request generation. No single-action refund orchestrator is claimed.
+
+On 2026-10-19 the owner explicitly confirmed:
+
+- **Discontinued:** set manually by an active ADMIN only after definitive confirmation the product will never be restocked or sold again. Backend requires a reason and appends `PRODUCT_AVAILABILITY_UPDATED`; it never derives the state from stock, time or supplier data. New purchases are blocked even if stock remains.
+- **More on the Way:** explicit ADMIN policy backed by genuine restock expectation. It is informational and never permits backorders. Available physical stock can still be sold normally.
+- **Sold Out:** default when no stock is sellable and restock status is unknown.
+- Existing orders remain valid. Previously public product identities retain read-only detail URLs after unpublishing/discontinuation. The monotonic `everPublished` marker is backfilled from current publication or order history; never-published drafts remain private. No URLs or orders are deleted.
+
+## Verification status before the owner-controlled build gate
+
+- Complete Admin unit suite: **519 passed**, 34 files; no failures/skips. Admin renderer and Electron no-emit typechecks and lint passed.
+- Complete Storefront suite: **972 passed**, 70 files; no failures/skips. No-emit typecheck and lint passed. The existing Sold Out tests were updated to the owner's required wording while retaining no-price, disabled-purchase and permanent-link assertions.
+- Shared canonical fixture checks passed locally for both clients; no cross-repository drift.
+- Backend no-emit typecheck and Prisma validation passed. New Backend service regressions are written but have not been executed yet.
+- No application build, application/server launch, Electron runtime, packaging, Backend integration/full suite or CI has been run for this change. The owner explicitly required permission for builds/application starts. These are required verification gates, not passing claims.
+
+Required next gate after owner authorization: focused Backend integration/financial/catalogue suites and migration/schema checks on a new isolated `colorful_life_test` database, then one final complete Backend run; client builds and Admin packaging/archive validation; Electron runtime harnesses with display isolation; final client checks if fixes change their code; push/open the three linked PRs and collect all CI results. Never weaken tests or classify this as complete merely because unit tests pass.
+
+## Remaining operational limitations and review focus
+
+- Signed provider flows, carrier polling, actual cloud image uploads, installed desktop behaviour and a three-running-system smoke test require isolated owner-approved environments. No live provider/data operation has been performed.
+- Non-idempotent legacy endpoints are never automatically replayed after an uncertain result. The generic operator journal deliberately refuses to discard uncertainty; investigate authoritative state before recovery. Stocktake/write-off and financial staged actions have durable safe replay; photo-backed conversions require checking offers/ledger after uncertainty. Do not hand-edit journals or create replacement intents to bypass this boundary.
+- Returns are separate from refunds and have the Backend's existing condition/inspection policy; condition conversion supports one actual complete unit with packaging damage and photographs, not arbitrary condition rewriting.
+- Packaging currently creates an **unsigned platform bundle**, not a signed installer or auto-update channel. Configure the approved HTTPS Backend URL, OS identity/signing/notarization and deployment/update process before distribution. The package staging list excludes source, environment files, credentials and local journals. Tooling follows [Electron Packager's distribution model](https://electron.github.io/packager/main/).
+- Existing Admin development dependency advisories reported while resolving the added packager concern `concurrently`/`shell-quote` and `source-map-js`; they are not introduced by Packager and are excluded from the staged desktop bundle. No broad dependency/security audit or blind upgrade was undertaken.
+- Claude's independent final review should verify route/IPC validation, precise requestId/revision handling, money/status presentation, uncertainty recovery, additive rollout, lifecycle locks/history privacy, customer ownership and exact idempotent inventory replay.
+
+Main-checkout changes were preserved through isolated worktrees. No merge, deployment, production database, provider payment, carrier mutation, email or independent review agent was initiated. Final PR URLs, commit SHAs and executed gate results will be added to the master issue after validation.

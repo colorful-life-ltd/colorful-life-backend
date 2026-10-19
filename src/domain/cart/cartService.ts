@@ -51,7 +51,7 @@ async function validateListing(productListingId: number, quantity: number, db: t
   if (!listing) throw new ProductListingNotFoundError(productListingId);
   if (!hasValidListingPrices(listing)) throw new InvalidListingPriceError(productListingId);
   // An unpublished product is private, so none of its offers can be bought.
-  if (!listing.active || !listing.legoProduct.isPublished) throw new ProductListingInactiveError(productListingId);
+  if (!listing.active || !listing.legoProduct.isPublished || listing.legoProduct.availabilityState === "DISCONTINUED") throw new ProductListingInactiveError(productListingId);
   if (listing.condition === "USED_LIKE_NEW" && listing.usedLifecycle !== "AVAILABLE") {
     throw new InsufficientAvailableStockError(productListingId, 0, quantity);
   }

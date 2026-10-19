@@ -1,3 +1,4 @@
+import { InventoryOperationConflict, inventoryOperationKey } from '../domain/inventory/inventoryOperationJournal.js';
 import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { InventoryAdjustmentRequestSchema } from "../domain/inventory/inventoryAdjustmentValidator.js";
@@ -31,9 +32,10 @@ export const reconcileStocktakeInventory = async (req: Request, res: Response) =
   if (!parsed.success) return res.status(400).json({ error: parsed.error.format() });
 
   try {
-    const result = await reconcileStocktake({ ...parsed.data, performedByUserId: user.id });
+    const result = await reconcileStocktake({ ...parsed.data, performedByUserId: user.id },inventoryOperationKey(req.get('Idempotency-Key')));
     return res.status(200).json(result);
   } catch (err: unknown) {
+    if (err instanceof InventoryOperationConflict) return res.status(err.code === 'INVALID_IDEMPOTENCY_KEY' ? 400 : 409).json({error:err.code});
     if (err instanceof InvalidInventoryAdjustmentReasonError)return res.status(400).json({error:"DISCREPANCY_STOCKTAKE_REASON_REQUIRED"});
     if (err instanceof InvalidStocktakeQuantityError) return res.status(400).json({ error: err.message });
     if (err instanceof StocktakeListingNotFoundError) return res.status(404).json({ error: err.message });
@@ -58,9 +60,10 @@ export const createInventoryAdjustment = async (req: Request, res: Response) => 
     const input = parsed.data;
     const result = input.action === "CONDITION_ADJUSTMENT"
       ? await conditionAdjustInventory({ ...input, performedByUserId: user.id })
-      : await writeOffInventory({ ...input, performedByUserId: user.id });
+      : await writeOffInventory({ ...input, performedByUserId: user.id },inventoryOperationKey(req.get('Idempotency-Key')));
     return res.status(201).json(result);
   } catch (err: unknown) {
+    if (err instanceof InventoryOperationConflict) return res.status(err.code === 'INVALID_IDEMPOTENCY_KEY' ? 400 : 409).json({error:err.code});
     if (err instanceof InventoryListingNotFoundError) return res.status(404).json({ error: err.message });
     if (err instanceof InvalidConditionAdjustmentError || err instanceof InvalidInventoryAdjustmentQuantityError || err instanceof InvalidInventoryAdjustmentReasonError) return res.status(400).json({ error: err.message });
     if (err instanceof InventoryInsufficientStockError || err instanceof InventoryListingsMustDifferError || err instanceof InventoryListingsMustShareProductError) return res.status(409).json({ error: err.message });

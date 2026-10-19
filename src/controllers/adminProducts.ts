@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { AdminProductLookupQuerySchema } from "../domain/products/adminProductLookupValidator.js";
 import { createAdminProductLookupService } from "../domain/products/adminProductLookupService.js";
 import {
-  AdminProductCategoryNotFoundError,
+  AdminProductCategoryNotFoundError, AdminProductPolicyError,
   AdminProductNotFoundError,
   createAdminProductUpdateService,
 } from "../domain/products/adminProductUpdateService.js";
@@ -43,8 +43,9 @@ export function createAdminProductsController() {
       if (Object.keys(parsed.data).length === 0) return res.status(400).json({ error: "No updatable fields provided" });
 
       try {
-        return res.json(await updateService.update(productId, parsed.data));
+        return res.json(await updateService.update(productId, parsed.data, req.user!.id));
       } catch (error) {
+        if (error instanceof AdminProductPolicyError) return res.status(400).json({error:error.message});
         if (error instanceof AdminProductNotFoundError) return res.status(404).json({ error: error.message });
         if (error instanceof AdminProductCategoryNotFoundError) return res.status(400).json({ error: error.message });
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

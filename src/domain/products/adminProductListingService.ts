@@ -13,7 +13,7 @@ export function createAdminProductListingService(db = defaultPrisma) {
             select: {
               id: true,
               condition: true,
-              active: true,
+              active: true, originalPrice: true, salePrice: true,
               usedLifecycle: true,
               currentStock: true,
               reservedStock: true,
@@ -23,7 +23,7 @@ export function createAdminProductListingService(db = defaultPrisma) {
                   setNumber: true,
                   title: true,
                   isFeatureProduct: true,
-                  isPublished: true,
+                  isPublished: true, availabilityState: true,
                   catalogueArtworkUrl: true,
                   catalogueArtworkPublicId: true,
                   productImages: {
@@ -40,9 +40,14 @@ export function createAdminProductListingService(db = defaultPrisma) {
           }),
         ]);
 
+        const discrepancies = await tx.$queryRaw<Array<{ productListingId: number; id: number; quantity: number; appliedQuantity: number; shortfall: number; shipmentReference: string }>>`
+          SELECT f."productListingId",f.id,f.quantity,f."appliedQuantity",f.shortfall,f."shipmentReference" FROM "FbaOutbound" f
+          WHERE f."productListingId"=ANY(${listings.map(l => l.id)}::int[]) AND f.shortfall>0
+          AND NOT EXISTS(SELECT 1 FROM "OperationalAudit" a WHERE a.kind='FBA_DISCREPANCY_RESOLVED' AND a."requestKey"='fba-resolved:'||f.id::text)`;
         return {
           items: listings.map(({ reservedStock, ...listing }) => ({
             ...listing,
+            discrepancies: discrepancies.filter(d => d.productListingId === listing.id),
             availableStock: Math.max(0, listing.currentStock - reservedStock),
           })),
           pagination: {

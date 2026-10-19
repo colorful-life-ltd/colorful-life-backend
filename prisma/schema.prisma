@@ -279,6 +279,8 @@ model LegoProduct {
   // Public catalogue/detail/sitemap visibility, independent of stock. Legacy rows were
   // backfilled from current stock or stock/sales history (see migration SQL).
   isPublished              Boolean          @default(true)
+  everPublished            Boolean          @default(false)
+  availabilityState        String           @default("STANDARD")
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   productListings          ProductListing[]

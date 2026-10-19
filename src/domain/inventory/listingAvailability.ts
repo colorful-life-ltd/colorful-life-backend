@@ -1,5 +1,5 @@
 export type AvailabilityStatus = "AVAILABLE" | "INSUFFICIENT_STOCK" | "OUT_OF_STOCK" | "UNAVAILABLE";
-export type AvailabilityReason = "PRODUCT_UNPUBLISHED" | "INVALID_PRICE" | "LISTING_INACTIVE" | "USED_OFFER_UNAVAILABLE"
+export type AvailabilityReason = "PRODUCT_DISCONTINUED" | "PRODUCT_UNPUBLISHED" | "INVALID_PRICE" | "LISTING_INACTIVE" | "USED_OFFER_UNAVAILABLE"
   | "OUT_OF_STOCK" | "INSUFFICIENT_STOCK" | "CART_QUANTITY_ALLOCATED" | "INVENTORY_RESERVATION_CONFLICT";
 
 export interface ListingAvailability {
@@ -14,11 +14,12 @@ interface LiveListing {
   usedLifecycle: string | null;
   currentStock: number;
   reservedStock: number;
-  legoProduct: { isPublished: boolean };
+  legoProduct: { isPublished: boolean; availabilityState?: string };
 }
 
 /** A projection only: never reserves stock, releases holds or edits shopping intent. */
 export function listingAvailability(listing: LiveListing, requestedQuantity: number): ListingAvailability {
+  if (listing.legoProduct.availabilityState === "DISCONTINUED") return { status: "UNAVAILABLE", reason: "PRODUCT_DISCONTINUED", availableQuantity: 0 };
   if (!listing.legoProduct.isPublished) return { status: "UNAVAILABLE", reason: "PRODUCT_UNPUBLISHED", availableQuantity: 0 };
   if (!listing.active) return { status: "UNAVAILABLE", reason: "LISTING_INACTIVE", availableQuantity: 0 };
   if (listing.condition === "USED_LIKE_NEW" && listing.usedLifecycle !== "AVAILABLE") {

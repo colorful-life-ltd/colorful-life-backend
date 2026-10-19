@@ -1,3 +1,4 @@
+import { fulfilmentEligibility } from '../domain/fulfilment/fulfilmentService.js';
 import {logOperationalError} from "../utils/operationalLog.js";
 import {prisma} from "../prisma/runtime.js";
 import {z} from "zod";
@@ -58,6 +59,11 @@ router.get('/:orderId/audit',async(req,res)=>{
   res.json(await prisma.$queryRaw`SELECT id::text,kind,"actorId","refundId",revision,details,"createdAt" FROM "OperationalAudit" WHERE "orderId"=${id.data} ORDER BY id DESC LIMIT 100`);
  }catch{res.status(503).json({error:'AUDIT_UNAVAILABLE'});}
 });
+router.get('/:orderId/fulfilment/eligibility',async(req,res)=>{
+ const id=AdminOrderIdSchema.safeParse(req.params.orderId);
+ if(!id.success)return res.status(400).json({error:'INVALID_ORDER_ID'});
+ try{res.json(await fulfilmentEligibility(id.data));}catch(error){return sendFulfilmentError(res,error,'eligibility');}
+});
 router.get("/:orderId", async (req, res) => {
   const id = AdminOrderIdSchema.safeParse(req.params.orderId);
   if (!id.success) return res.status(400).json({ error: "Invalid order id" });
@@ -73,7 +79,7 @@ router.get("/:orderId", async (req, res) => {
 });
 function sendFulfilmentError(res: Response, error: unknown, operation: string) {
   if (error instanceof FulfilmentOrderNotFoundError) return res.status(404).json({ error: "Order not found" });
-  if (error instanceof FulfilmentPaymentNotVerifiedError) return sendApiError(res, 409, error.reason === "REFUND_REVIEW_REQUIRED" ? "REFUND_REVIEW_REQUIRED" : "ORDER_PAYMENT_NOT_VERIFIED", error.message);
+  if (error instanceof FulfilmentPaymentNotVerifiedError) return sendApiError(res, 409, error.reason === "REFUND_REVIEW_REQUIRED" ? "REFUND_REVIEW_REQUIRED" : "ORDER_PAYMENT_NOT_VERIFIED", error.message, { reason: error.reason });
   if (error instanceof FulfilmentTransitionError) return sendApiError(res, 409, "FULFILMENT_TRANSITION_INVALID", error.message);
   if (error instanceof OrderAlreadyDispatchedError) return sendApiError(res, 409, "ORDER_ALREADY_DISPATCHED", error.message);
   logOperationalError(`Admin fulfilment ${operation} error`);

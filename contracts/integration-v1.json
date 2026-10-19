@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "externalRefund": {"id": 3, "orderId": 41, "paymentId": 7, "amount": "5.00", "currency": "GBP", "provider": "STRIPE", "status": "SUCCEEDED", "createdAt": "2026-10-19T12:00:00.000Z", "reason": "Verified external provider refund", "performedByUserId": null, "resolutionCode": "REFUND_SUCCEEDED", "reviewRequired": false},
+  "shortfallOutbound": {"replayed": true, "outbound": {"id": 9, "productListingId": 4, "quantity": 12, "appliedQuantity": 9, "shortfall": 3, "shipmentReference": "FBA-CONTRACT-1", "note": "Physical shipment discrepancy", "idempotencyKey": "contract-fba-shipment-1", "performedByUserId": 1, "createdAt": "2026-10-19T12:00:00.000Z", "movement": {"id": 8, "listingId": 4, "quantityChange": -9, "type": "FBA_OUTBOUND", "note": "Physical shipment discrepancy", "performedByUserId": 1, "createdAt": "2026-10-19T12:00:00.000Z"}}, "inventory": {"productListingId": 4, "currentStock": 1, "reservedStock": 1, "availableStock": 0}},
+  "customerOrder": {"id": 41, "cancellation": {"state": "REQUESTED", "cancelledAt": null}, "refunds": [{"id": 3, "amount": "5.00", "currency": "GBP", "status": "SUCCEEDED", "reviewRequired": false, "createdAt": "2026-10-19T12:00:00.000Z"}], "fulfilment": {"stage": "PREPARING", "preparingAt": "2026-10-19T12:00:00.000Z", "shipments": []}, "orderItems": [{"id": 2, "returns": []}]},
+  "withdrawal": {"withdrawn": true, "replayed": false, "requestId": "123"},
+  "fulfilmentError": {"error": {"code": "ORDER_PAYMENT_NOT_VERIFIED", "reason": "CANCELLATION_PENDING", "message": "Order 41 payment is not verified (CANCELLATION_PENDING)"}}
+}
