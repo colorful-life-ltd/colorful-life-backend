@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN DATABASE_URL=postgresql://unused:unused@127.0.0.1/unused npx prisma generate && npm run build && npm prune --omit=dev --omit=peer
+RUN DATABASE_URL=postgresql://unused:unused@127.0.0.1/unused npx prisma generate && npm run build && npm prune --omit=dev --omit=peer --omit=optional
 FROM node:24-bookworm-slim
 ENV NODE_ENV=production
 WORKDIR /app

@@ -49,7 +49,7 @@ jobs:
           "import assert from 'node:assert/strict'; import {existsSync} from 'node:fs';
           assert.notEqual(process.getuid(), 0);
           for (const name of ['bcrypt', 'pdfkit', 'fontkit', '@prisma/adapter-pg']) await import(name);
-          assert.ok(existsSync('dist/index.js')); assert.ok(existsSync('src/assets')); assert.ok(existsSync('assets'));
+          await import('./dist/generated/prisma-client/client.js'); assert.ok(existsSync('dist/index.js')); assert.ok(existsSync('src/assets')); assert.ok(existsSync('assets'));
           assert.equal(existsSync('node_modules/typescript'), false); assert.equal(existsSync('node_modules/prisma'), false);"
       - name: Build migration image
         run: docker build --file Dockerfile.migrations --tag colorful-life-migrations:ci .
