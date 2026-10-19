@@ -2,7 +2,7 @@ import {providerFinancialHold} from "../payments/providerFinancialGuard.js";
 import { prisma } from '../../prisma/runtime.js';
 import { lockRefundPayment, assertNoUnresolvedRefund, RefundIntentError, validClientRequestKey } from '../refunds/refundLifecycleService.js';
 import { hasBlockingOrderReturns } from './returnInventorySafety.js';
-/** Stage two of cancellation: stage one is the existing idempotent refund API.
+/** Final stage after the audited cancellation fence and existing idempotent refund API.
  * No network I/O; never restores stock until the whole paid amount is finalized. */
 export async function cancelFullyRefundedOrder(actorId: number, orderId: number, reason: string, key: string) {
     if (reason.trim().length < 10 || reason.length > 1000 || !validClientRequestKey(key))
