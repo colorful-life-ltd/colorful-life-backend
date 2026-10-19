@@ -231,7 +231,14 @@ describe("product publication HTTP integration", () => {
     const unpublished = await patch(admin.token, { isPublished: false });
     assert.equal(unpublished.status, 200);
     assert.equal((await unpublished.json()).isPublished, false);
-    assert.equal((await call(`/products/by-product/${product.id}`)).status, 404);
+    const historical = await call(`/products/by-product/${product.id}`);
+    assert.equal(historical.status, 200, 'Previously public identities retain a read-only page');
+    const historicalBody = await historical.json();
+    assert.equal(historicalBody.id, product.id);
+    assert.equal(historicalBody.isPublished, false);
+    assert.deepEqual(historicalBody.offers, [], 'Unpublication must expose no purchasable offers');
+    assert.equal((await call(`/products/${listing.id}`)).status, 404, 'Legacy offer purchase API remains unavailable');
+
 
     const lookup = await (await call(`/admin/products?q=${product.setNumber}`, { token: admin.token })).json();
     assert.deepEqual(lookup.items.map((item: any) => [item.id, item.isPublished]), [[product.id, false]]);

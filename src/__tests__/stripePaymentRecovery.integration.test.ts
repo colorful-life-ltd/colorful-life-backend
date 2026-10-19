@@ -238,7 +238,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     assert.equal(response.status, 200); const body = await response.json();
     assert.equal(body.status, "CONFIRMED"); assert.equal(body.payment.status, "SUCCEEDED");
     assert.deepEqual(Object.keys(body.payment).sort(), ["paidAt", "status"]); assert.equal(body.reservationExpiresAt, null);
-    assert.equal(body.payments, undefined); assert.equal(body.refunds, undefined); assert.equal(body.clientSecret, undefined);
+    assert.equal(body.payments, undefined); assert.deepEqual(body.refunds, []); // Additive minimal customer summary; never raw refund rows. assert.equal(body.clientSecret, undefined);
     assert.equal(JSON.stringify(body).includes(f.payment.providerReference), false);
     const read = await fetch(`${url}/orders/${f.order.id}`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token(f)}` } });
     const refreshed = await read.json();
