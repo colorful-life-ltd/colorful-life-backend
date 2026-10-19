@@ -38,12 +38,12 @@ for (const [name, override, expected] of [
         SES_FROM_EMAIL: valid.SES_FROM_EMAIL, CORS_ALLOWED_ORIGINS: valid.CORS_ALLOWED_ORIGINS,
         PAYMENT_RESOLUTION_ENABLED: 'true', CLIENT_IP_MODE: 'direct', TRUSTED_PROXY_CIDRS: '',
         PAYMENT_ABUSE_HMAC_SECRET: 'synthetic-startup-validation-key-only',
-        PAYMENT_ABUSE_LIMITS_JSON: '', PAYMENT_STRIPE_INITIATION_ENABLED: 'false',
+        PAYMENT_STRIPE_INITIATION_ENABLED: 'false',
         PAYMENT_PAYPAL_INITIATION_ENABLED: 'false', STRIPE_SECRET_KEY: 'sk_live_synthetic_never_used',
-        PAYPAL_CLIENT_ID: '', PAYPAL_CLIENT_SECRET: '', PAYPAL_WEBHOOK_ID: '',
-        PAYPAL_BASE_URL: 'https://api-m.paypal.com', ...override,
+        PAYPAL_BASE_URL: 'https://api-m.paypal.com',
     };
-    delete childEnv.NODE_TEST_CONTEXT;
+    for (const key of ['NODE_TEST_CONTEXT', 'PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID', 'PAYMENT_ABUSE_LIMITS_JSON']) delete childEnv[key];
+    Object.assign(childEnv, override);
     const result = spawnSync(process.execPath, ['--input-type=module', '-e',
         'await import("./dist/config/index.js"); console.log("unexpected-startup-success")'],
         { env: childEnv, encoding: 'utf8', timeout: 10_000 });
