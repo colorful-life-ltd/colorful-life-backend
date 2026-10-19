@@ -4,6 +4,10 @@ Baseline b78da7493dca8fce59b05b52978c7e9475d7ab92. NOT DEPLOYED. Independent rev
 
 ## Finding matrix
 
+Resume completion matrix, original-acceptance deviations, CI root cause and current verification: [production-audit-completion.md](production-audit-completion.md). Original Claude report: [production-audit-original-2026-10-18.md](production-audit-original-2026-10-18.md). The original report has20 finding IDs grouped into16 backlog items.
+
+The validation counts and unexecuted-container notes below describe the recovered `fb4f2af` handoff; the completion report supersedes them with resume evidence.
+
 |Finding|Remediation / disposition|Primary verification|
 |---|---|---|
 |F1 external refunds|Import exactly correlated, verified provider refunds; account finalized amounts once; unresolved parent-linked receipts block fulfilment. No metadata ownership guessing.|External full/partial, replay and out-of-order tests|
