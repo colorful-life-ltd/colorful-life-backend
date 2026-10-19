@@ -11,8 +11,11 @@ router.use(authMiddleware, (req, res, next) => {
   next();
 });
 const id = z.number().int().positive().max(2147483647);
+// Bounded primitive payload: the Admin operator input contains identifiers, amounts and reasons only.
+const IntentSchema = z.record(z.string().regex(/^[A-Za-z]{1,40}$/), z.union([z.string().max(1000), z.number().finite(), z.boolean(), z.null(), z.array(z.string().max(128)).max(10)]))
+  .refine(v => Object.keys(v).length >= 1 && Object.keys(v).length <= 20);
 const ResolutionSchema = z.object({
-  operation: z.string().regex(/^[A-Za-z]{1,40}$/), decision: z.enum(['APPLIED', 'NOT_APPLIED']), note: z.string().trim().min(10).max(1000),
+  operation: z.string().regex(/^[A-Za-z]{1,40}$/), decision: z.enum(['APPLIED', 'NOT_APPLIED']), note: z.string().trim().min(10).max(1000), intent: IntentSchema,
   orderId: id.optional(), productId: id.optional(), productListingId: id.optional(), receiptId: id.optional(),
 }).strict();
 // The Idempotency-Key is the original Admin intent key, so one intent has one decision.

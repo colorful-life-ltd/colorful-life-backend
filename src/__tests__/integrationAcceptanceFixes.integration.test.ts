@@ -9,6 +9,7 @@ import { createAdminProductUpdateService } from '../domain/products/adminProduct
 import { getCatalogueProductById } from '../domain/products/productCatalogueService.js';
 import { addCartItem } from '../domain/cart/cartService.js';
 import { reviewOrder, updatePolicy, PaymentSecurityOperationError } from '../domain/security/paymentSecurityOperations.js';
+import { canonicalJson, intentFingerprint } from '../domain/operations/operatorIntentResolution.js';
 
 let server: ReturnType<typeof app.listen>, url = '';
 before(async () => { server = app.listen(0); await new Promise<void>(r => server.once('listening', r)); url = `http://127.0.0.1:${(server.address() as { port: number }).port}`; });
@@ -74,20 +75,38 @@ it('operator intent resolution is ADMIN-only, idempotent per intent key, immutab
   const order = await prisma.order.create({ data: { userId: customer.id, totalAmount: 20, status: 'CONFIRMED',
     billingRecipientName: 'A', billingLine1: '1 Road', billingCity: 'London', billingPostcode: 'SW1A 1AA', billingCountryCode: 'GB',
     deliveryRecipientName: 'A', deliveryLine1: '1 Road', deliveryCity: 'London', deliveryPostcode: 'SW1A 1AA', deliveryCountryCode: 'GB' } });
-  const body = { operation: 'securityReview', decision: 'NOT_APPLIED', note: 'Order audit shows no security event was recorded', orderId: order.id };
+  const intent = { orderId: order.id, action: 'RELEASE', note: 'Mistyped order identifier' };
+  const body = { operation: 'securityReview', decision: 'NOT_APPLIED', note: 'Order audit shows no security event was recorded', orderId: order.id, intent };
   const post = (headers: Record<string, string>, payload: object, idempotencyKey: string = key) => fetch(`${url}/admin/operator-intents/resolutions`, { method: 'POST', headers: { ...headers, 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(payload) });
   assert.equal((await post(bearer(customer), body)).status, 403);
   assert.equal((await post(bearer(admin), { ...body, note: 'short' })).status, 400);
   assert.equal((await post(bearer(admin), { ...body, providerReference: 'x' })).status, 400);
   assert.equal((await post(bearer(admin), body, 'bad key')).status, 400);
-  assert.equal((await post(bearer(admin), { ...body, orderId: 2147483000 }, randomUUID())).status, 404);
+  assert.equal((await post(bearer(admin), { ...body, orderId: 2147483000, intent: { ...intent, orderId: 2147483000 } }, randomUUID())).status, 404);
+  const { intent: _omitted, ...withoutIntent } = body;
+  assert.equal((await post(bearer(admin), withoutIntent, randomUUID())).status, 400);
+  // Targets must describe the investigated payload itself.
+  assert.equal((await post(bearer(admin), { ...body, orderId: order.id + 1 }, randomUUID())).status, 400);
+  assert.equal((await post(bearer(admin), { ...body, intent: { ...intent, nested: { x: 1 } } }, randomUUID())).status, 400);
   const [first, replay] = await Promise.all([post(bearer(admin), body), post(bearer(admin), body)]);
   const results = await Promise.all([first.json(), replay.json()]);
   assert.deepEqual([first.status, replay.status], [201, 201]);
   assert.equal(results[0].auditId, results[1].auditId); assert.deepEqual(results.map(r => r.replayed).sort(), [false, true]);
   assert.equal((await post(bearer(admin), { ...body, decision: 'APPLIED' })).status, 409);
+  // The same intent key cannot later be bound to a different payload.
+  assert.equal((await post(bearer(admin), { ...body, intent: { ...intent, action: 'HOLD' } })).status, 409);
+  const expected = intentFingerprint('securityReview', intent);
+  assert.match(expected, /^[a-f0-9]{64}$/);
+  assert.equal(results[0].intentFingerprint, expected); assert.equal(results[1].intentFingerprint, expected);
+  assert.equal(intentFingerprint('securityReview', { note: intent.note, action: 'RELEASE', orderId: order.id }), expected, 'Key order never changes the fingerprint');
+  assert.notEqual(intentFingerprint('securityReview', { ...intent, action: 'HOLD' }), expected);
+  assert.notEqual(intentFingerprint('completeOrder', intent), expected);
+  assert.equal(canonicalJson({ b: [2, 1], a: null }), '{"a":null,"b":[2,1]}');
+  // Known answer shared with Admin's operations-journal.test.ts; both must derive this exact value.
+  assert.equal(intentFingerprint('securityReview', { orderId: 41, action: 'RELEASE', note: 'Mistyped order identifier' }), '49cf11ea376dd7b12055cd1ecc1eb8aa17625edc8674cc2c0ebd1aee834150a9');
   const history = await (await fetch(`${url}/admin/orders/${order.id}/audit`, { headers: bearer(admin) })).json() as Array<{ kind: string; actorId: number; details: Record<string, unknown> }>;
   const rows = history.filter(r => r.kind === 'OPERATOR_INTENT_RESOLVED');
   assert.equal(rows.length, 1); assert.equal(rows[0].actorId, admin.id); assert.equal(rows[0].details.decision, 'NOT_APPLIED');
+  assert.deepEqual(rows[0].details.intent, intent); assert.equal(rows[0].details.intentFingerprint, expected);
   await assert.rejects(prisma.$executeRaw`UPDATE "OperationalAudit" SET kind='tampered' WHERE "requestKey"=${`operator-intent:${key}`}`);
 });
