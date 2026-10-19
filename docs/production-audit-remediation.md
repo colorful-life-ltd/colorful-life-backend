@@ -4,7 +4,7 @@ Baseline b78da7493dca8fce59b05b52978c7e9475d7ab92. NOT DEPLOYED. Independent rev
 
 ## Targeted review follow-up
 
-D1/D2 evidence-aware holds, D3 cancellation withdrawal and the staged F10 owner-review contract are documented in [production-review-remediation.md](production-review-remediation.md). This supersedes the earlier irrevocable-intent limitation. No single-action cancellation contract is claimed.
+D1/D2 evidence-aware holds, D3 cancellation withdrawal and the owner-accepted staged F10 contract are documented in [production-review-remediation.md](production-review-remediation.md). This supersedes the earlier irrevocable-intent limitation. No single-action cancellation contract is claimed.
 
 ## Finding matrix
 

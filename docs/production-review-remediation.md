@@ -70,7 +70,7 @@ Errors include `INVALID_CANCELLATION` (400), `FORBIDDEN` (403), and409 conflicts
 
 A generic refund may legitimately begin **after** a committed withdrawal. Its own in-flight/refund/review fence then blocks dispatch. Withdrawal cannot erase that financial hold. Tests explicitly exercise both transaction orderings rather than assuming all concurrent API calls must be mutually exclusive.
 
-## F10 — Staged approach for owner review
+## F10 — Owner-accepted staged cancellation workflow
 
 The agreed implementation approach for this remediation remains:
 
@@ -80,7 +80,7 @@ The agreed implementation approach for this remediation remains:
 
 Before step2, an eligible mistaken request can now be withdrawn. Once refund initiation occurs, the cancellation follows the existing financial recovery/finalization workflow. Used offers retain their inspection/return policy.
 
-**The original single-action refund/cancel/restock contract has not been delivered and is not claimed.** The staged approach is preserved by the user's targeted implementation instruction and submitted for owner review. No network/database atomicity is asserted; no new automatic refund orchestration is introduced.
+**The original single-action refund/cancel/restock contract has not been delivered and is not claimed.** The owner explicitly accepted this safe staged workflow in the final N1 remediation instruction (2026-10-19), replacing the original single-action acceptance criterion. No network/database atomicity is asserted; no new automatic refund orchestration is introduced.
 
 ## Regression and verification evidence
 
@@ -103,5 +103,19 @@ Local focused disposable targets: ports55440/55441; final fresh full-suite targe
 - Exercise signed Stripe/PayPal events and delayed retries in an isolated provider environment, including exact sandbox payload shapes and retained-receipt processing.
 - Verify ADMIN/frontend integration with requestId, withdrawal/replay conflicts, separate reversal/dispute diagnostics and staged cancellation operator controls.
 - Validate homogeneous API rollout, ECS/ALB drain/readiness, worker supervision, least-privilege ledger permissions, approved secrets/origins/SES controls, backup/PITR/restore and alert routing. Existing immutable-ledger grants already permit these new append-only audit kinds.
-- Owner reviews the staged F10 operating process and bank/refund approval, evidence retention and authorized financial-correction policies. Unknown/conflicting historic cases have no force-clear bypass.
+- F10 staged workflow acceptance is recorded above. Bank/refund approval, evidence retention and authorized financial-correction policies still require operational decisions. Unknown/conflicting historic cases have no force-clear bypass.
 - Independent follow-up review, merge and deployment remain user-controlled. No review agent is initiated by this implementation.
+
+## N1 — PayPal inventory diagnostic after successful reconciliation
+
+Final targeted review baseline: `70956d5`. Claude passed the six previous targeted items and conditionally approved merging; N1 was the remaining regression. This follow-up implements N1 without repeating that audit.
+
+`providerFinancialGuard.ts` now recognizes only the exact diagnostic exported by `paypalPaymentOutcome.ts`: `Captured payment requires manual inventory reconciliation; financial success retained`. It remains a hold while the order is pending. After legitimate confirmation, the guard requires a processed, normalized version-1 `PAYMENT.CAPTURE.COMPLETED` receipt whose event ID, current PayPal order/capture pair, exact amount and currency match the successful paid Payment and confirmed Order total. Invalid fields or a contradictory resource status remain held. Managed payments additionally require the matching attempt's verified immutable SUCCESS evidence, matching principal/order/capture and no terminal-unpaid proof. A managed payment cannot fall back to the legacy receipt-only path merely because its capture identity is unmatched.
+
+This explains the financial diagnostic without deleting it or clearing `processingError`. An immutable, idempotent `PROVIDER_RECEIPT_FINANCIAL_RESOLVED` audit points to the successful receipt; classification is recomputed each time. Existing inventory discrepancy guards still require reasoned stocktake; the exception does not confirm orders or alter inventory. Arbitrary errors, uncertain/unprocessed captures, historical or mixed identities, amount/currency mismatches, disputes, reversals and refund holds retain their existing behavior. No schema/migration or provider mutation is introduced.
+
+The N1 cases in `productionReviewRemediation.integration.test.ts` use real domain transitions with injected provider responses: create PayPal order → capture pending → oversized physical FBA shipment with preserved reservation and shortage → verified capture completed → retained financial success with failed inventory conversion → rejected confirmation while discrepancy remains → reasoned ADMIN stocktake → ADMIN confirmation → preparing and dispatch. Concurrent webhook replay and guard evaluation retain one resolution audit and one website-sale stock movement. Negative cases cover conflicting amount/currency/order/capture/event/status/invalid fields, unrelated processing errors, current declines, disputes/reversals, unresolved refunds and replayed finalized dashboard refunds. Existing successful external dashboard-refund tests remain in place.
+
+N1 adds14 tests; the targeted file now has39 tests. The broader focused financial suite passed334 tests with zero failures/skips. Build and Prisma validation passed; all71 committed migrations applied on the disposable database and schema drift was empty. Final full-suite and final-head GitHub CI results are recorded in the PR #209 handoff after execution. Tests use only a disposable local `colorful_life_test` database, synthetic credentials and injected provider responses; no production data or real provider/email action is involved.
+
+**F10 owner decision (2026-10-19): accepted.** The safe staged cancellation workflow replaces the original single-action acceptance requirement: audited cancellation intent → durable refund API → finalized-full-refund cancellation/restock. Eligible intent withdrawal remains available only before any refund initiation. There is no single-action orchestrator. Staging validation of these operator controls is still required; acceptance of the architectural approach is no longer outstanding.

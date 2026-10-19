@@ -1,4 +1,5 @@
 import type { Payment, Prisma } from '../../generated/prisma-client/client.js';
+import { PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC } from './paypalPaymentOutcome.js';
 import { Decimal } from '@prisma/client/runtime/client';
 
 type Evidence = Record<string, Prisma.JsonValue | undefined>;
@@ -43,7 +44,7 @@ function stripeIdentityMatches(payment: Payment, attempt: Attempt | undefined, d
 /** Legacy payments have no managed FinancialEvidence ledger. An accepted verified
  * success receipt is their durable provider proof; never manufacture an attempt. */
 async function retainSuccessReceiptResolution(tx: Prisma.TransactionClient, payment: Payment, receiptId: number, successReceiptId: number) {
-  const key = `provider-receipt-safe:STRIPE:${receiptId}:success-receipt:${successReceiptId}`;
+  const key = `provider-receipt-safe:${payment.provider}:${receiptId}:success-receipt:${successReceiptId}`;
   await tx.$executeRaw`INSERT INTO "OperationalAudit" (kind,"orderId","requestKey",details)
     VALUES ('PROVIDER_RECEIPT_FINANCIAL_RESOLVED',${payment.orderId},${key},${JSON.stringify({ paymentId: payment.id, receiptId, successReceiptId, source: 'verified-success-receipt' })}::jsonb)
     ON CONFLICT ("requestKey") DO NOTHING`;
@@ -97,7 +98,7 @@ export async function providerFinancialHold(tx: Prisma.TransactionClient, paymen
       return 'PAYMENT'; // Historical success or unproven/contradictory identity stays held.
     }
   } else {
-    const receipts = await tx.$queryRaw<Array<{ id: number; eventType: string; evidence: Prisma.JsonValue }>>`SELECT e.id,e."eventType",e.evidence FROM "PaymentWebhookEvent" e
+    const receipts = await tx.$queryRaw<Array<StripeReceipt & { providerEventId: string }>>`SELECT e.id,e."eventType",e.evidence,e."processedAt",e."processingError",e."providerEventId" FROM "PaymentWebhookEvent" e
       WHERE e.provider='PAYPAL' AND (e."reviewDetails"->'correlations' @> ${JSON.stringify([{ orderId: payment.orderId, paymentId: payment.id }])}::jsonb
         OR ((e."eventType" IN ('PAYMENT.CAPTURE.DECLINED','PAYMENT.CAPTURE.REVERSED','CHECKOUT.PAYMENT-APPROVAL.REVERSED','CUSTOMER.DISPUTE.CREATED','CUSTOMER.DISPUTE.UPDATED','CUSTOMER.DISPUTE.RESOLVED')
           OR (e."eventType" IN ('PAYMENT.CAPTURE.COMPLETED','PAYMENT.CAPTURE.PENDING','PAYMENT.CAPTURE.DENIED') AND (e."processedAt" IS NULL OR e."processingError" IS NOT NULL)))
@@ -110,6 +111,30 @@ export async function providerFinancialHold(tx: Prisma.TransactionClient, paymen
       if (['PAYMENT.CAPTURE.REVERSED', 'CHECKOUT.PAYMENT-APPROVAL.REVERSED'].includes(receipt.eventType)) return 'REVERSAL';
       const data = object(receipt.evidence);
       const attempt = attempts.find(a => a.providerReference === data.paypalOrderId && a.providerCaptureReference === data.captureId);
+      // This one diagnostic records failed inventory conversion after verified financial
+      // success. Revalidate the exact receipt and current confirmed principal; never
+      // turn arbitrary processing errors or operator acknowledgement into proof.
+      const order = receipt.processingError === PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC
+        ? await tx.order.findUnique({ where: { id: payment.orderId } }) : null;
+      const success = attempt?.successEvidence;
+      const facts = object(success?.normalized ?? null);
+      if (receipt.eventType === 'PAYMENT.CAPTURE.COMPLETED' && receipt.processedAt
+        && receipt.processingError === PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC
+        && (data.resourceStatus === undefined || data.resourceStatus === 'COMPLETED')
+        && data.version === 1 && data.id === receipt.providerEventId && data.eventType === receipt.eventType
+        && (data.invalidFields === undefined || Array.isArray(data.invalidFields) && data.invalidFields.length === 0)
+        && data.paypalOrderId === payment.providerReference && data.captureId === payment.providerCaptureReference
+        && typeof data.captureId === 'string' && data.captureId.length > 0
+        && data.amount === payment.amount.toFixed(2) && data.currency === payment.currency
+        && payment.status === 'SUCCEEDED' && payment.paidAt && payment.currency === 'GBP'
+        && order?.status === 'CONFIRMED' && payment.amount.eq(order.totalAmount)
+        && (attempts.length === 0 || attempt && !attempt.finalityEvidenceId && attempt.orderId === payment.orderId
+          && attempt.amount.eq(payment.amount) && attempt.currency === payment.currency
+          && success?.kind === 'SUCCESS' && success.verifiedAt && success.orderId === payment.orderId && success.provider === payment.provider
+          && facts.providerReference === payment.providerReference && facts.providerCaptureReference === payment.providerCaptureReference
+          && facts.amount === payment.amount.toFixed(2) && facts.currency === payment.currency)) {
+        await retainSuccessReceiptResolution(tx, payment, receipt.id, receipt.id); continue;
+      }
       const proof = attempt && await unpaidProof(tx, attempt, payment);
       let matches = false;
       try { matches = typeof data.amount === 'string' && new Decimal(data.amount).eq(attempt?.amount ?? -1); } catch { /* held below */ }
