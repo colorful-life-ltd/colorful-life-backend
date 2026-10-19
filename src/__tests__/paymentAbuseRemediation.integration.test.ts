@@ -34,7 +34,7 @@ afterEach(async () => {
 async function user() {
   const u = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash('Correct1!Password', 4), emailVerified: true } }); users.push(u.id); return u;
 }
-function post(path: string, body: object, ip?: string) { return fetch(url+path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(ip ? { 'X-Forwarded-For': ip } : {}) }, body: JSON.stringify(body) }); }
+function post(path: string, body: object, ip?: string) { return fetch(url+path, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json', ...(ip ? { 'X-Forwarded-For': ip } : {}) }, body: JSON.stringify(body) }); }
 function overrides(value: Partial<typeof stagingLimits>) { config.PAYMENT_ABUSE_LIMITS_JSON = JSON.stringify({ ...stagingLimits, ...value }); }
 
 it('a known email cannot be remotely locked by hostile passwords from many IPs', async () => {
@@ -114,7 +114,7 @@ it('accepts explicit direct/proxy deployment modes and valid staging overrides',
   validateAbuseStartup(valid, 'production'); validateAbuseStartup({ ...valid, CLIENT_IP_MODE: 'proxy', TRUSTED_PROXY_CIDRS: '10.0.0.0/16', PAYMENT_ABUSE_LIMITS_JSON: '{"provider":[100,900]}' }, 'production');
 });
 it('actual production config import exits before serving requests on missing abuse configuration without leaking values', () => {
-  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
+  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true',PAYPAL_BASE_URL:'https://api-m.paypal.com', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
   delete env.PAYMENT_ABUSE_HMAC_SECRET; delete env.NODE_TEST_CONTEXT;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', 'await import("./dist/config/index.js")'], { env, encoding: 'utf8' });
   assert.equal(result.status, 1); assert.match(result.stderr, /PAYMENT_ABUSE_HMAC_SECRET/);
@@ -125,7 +125,7 @@ for (const [name, override, expected] of [
   ['missing proxy mode', { CLIENT_IP_MODE: undefined }, 'CLIENT_IP_MODE'],
   ['proxy without trusted ranges', { CLIENT_IP_MODE: 'proxy', TRUSTED_PROXY_CIDRS: undefined }, 'TRUSTED_PROXY_CIDRS'],
 ] as const) it(`production import fails fast for ${name} with sanitized output`, () => {
-  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct', ...override };
+  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true',PAYPAL_BASE_URL:'https://api-m.paypal.com', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct', ...override };
   delete env.NODE_TEST_CONTEXT;
   for (const [key, value] of Object.entries(env)) if (value === undefined) delete env[key];
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', 'await import("./dist/config/index.js")'], { env, encoding: 'utf8' });
@@ -133,9 +133,9 @@ for (const [name, override, expected] of [
 });
 it('production imports default both provider switches off and only explicit flags enable them', () => {
   for (const enable of [false, true]) {
-    const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
+    const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true',PAYPAL_BASE_URL:'https://api-m.paypal.com', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
     delete env.NODE_TEST_CONTEXT; delete env.PAYMENT_STRIPE_INITIATION_ENABLED; delete env.PAYMENT_PAYPAL_INITIATION_ENABLED;
-    if (enable) { env.PAYMENT_STRIPE_INITIATION_ENABLED = 'true'; env.PAYMENT_PAYPAL_INITIATION_ENABLED = 'true'; }
+    if (enable) { env.STRIPE_SECRET_KEY='sk_live_synthetic_never_used';env.STRIPE_WEBHOOK_SECRET='whsec_synthetic_never_used';env.PAYPAL_CLIENT_ID='synthetic-never-used'; env.PAYMENT_STRIPE_INITIATION_ENABLED = 'true'; env.PAYMENT_PAYPAL_INITIATION_ENABLED = 'true'; }
     const result = spawnSync(process.execPath, ['--input-type=module', '-e', `const {config}=await import('./dist/config/index.js');if(config.PAYMENT_STRIPE_INITIATION_ENABLED!==${enable}||config.PAYMENT_PAYPAL_INITIATION_ENABLED!==${enable})process.exit(2)`], { env, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
   }

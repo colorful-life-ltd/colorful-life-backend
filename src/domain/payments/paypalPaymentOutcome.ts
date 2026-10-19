@@ -5,6 +5,8 @@ import { recordManagedSuccess } from "./paymentResolutionService.js";
 import type { Order, Prisma } from "../../generated/prisma-client/client.js";
 import { OrderStatus, PaymentStatus } from "../../generated/prisma-client/enums.js";
 
+export const PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC = "Captured payment requires manual inventory reconciliation; financial success retained";
+
 /** Caller holds the Order row lock and has reread and validated the Payment. */
 export async function recordPayPalSuccess(tx: Prisma.TransactionClient, payment: Prisma.PaymentGetPayload<{ include: { order: true } }>, captureId: string, now: Date) {
   await recordManagedSuccess(tx, payment, payment.providerReference, captureId);
@@ -28,7 +30,7 @@ export async function recordPayPalSuccess(tx: Prisma.TransactionClient, payment:
   } catch {
     await tx.$executeRaw`ROLLBACK TO SAVEPOINT verified_paypal_fulfillment`;
     await tx.$executeRaw`RELEASE SAVEPOINT verified_paypal_fulfillment`;
-    return { payment: updated, processingError: "Captured payment requires manual inventory reconciliation; financial success retained" };
+    return { payment: updated, processingError: PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC };
   }
   // Capture only the transition, never backfill on historical re-observation.
   await enqueueOrderConfirmation(tx, payment.orderId);

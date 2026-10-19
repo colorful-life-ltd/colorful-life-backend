@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail.js";
@@ -26,7 +27,7 @@ router.get("/profile", authMiddleware, requireVerifiedEmail, async (req, res) =>
     }
     return res.json(user);
   } catch (err) {
-    console.error("Profile error", err);
+    logOperationalError("Profile error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });

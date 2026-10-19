@@ -26,7 +26,7 @@ after(async () => {
   await prisma.$disconnect();
 });
 async function post(path: string, body: unknown) {
-  const response = await fetch(base + path, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": clientIp }, body: JSON.stringify(body) });
+  const response = await fetch(base + path, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", "X-Forwarded-For": clientIp }, body: JSON.stringify(body) });
   return { status: response.status, body: await response.json() };
 }
 it("uses the generated SES body URL, revokes both credentials, and preserves identity and order ownership", async () => {
@@ -54,11 +54,11 @@ it("uses the generated SES body URL, revokes both credentials, and preserves ide
     assert.equal((await post("/auth/reset-password", { token, newPassword: "NewPassword1!" })).status, 200);
     assert.equal((await post("/auth/reset-password", { token, newPassword: "OtherPassword1!" })).status, 400);
     assert.equal((await post("/auth/refresh", { refreshToken: loggedIn.body.refreshToken })).status, 401);
-    assert.equal((await fetch(base + "/orders", { headers: { Authorization: `Bearer ${loggedIn.body.token}` } })).status, 401);
+    assert.equal((await fetch(base + "/orders", { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${loggedIn.body.token}` } })).status, 401);
     assert.equal((await post("/auth/login", { email: user.email, password: "OldPassword1!" })).status, 401);
     const fresh = await post("/auth/login", { email: user.email, password: "NewPassword1!" });
     assert.equal(fresh.status, 200);
-    assert.equal((await fetch(base + "/orders", { headers: { Authorization: `Bearer ${fresh.body.token}` } })).status, 200);
+    assert.equal((await fetch(base + "/orders", { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${fresh.body.token}` } })).status, 200);
     const current = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     assert.equal(current.email, user.email);
     assert.equal(current.emailVerified, user.emailVerified);
@@ -99,7 +99,7 @@ it("does not trust a forged forwarded IP and returns 429 after the IP budget", a
   const address = s.address(); assert.ok(address && typeof address !== "string");
   try {
     for (let i = 0; i < 31; i++) {
-      const response: Response = await fetch(`http://127.0.0.1:${address.port}/reset`, { method: "POST", headers: { "X-Forwarded-For": `192.0.2.${i}, ${key}` } });
+      const response: Response = await fetch(`http://127.0.0.1:${address.port}/reset`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "X-Forwarded-For": `192.0.2.${i}, ${key}` } });
       assert.equal(response.status, i < 30 ? 204 : 429);
     }
   } finally { await new Promise<void>(resolve => s.close(() => resolve())); }
@@ -125,7 +125,7 @@ it("refresh racing with reset cannot leave a renewable or usable old session", a
   assert.ok(refreshed.status === 200 || refreshed.status === 401);
   if (refreshed.status === 200) {
     assert.equal((await post("/auth/refresh", { refreshToken: refreshed.body.refreshToken })).status, 401);
-    assert.equal((await fetch(base + "/orders", { headers: { Authorization: `Bearer ${refreshed.body.token}` } })).status, 401);
+    assert.equal((await fetch(base + "/orders", { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${refreshed.body.token}` } })).status, 401);
   }
   assert.equal(await prisma.refreshSession.count({ where: { userId: user.id, revokedAt: null } }), 0);
 });
@@ -166,7 +166,7 @@ it("retains legacy access compatibility until the first reset and revokes versio
   const { config } = await import("../config/index.js");
   const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4), emailVerified: true } });
   const legacy = jwt.sign({ id: user.id, role: user.role }, config.JWT_SECRET, { expiresIn: "1h" });
-  const getOrders = (token: string) => fetch(base + "/orders", { headers: { Authorization: `Bearer ${token}` } });
+  const getOrders = (token: string) => fetch(base + "/orders", { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token}` } });
   assert.equal((await getOrders(legacy)).status, 200);
   await resetPassword((await createOrReplacePasswordResetToken(user.id)).rawToken, "NewPassword1!");
   assert.equal((await getOrders(legacy)).status, 401);
@@ -288,7 +288,7 @@ it("shares a real PostgreSQL recovery budget across different IPv6 addresses in 
   const prefix = randomUUID().slice(0, 4);
   try {
     for (let i = 0; i < 31; i++) {
-      const response: Response = await fetch(`http://127.0.0.1:${address.port}/`, { method: "POST", headers: { "X-Forwarded-For": `2001:db8:${prefix}:56${i.toString(16).padStart(2, "0")}::${i + 1}` } });
+      const response: Response = await fetch(`http://127.0.0.1:${address.port}/`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "X-Forwarded-For": `2001:db8:${prefix}:56${i.toString(16).padStart(2, "0")}::${i + 1}` } });
       assert.equal(response.status, i < 30 ? 204 : 429);
     }
   } finally { await new Promise<void>(resolve => listener.close(() => resolve())); }
@@ -342,7 +342,7 @@ it("ignores forwarding headers entirely when no proxy is trusted", async () => {
   const address = listener.address(); assert.ok(address && typeof address !== "string");
   try {
     for (const forwarded of ["2001:db8::1", "192.0.2.42", "spoofed"]) {
-      const response: Response = await fetch(`http://127.0.0.1:${address.port}/`, { headers: { "X-Forwarded-For": forwarded } });
+      const response: Response = await fetch(`http://127.0.0.1:${address.port}/`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "X-Forwarded-For": forwarded } });
       assert.equal(response.status, 204);
     }
   } finally { await new Promise<void>(resolve => listener.close(() => resolve())); }

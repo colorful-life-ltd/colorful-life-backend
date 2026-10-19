@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { Request, Response } from "express";
 import { prisma } from "../prisma/runtime.js";
 import { Prisma } from "../generated/prisma-client/client.js";
@@ -113,7 +114,7 @@ export const lookupAddresses = async (req: Request, res: Response) => {
     if (error instanceof AddressLookupProviderError) {
       return res.status(503).json({ error: "Address lookup service unavailable" });
     }
-    console.error("Address lookup error");
+    logOperationalError("Address lookup error", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -146,7 +147,7 @@ export const getAddresses = async (req: Request, res: Response) => {
     const response = addresses.map(mapAddressToApi);
     return res.json(response);
   } catch (err) {
-    console.error("Get addresses error", err);
+    logOperationalError("Get addresses error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -198,7 +199,7 @@ export const createAddress = async (req: Request, res: Response) => {
     });
     return res.status(201).json(mapAddressToApi(created));
   } catch (err) {
-    console.error("Create address error", err);
+    logOperationalError("Create address error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -272,7 +273,7 @@ export const updateAddress = async (req: Request, res: Response) => {
     }
     return res.json(mapAddressToApi(result));
   } catch (err) {
-    console.error("Update address error", err);
+    logOperationalError("Update address error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -313,7 +314,7 @@ export const deleteAddress = async (req: Request, res: Response) => {
     }
     return res.status(204).send();
   } catch (err) {
-    console.error("Delete address error", err);
+    logOperationalError("Delete address error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

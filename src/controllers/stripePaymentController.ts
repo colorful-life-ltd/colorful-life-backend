@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { sendProtectionError } from "../middleware/checkoutProtection.js";
 import { PaymentAdmissionClosedError, PaymentResolutionUnavailableError } from "../domain/payments/paymentResolutionService.js";
 import { sendApiError } from "../utils/apiErrorResponse.js";
@@ -20,7 +21,7 @@ export async function createStripePaymentIntentHandler(req: Request, res: Respon
     if (error instanceof StripePaymentAlreadyCompletedError) return sendApiError(res, 409, "PAYMENT_ALREADY_COMPLETED", "Order already has a completed payment or another provider");
     if (error instanceof StripePaymentNotPayableError) return sendApiError(res, 409, "ORDER_NOT_PAYABLE", "Only a PENDING order can initiate checkout payment");
     if (error instanceof StripePaymentProviderError) return res.status(503).json({ error: "Payment service unavailable" });
-    console.error("Stripe payment initiation error", error);
+    logOperationalError("Stripe payment initiation error", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

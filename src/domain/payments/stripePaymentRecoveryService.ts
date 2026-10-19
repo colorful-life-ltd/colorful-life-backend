@@ -81,10 +81,13 @@ export async function recoverStripePayment(orderId: number, userId: number, clie
     // it is explicitly not a Stripe webhook event. Retain late-payment errors
     // through the existing operational reconciliation exception store.
     const providerEventId = `recovery:${payment.id}:${intent.id}:succeeded`;
+    // Legacy orders have no managed attempt ledger. Retain the exact allowlisted
+    // verified GET identity/amount as immutable success proof, not an invented attempt.
+    const evidence = { version: 1, paymentIntentId: intent.id, amount: intent.amount, currency: payment.currency.toLowerCase(), orderId: String(orderId) };
     await tx.paymentWebhookEvent.upsert({
       where: { provider_providerEventId: { provider: PaymentProvider.STRIPE, providerEventId } },
-      create: { provider: PaymentProvider.STRIPE, providerEventId, eventType: "payment_intent.recovered", processedAt: new Date(), processingError: reconciliation },
-      update: { processingError: reconciliation },
+      create: { provider: PaymentProvider.STRIPE, providerEventId, eventType: "payment_intent.recovered", processedAt: new Date(), processingError: reconciliation, evidence },
+      update: { processingError: reconciliation, evidence },
     });
   });
 

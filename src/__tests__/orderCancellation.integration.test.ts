@@ -15,7 +15,7 @@ import { OrderCancellationPaymentError } from "../domain/orders/orderCancellatio
 import { createOrReuseStripePaymentIntent, StripePaymentNotPayableError } from "../domain/payments/stripePaymentService.js";
 import { reconcileStripePaymentEvent } from "../domain/payments/stripeReconciliationService.js";
 import { recoverStripePayment } from "../domain/payments/stripePaymentRecoveryService.js";
-import { createPayment } from "../domain/payments/paymentService.js";
+import { createPayment } from "./helpers/manualPayment.js";
 import { PaymentOrderCancelledError } from "../domain/payments/paymentErrors.js";
 import { createOrReusePayPalOrder, PayPalOrderAlreadyCompletedError } from "../domain/payments/paypalOrderService.js";
 
@@ -157,7 +157,7 @@ describe("customer order cancellation HTTP integration", () => {
     const order = await makeOrder(admin.id);
     const response = await fetch(`${url}/orders/${order.id}/seller-cancel`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${jwt.sign({ id: admin.id, role: "ADMIN" }, config.JWT_SECRET, { expiresIn: "1h" })}`, "Content-Type": "application/json" },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${jwt.sign({ id: admin.id, role: "ADMIN" }, config.JWT_SECRET, { expiresIn: "1h" })}`, "Content-Type": "application/json" },
       body: JSON.stringify({ reason: "OUT_OF_STOCK" }),
     });
     assert.strictEqual(response.status, 200);
@@ -177,7 +177,7 @@ async function makeAdmin() {
   return { id: user.id, token: jwt.sign({ id: user.id }, config.JWT_SECRET) };
 }
 async function sellerCancel(orderId: number, token?: string, reason = "OUT_OF_STOCK") {
-  return fetch(`${url}/orders/${orderId}/seller-cancel`, { method: "POST", headers: {
+  return fetch(`${url}/orders/${orderId}/seller-cancel`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
     "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }, body: JSON.stringify({ reason }) });
 }

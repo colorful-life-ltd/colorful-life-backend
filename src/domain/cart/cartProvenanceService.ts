@@ -1,3 +1,4 @@
+import {logOperationalError} from "../../utils/operationalLog.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
 import { prisma } from "../../prisma/runtime.js";
 import { CartReconciliationState as State } from "../../generated/prisma-client/enums.js";
@@ -123,16 +124,18 @@ export async function reconcilePendingCarts() {
 
 /** Polling is only scheduling, not a correctness lock; multiple instances are safe. */
 export function startCartReconciliationWorker(intervalMs = 5_000) {
-  let running = false;
+  let running = false, stopped=false;
   const tick = async () => {
-    if (running) return;
+    if (running || stopped) return;
     running = true;
     try { await reconcilePendingCarts(); }
-    catch (error) { console.error("Cart reconciliation worker failed; will retry", error); }
+    catch (error) { logOperationalError("Cart reconciliation worker failed; will retry", error); }
     finally { running = false; }
   };
-  const timer = setInterval(() => { void tick(); }, intervalMs);
+  let pending:Promise<void>=Promise.resolve();
+  const launch=()=>{if(!running&&!stopped)pending=tick();};
+  const timer = setInterval(launch, intervalMs);
   timer.unref();
-  void tick();
-  return () => clearInterval(timer);
+  launch();
+  return async () => { stopped=true; clearInterval(timer); await pending; };
 }

@@ -1,3 +1,4 @@
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import assert from "node:assert/strict";
 import { after, afterEach, before, it } from "node:test";
 import { randomUUID } from "node:crypto";
@@ -67,7 +68,7 @@ async function offer(stock = 5, used = false) {
 }
 type Customer = Awaited<ReturnType<typeof customer>>;
 function http(user: Customer, path: string, method = "GET", body?: unknown) {
-  return fetch(`${base}${path}`, { method, headers: { Authorization: `Bearer ${user.token}`, "Content-Type": "application/json" },
+  return fetch(`${base}${path}`, { method, headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${user.token}`, "Content-Type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
 function checkout(user: Customer, lines: Array<{ productListingId: number; quantity: number }>) {
@@ -250,6 +251,7 @@ it("confirmation reconciliation still consumes only allocated quantity and prese
   await addCartItem(user.id, listing.id, 1);
   const order = await createOrder(user.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] });
   await addCartItem(user.id, listing.id, 1);
+  await recordVerifiedPayment(order.id);
   await confirmOrder(user.id, order.id);
   const before = await savedRows(user);
   let item = (await getCart(user.id)).items[0];

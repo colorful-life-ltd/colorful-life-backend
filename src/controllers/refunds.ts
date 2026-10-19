@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { RefundIntentError, RefundPersistenceError, refundProjection } from "../domain/refunds/refundLifecycleService.js";
 import { reconcileExternalRefund } from "../domain/refunds/refundReconciliationService.js";
 import { RefundCapacityExceededError } from "../domain/refunds/refundCapacityService.js";
@@ -90,7 +91,7 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     if (err instanceof PayPalRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
     if (err instanceof StripeRefundValidationError) return res.status(409).json({ error: "Stripe refund request is not valid" });
     if (err instanceof StripeRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
-    console.error("Create refund failed; inspect existing intent before retry");
+    logOperationalError("Create refund failed; inspect existing intent before retry", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -113,7 +114,7 @@ export const listRefundsHandler = async (req: Request, res: Response) => {
     if (err instanceof RefundOrderNotFoundError) {
       return res.status(404).json({ error: err.message });
     }
-    console.error("List refunds failed");
+    logOperationalError("List refunds failed", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

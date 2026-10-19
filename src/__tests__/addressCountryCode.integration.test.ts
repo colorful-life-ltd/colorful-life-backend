@@ -31,7 +31,7 @@ async function customer(managed = false) {
   return { user, listing, token: jwt.sign({ id: user.id, role: 'CUSTOMER' }, config.JWT_SECRET) };
 }
 type Customer = Awaited<ReturnType<typeof customer>>;
-const request = (c: Customer, method: string, path: string, body?: unknown) => fetch(`${url}${path}`, { method, headers: { Authorization: `Bearer ${c.token}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
+const request = (c: Customer, method: string, path: string, body?: unknown) => fetch(`${url}${path}`, { method, headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${c.token}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
 // The storefront's checkout deliverySnapshot already converts the saved address to "GB".
 const checkoutBody = (c: Customer) => ({ shippingMethod: 'STANDARD', items: [{ productListingId: c.listing.id, quantity: 1 }],
   deliveryAddress: { recipientName: 'Synthetic Buyer', line1: '1 Fictional Road', city: 'Testville', postcode: 'T1 1TT', countryCode: 'GB' } });

@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { PaymentAdmissionClosedError, PaymentResolutionUnavailableError } from "../domain/payments/paymentResolutionService.js";
 // Controller for payment HTTP endpoints.
 // Implements the following routes:
@@ -13,7 +14,7 @@ import { PaymentAdmissionClosedError, PaymentResolutionUnavailableError } from "
 //   * Successful GET  → 200 with an array of payments ordered newest‑first
 
 import { Request, Response } from "express";
-import { createPayment } from "../domain/payments/paymentService.js";
+import { createPayment,ManualPaymentAuthorizationError } from "../domain/payments/paymentService.js";
 import { CreatePaymentSchema } from "../domain/payments/paymentValidator.js";
 import { PaymentNotFoundError, PaymentConflictError, PaymentAlreadySucceededError, PaymentExpiredError, PaymentOrderCancelledError } from "../domain/payments/paymentErrors.js";
 import { prisma } from "../prisma/runtime.js";
@@ -43,9 +44,11 @@ export const createPaymentHandler = async (req: Request, res: Response) => {
   }
 
   try {
-    const payment = await createPayment(orderId, parseResult.data);
+    if(!parseResult.data.reason||!parseResult.data.evidenceReference)return res.status(400).json({error:'MANUAL_PAYMENT_EVIDENCE_REQUIRED'});
+    const payment = await createPayment(orderId, parseResult.data, req.user!.id);
     return res.status(201).json(payment);
   } catch (err: unknown) {
+    if(err instanceof ManualPaymentAuthorizationError)return res.status(err.status).json({error:err.code});
     if (err instanceof PaymentAdmissionClosedError || err instanceof PaymentResolutionUnavailableError) {
       return res.status(409).json({ error: "Payment admission is closed or a prior operation requires resolution" });
     }
@@ -61,7 +64,7 @@ export const createPaymentHandler = async (req: Request, res: Response) => {
     if (err instanceof PaymentExpiredError || err instanceof PaymentOrderCancelledError) {
       return res.status(409).json({ error: err.message });
     }
-    console.error("Create payment error", err);
+    logOperationalError("Create payment error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -99,7 +102,8 @@ export const listPaymentsHandler = async (req: Request, res: Response) => {
     });
     return res.json(payments);
   } catch (err: unknown) {
-    console.error("List payments error", err);
+    if(err instanceof ManualPaymentAuthorizationError)return res.status(err.status).json({error:err.code});
+    logOperationalError("List payments error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

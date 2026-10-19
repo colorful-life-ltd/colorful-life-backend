@@ -1,3 +1,6 @@
+import {InventoryDiscrepancyError} from "../domain/inventory/inventoryDiscrepancy.js";
+import {logOperationalError} from "../utils/operationalLog.js";
+import {UnsupportedDeliveryCountryError} from "../domain/orders/orderErrors.js";
 import { InvalidListingPriceError } from "../domain/products/listingPrice.js";
 import { sendProtectionError } from "../middleware/checkoutProtection.js";
 import { OrderReturnEligibilityError, OrderCancellationReturnConflictError } from "../domain/orders/returnInventorySafety.js";
@@ -74,7 +77,7 @@ export const listCustomerOrdersHandler = async (req: Request, res: Response) => 
   try {
     return res.status(200).json(await listCustomerOrders(userId));
   } catch (err) {
-    console.error("Customer order listing error", err);
+    logOperationalError("Customer order listing error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -90,12 +93,13 @@ export const getCustomerOrderHandler = async (req: Request, res: Response) => {
     if (!order) return res.status(404).json({ error: "Order not found" });
     return res.status(200).json(order);
   } catch (err) {
-    console.error("Customer order read error", err);
+    logOperationalError("Customer order read error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const createOrderHandler = async (req: Request, res: Response) => {
+  if(!req.get("Idempotency-Key"))return res.status(400).json({error:"IDEMPOTENCY_KEY_REQUIRED"});
   const parseResult = CreateOrderSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ error: parseResult.error.format() });
@@ -106,6 +110,8 @@ export const createOrderHandler = async (req: Request, res: Response) => {
     const { creationIdempotencyKey: _key, creationRequestHash: _hash, actualShippingCost: _merchantCost, confirmationDeliverySnapshot: _deliverySnapshot, ...response } = order;
     return res.status(201).json(response);
   } catch (err: unknown) {
+      if(err instanceof UnsupportedDeliveryCountryError)return sendApiError(res,400,"DELIVERY_COUNTRY_UNSUPPORTED",err.message);
+      if(err instanceof InventoryDiscrepancyError)return sendApiError(res,409,"INVENTORY_DISCREPANCY_REVIEW_REQUIRED","Inventory requires review before another reservation",{productListingId:err.listingId,availableQuantity:0});
       if (sendProtectionError(res, err)) return;
       if (err instanceof InvalidListingPriceError) return sendApiError(res, 409, "LISTING_UNAVAILABLE", err.message, { productListingId: err.productListingId, reason: "INVALID_PRICE", availableQuantity: 0 });
       if (err instanceof CartQuantityAllocatedError) return sendApiError(res, 409, "CART_QUANTITY_UNAVAILABLE", err.message, { productListingId: err.productListingId });
@@ -137,7 +143,7 @@ export const createOrderHandler = async (req: Request, res: Response) => {
     ) {
       return res.status(400).json({ error: err.message });
     }
-    console.error("Order creation error", err);
+    logOperationalError("Order creation error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -172,7 +178,7 @@ export const cancelOrderBySellerHandler = async (req: Request, res: Response) =>
       if (err instanceof OrderNotCancellableError || err instanceof InsufficientReservedStockError) {
       return res.status(400).json({ error: err.message });
     }
-    console.error("Seller order cancellation error", err);
+    logOperationalError("Seller order cancellation error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -192,6 +198,7 @@ export const confirmOrderHandler = async (req: Request, res: Response) => {
     const order = await confirmOrder(adminUserId, orderId);
     return res.status(200).json(order);
   } catch (err: unknown) {
+    if(err instanceof InventoryDiscrepancyError)return sendApiError(res,409,"INVENTORY_DISCREPANCY_REVIEW_REQUIRED","Inventory requires review",{productListingId:err.listingId});
     if (err instanceof OrderNotFoundErrorConfirm) {
       return res.status(404).json({ error: err.message });
     }
@@ -204,7 +211,7 @@ export const confirmOrderHandler = async (req: Request, res: Response) => {
     if (err instanceof InsufficientStockError) {
       return res.status(400).json({ error: err.message });
     }
-    console.error("Order confirmation error", err);
+    logOperationalError("Order confirmation error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -228,7 +235,7 @@ export const completeOrderHandler = async (req: Request, res: Response) => {
       if (err instanceof OrderNotCompletableError) {
         return res.status(400).json({ error: err.message });
       }
-      console.error("Order completion error", err);
+      logOperationalError("Order completion error", err);
       return res.status(500).json({ error: "Internal server error" });
     }
 };
@@ -257,7 +264,7 @@ export const cancelOrderHandler = async (req: Request, res: Response) => {
       if (err instanceof OrderNotCancellableError || err instanceof InsufficientReservedStockError) {
       return res.status(400).json({ error: err.message });
     }
-    console.error("Order cancellation error", err);
+    logOperationalError("Order cancellation error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -318,7 +325,7 @@ export const processOrderReturnHandler = async (req: Request, res: Response) => 
     if (err instanceof OrderItemNotFoundError) {
       return res.status(404).json({ error: err.message });
     }
-    console.error("Order return error", err);
+    logOperationalError("Order return error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -353,7 +360,7 @@ export const authorizeOrderReturnHandler = async (req: Request, res: Response) =
     if (err instanceof OrderReturnNotAuthorizableError) {
       return res.status(409).json({ error: err.message });
     }
-    console.error("Authorize order return error", err);
+    logOperationalError("Authorize order return error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -370,7 +377,7 @@ export const cancelOrderReturnHandler = async (req: Request, res: Response) => {
   } catch (err: unknown) {
     if (err instanceof OrderReturnOrderNotFoundError || err instanceof OrderReturnNotFoundError) return res.status(404).json({ error: err.message });
     if (err instanceof OrderReturnNotCancellableError || err instanceof OrderReturnQuantityExceededError) return res.status(409).json({ error: err.message });
-    console.error("Cancel order return error", err);
+    logOperationalError("Cancel order return error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -405,7 +412,7 @@ export const receiveOrderReturnHandler = async (req: Request, res: Response) => 
     if (err instanceof OrderReturnNotReceivableError) {
       return res.status(409).json({ error: err.message });
     }
-    console.error("Receive order return error", err);
+    logOperationalError("Receive order return error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -459,7 +466,7 @@ export const inspectOrderReturnHandler = async (req: Request, res: Response) => 
     if (err instanceof OrderReturnNotInspectableError) {
       return res.status(409).json({ error: err.message });
     }
-    console.error("Inspect order return error", err);
+    logOperationalError("Inspect order return error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -505,7 +512,7 @@ export const completeOrderReturnHandler = async (req: Request, res: Response) =>
     ) {
       return res.status(409).json({ error: err.message });
     }
-    console.error("Complete order return error", err);
+    logOperationalError("Complete order return error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -544,7 +551,7 @@ export const completeOrderReturnHandler = async (req: Request, res: Response) =>
       if (err instanceof FulfilmentPaymentNotVerifiedError) {
         return sendApiError(res, 409, err.reason === "REFUND_REVIEW_REQUIRED" ? "REFUND_REVIEW_REQUIRED" : "ORDER_PAYMENT_NOT_VERIFIED", err.message);
       }
-      console.error("Order dispatch error", err);
+      logOperationalError("Order dispatch error", err);
       return res.status(500).json({ error: "Internal server error" });
     }
   };

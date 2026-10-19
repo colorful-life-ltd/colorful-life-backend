@@ -76,7 +76,7 @@ async function makeFixture() {
 async function dispatch(token: string, orderId: number, trackingNumber?: string) {
   return fetch(`${url}/orders/${orderId}/dispatch`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ actualShippingCost: 5.99, shippingCarrier: "UPS", ...(trackingNumber === undefined ? {} : { trackingNumber }) }),
   });
 }
@@ -110,7 +110,7 @@ describe("durable dispatch notification", () => {
   });
   it("queues nothing for non-ADMIN or unauthenticated callers", async () => {
     const f = await makeFixture(); assert.equal((await dispatch(f.customer.token, f.order.id)).status, 403);
-    assert.equal((await fetch(`${url}/orders/${f.order.id}/dispatch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actualShippingCost: 1, shippingCarrier: 'UPS' }) })).status, 401);
+    assert.equal((await fetch(`${url}/orders/${f.order.id}/dispatch`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json' }, body: JSON.stringify({ actualShippingCost: 1, shippingCarrier: 'UPS' }) })).status, 401);
     assert.equal((await jobs(f.order.id)).length, 0);
   });
 });

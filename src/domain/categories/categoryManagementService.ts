@@ -1,3 +1,4 @@
+import {logOperationalError} from "../../utils/operationalLog.js";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../../generated/prisma-client/client.js";
 import { prisma as defaultPrisma } from "../../prisma/runtime.js";
@@ -48,11 +49,11 @@ export function createCategoryManagementService(storage: ImageStorage, db: Db = 
         return { publicId: previousPublicId, stillUsedBySibling };
       });
     } catch (error) {
-      try { await storage.delete(stored.publicId); } catch (compensationError) { console.error(`${label} upload compensation failed`, compensationError instanceof Error ? compensationError.message : "unknown error"); }
+      try { await storage.delete(stored.publicId); } catch (compensationError) { logOperationalError(`${label} upload compensation failed`, compensationError); }
       throw error;
     }
     if (previous.publicId && previous.publicId !== stored.publicId && !previous.stillUsedBySibling && isOwnedCategoryArtworkPublicId(previous.publicId, categoryId)) {
-      try { await storage.delete(previous.publicId); } catch (error) { console.error(`${label} replacement cleanup failed`, error instanceof Error ? error.message : "unknown error"); }
+      try { await storage.delete(previous.publicId); } catch (error) { logOperationalError(`${label} replacement cleanup failed`, error); }
     }
     return db.category.findUniqueOrThrow({ where: { id: categoryId }, select: categorySelect });
   }
@@ -80,7 +81,7 @@ export function createCategoryManagementService(storage: ImageStorage, db: Db = 
       return { publicId: previousPublicId, stillUsedBySibling };
     });
     if (previous.publicId && !previous.stillUsedBySibling && isOwnedCategoryArtworkPublicId(previous.publicId, categoryId)) {
-      try { await storage.delete(previous.publicId); } catch (error) { console.error(`${label} removal cleanup failed`, error instanceof Error ? error.message : "unknown error"); }
+      try { await storage.delete(previous.publicId); } catch (error) { logOperationalError(`${label} removal cleanup failed`, error); }
     }
     return db.category.findUniqueOrThrow({ where: { id: categoryId }, select: categorySelect });
   }

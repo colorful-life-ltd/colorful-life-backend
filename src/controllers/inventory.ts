@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { InventoryAdjustmentRequestSchema } from "../domain/inventory/inventoryAdjustmentValidator.js";
 import {
@@ -33,10 +34,11 @@ export const reconcileStocktakeInventory = async (req: Request, res: Response) =
     const result = await reconcileStocktake({ ...parsed.data, performedByUserId: user.id });
     return res.status(200).json(result);
   } catch (err: unknown) {
+    if (err instanceof InvalidInventoryAdjustmentReasonError)return res.status(400).json({error:"DISCREPANCY_STOCKTAKE_REASON_REQUIRED"});
     if (err instanceof InvalidStocktakeQuantityError) return res.status(400).json({ error: err.message });
     if (err instanceof StocktakeListingNotFoundError) return res.status(404).json({ error: err.message });
     if (err instanceof StocktakeBelowReservedStockError) return res.status(409).json({ error: err.message });
-    console.error("Stocktake reconciliation error", err);
+    logOperationalError("Stocktake reconciliation error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -62,7 +64,7 @@ export const createInventoryAdjustment = async (req: Request, res: Response) => 
     if (err instanceof InventoryListingNotFoundError) return res.status(404).json({ error: err.message });
     if (err instanceof InvalidConditionAdjustmentError || err instanceof InvalidInventoryAdjustmentQuantityError || err instanceof InvalidInventoryAdjustmentReasonError) return res.status(400).json({ error: err.message });
     if (err instanceof InventoryInsufficientStockError || err instanceof InventoryListingsMustDifferError || err instanceof InventoryListingsMustShareProductError) return res.status(409).json({ error: err.message });
-    console.error("Inventory adjustment error", err);
+    logOperationalError("Inventory adjustment error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };

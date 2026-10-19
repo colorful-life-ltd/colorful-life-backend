@@ -1,6 +1,8 @@
 import type { Response } from "express";
 
 export type ApiErrorCode =
+  | "DELIVERY_COUNTRY_UNSUPPORTED"
+  | "INVENTORY_DISCREPANCY_REVIEW_REQUIRED"
   | "VALIDATION_ERROR"
   | "IDEMPOTENCY_CONFLICT"
   | "LISTING_NOT_FOUND"

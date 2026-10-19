@@ -1,3 +1,6 @@
+import {logOperationalError} from "./utils/operationalLog.js";
+import refundReviews from "./routes/refundReviews.js";
+import { prisma } from "./prisma/runtime.js";
 import adminPaymentSecurity from "./routes/adminPaymentSecurity.js";
 import adminPayPalWebhookReviewsRouter from './routes/adminPayPalWebhookReviews.js';
 import express from "express";
@@ -30,7 +33,10 @@ import type { ImageStorage } from "./infrastructure/imageStorage/imageStorage.js
 export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?: ImageStorage, categoryArtworkStorage?: ImageStorage) {
   const app = express();
   if (config.TRUSTED_PROXY_CIDRS) app.set("trust proxy", config.TRUSTED_PROXY_CIDRS.split(",").map(value => value.trim()));
-  app.use(cors({ origin: "http://localhost:5173" }));
+  app.disable('x-powered-by');
+  app.use((_req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','DENY');res.setHeader('Referrer-Policy','no-referrer');if(process.env.NODE_ENV==='production')res.setHeader('Strict-Transport-Security','max-age=31536000');next();});
+  const origins=config.CORS_ALLOWED_ORIGINS.split(',').map(v=>v.trim());
+  app.use(cors({ origin(origin,callback){callback(null,!origin||origins.includes(origin));} }));
   app.use("/payments", stripeWebhookRouter);
   app.use("/payments", paypalWebhookRouter);
   app.use(express.json());
@@ -48,6 +54,7 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/purchases", purchasesRouter);
   app.use("/purchase-analytics", purchaseAnalyticsRouter);
   app.use("/purchase-items", purchaseItemsRouter);
+  app.use("/admin/refund-reviews",refundReviews);
   app.use("/admin/payment-security", adminPaymentSecurity);
 app.use("/admin/orders", adminOrdersRouter);
   app.use("/admin/paypal/webhook-reviews", adminPayPalWebhookReviewsRouter);
@@ -58,6 +65,13 @@ app.use("/admin/orders", adminOrdersRouter);
   app.use("/inventory", createConditionConversionRouter(imageStorage));
   app.use(createSitemapRouter());
   app.get("/health", (_req, res) => { res.json({ status: "ok" }); });
+  app.get('/ready',async(_req,res)=>{try{await prisma.$queryRaw`SELECT 1`;res.json({status:'ready'});}catch{res.status(503).json({status:'unavailable'});}});
+  app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
+    logOperationalError('HTTP request rejected',error);
+    if(res.headersSent){res.end();return;}
+    const status=error&&typeof error==='object'&&'status' in error&&[400,413,415].includes(Number(error.status))?Number(error.status):500;
+    res.status(status).json({error:status===500?'INTERNAL_SERVER_ERROR':'INVALID_REQUEST'});
+  });
   return app;
 }
 

@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { sendApiError } from "../utils/apiErrorResponse.js";
 import { StripePaymentProviderError } from "../domain/payments/stripePaymentService.js";
@@ -15,7 +16,7 @@ export async function recoverStripePaymentHandler(req: Request, res: Response) {
     if (error instanceof StripeRecoveryUnavailableError) return sendApiError(res, 409, "STRIPE_RECOVERY_UNAVAILABLE", "Order has no recoverable Stripe payment reference");
     if (error instanceof StripeRecoveryMismatchError) return sendApiError(res, 409, "STRIPE_RECOVERY_MISMATCH", "Stripe payment correlation or amount validation failed");
     if (error instanceof StripePaymentProviderError) return res.status(503).json({ error: "Payment service unavailable" });
-    console.error("Stripe payment recovery failed", error);
+    logOperationalError("Stripe payment recovery failed", error);
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 }

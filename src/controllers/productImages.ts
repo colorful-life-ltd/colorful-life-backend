@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { ImageLimitExceededError, ImageNamespaceError, ImageValidationError, InvalidImageOrderError, ProductImageNotFoundError, ProductNotFoundError } from "../domain/productImages/productImageErrors.js";
 import { createProductImageService } from "../domain/productImages/productImageService.js";
@@ -12,7 +13,7 @@ export function createProductImageController(storage: ImageStorage) {
     if (error instanceof ProductNotFoundError || error instanceof ProductImageNotFoundError) return res.status(404).json({ error: error.message });
     if (error instanceof ImageLimitExceededError) return res.status(409).json({ error: error.message });
     if (error instanceof ImageNamespaceError) return res.status(500).json({ error: "Internal server error" });
-    console.error("Product image operation error", error instanceof Error ? error.message : "unknown error");
+    logOperationalError("Product image operation error");
     return res.status(500).json({ error: "Internal server error" });
   };
   return {

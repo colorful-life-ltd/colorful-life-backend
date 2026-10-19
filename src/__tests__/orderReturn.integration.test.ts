@@ -1,3 +1,4 @@
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import assert from "node:assert";
 import type { Server } from "node:http";
@@ -98,6 +99,7 @@ async function createOrderFixture(customerId: number, quantity = 3) {
   const order = await createOrder(customerId, { shippingMethod: "STANDARD" as const,
     items: [{ productListingId: listing.id, quantity }],
   });
+  await recordVerifiedPayment(order.id);
   await confirmOrder(customerId, order.id);
   orderIdsForCleanup.push(order.id);
   return { listing, order, orderItem: order.orderItems[0] };
@@ -221,17 +223,7 @@ describe("Order Return HTTP Integration", () => {
   it("ADMIN creates a REQUESTED return without side effects", async () => {
     const customer = await createUser("CUSTOMER");
     const { listing, order, orderItem } = await createOrderFixture(customer.id);
-    const payment = await prisma.payment.create({
-      data: {
-        orderId: order.id,
-        amount: order.totalAmount,
-        currency: "GBP",
-        provider: PaymentProvider.MANUAL,
-        providerReference: `return-http-${randomUUID()}`,
-        status: PaymentStatus.SUCCEEDED,
-        paidAt: new Date(),
-      },
-    });
+    const payment = await prisma.payment.findUniqueOrThrow({where:{orderId:order.id}});
     paymentIdsForCleanup.push(payment.id);
     const itemBefore = await prisma.orderItem.findUnique({ where: { id: orderItem.id } });
     const listingBefore = await prisma.productListing.findUnique({ where: { id: listing.id } });
@@ -348,17 +340,7 @@ describe("Order Return HTTP Integration", () => {
     assert.strictEqual(requestedResponse.status, 201, JSON.stringify(requested));
     returnIdsForCleanup.push(requested.id);
 
-    const payment = await prisma.payment.create({
-      data: {
-        orderId: order.id,
-        amount: order.totalAmount,
-        currency: "GBP",
-        provider: PaymentProvider.MANUAL,
-        providerReference: `authorize-http-${randomUUID()}`,
-        status: PaymentStatus.SUCCEEDED,
-        paidAt: new Date(),
-      },
-    });
+    const payment = await prisma.payment.findUniqueOrThrow({where:{orderId:order.id}});
     paymentIdsForCleanup.push(payment.id);
 
     const itemBefore = await prisma.orderItem.findUnique({ where: { id: orderItem.id } });
@@ -466,17 +448,7 @@ describe("Order Return HTTP Integration", () => {
     const authorized = await authorizedResponse.json();
     assert.strictEqual(authorizedResponse.status, 200, JSON.stringify(authorized));
 
-    const payment = await prisma.payment.create({
-      data: {
-        orderId: order.id,
-        amount: order.totalAmount,
-        currency: "GBP",
-        provider: PaymentProvider.MANUAL,
-        providerReference: `receive-http-${randomUUID()}`,
-        status: PaymentStatus.SUCCEEDED,
-        paidAt: new Date(),
-      },
-    });
+    const payment = await prisma.payment.findUniqueOrThrow({where:{orderId:order.id}});
     paymentIdsForCleanup.push(payment.id);
 
     const itemBefore = await prisma.orderItem.findUnique({ where: { id: orderItem.id } });

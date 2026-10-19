@@ -25,7 +25,7 @@ async function createUserWithAddress() {
           line1: "123 Test St",
           city: "Testville",
           postcode: "12345",
-          countryCode: "US",
+          countryCode: "GB",
           isDefaultBilling: true,
         },
       },

@@ -1,3 +1,4 @@
+import {logOperationalError} from "../../utils/operationalLog.js";
 import { prisma } from "../../prisma/runtime.js";
 import { PaymentProvider } from "../../generated/prisma-client/enums.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
@@ -31,7 +32,7 @@ export async function replayPendingPayPalWebhooks({ paypalOrderId, pageSize = 10
         // Transaction rollback leaves processedAt null and evidence intact.
         // Never log provider payloads, credentials or raw database exceptions.
         result.failed++;
-        console.error("PayPal webhook replay failed; pending receipt retained", { receiptId: receipt.id });
+        logOperationalError("PayPal webhook replay failed; pending receipt retained");
       }
     }
   }
@@ -39,16 +40,18 @@ export async function replayPendingPayPalWebhooks({ paypalOrderId, pageSize = 10
 
 /** Scheduling only. Each ECS instance can run this; PostgreSQL provides correctness. */
 export function startPayPalWebhookReplayWorker(intervalMs = 5_000) {
-  let running = false;
+  let running = false, stopped=false;
   const tick = async () => {
-    if (running) return;
+    if (running || stopped) return;
     running = true;
     try { await replayPendingPayPalWebhooks(); }
-    catch { console.error("PayPal webhook replay sweep failed; will retry"); }
+    catch { logOperationalError("PayPal webhook replay sweep failed; will retry"); }
     finally { running = false; }
   };
-  const timer = setInterval(() => { void tick(); }, intervalMs);
+  let pending:Promise<void>=Promise.resolve();
+  const launch=()=>{if(!running&&!stopped)pending=tick();};
+  const timer = setInterval(launch, intervalMs);
   timer.unref();
-  void tick();
-  return () => clearInterval(timer);
+  launch();
+  return async () => { stopped=true; clearInterval(timer); await pending; };
 }

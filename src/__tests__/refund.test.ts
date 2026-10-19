@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { Decimal } from "@prisma/client/runtime/client";
 import { prisma } from "../prisma/runtime.js";
 import { createOrder } from "../domain/orders/orderService.js";
-import { createPayment } from "../domain/payments/paymentService.js";
+import { createPayment } from "./helpers/manualPayment.js";
 import { createRefund, getOrderRefunds } from "../domain/refunds/refundService.js";
 import {
   RefundAmountExceededError,

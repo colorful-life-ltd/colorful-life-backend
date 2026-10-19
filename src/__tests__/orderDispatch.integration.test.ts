@@ -83,7 +83,7 @@ async function createDefaultBillingAddress(userId: number): Promise<void> {
       line1: "123 Billing St",
       city: "Billingville",
       postcode: "00001",
-      countryCode: "US",
+      countryCode: "GB",
       isDefaultBilling: true,
     },
   });
@@ -97,7 +97,7 @@ async function signupCustomer(
 ) {
   const res = await fetch(`${url}/auth/signup`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
 
@@ -152,7 +152,7 @@ describe("Order Dispatch HTTP Integration", () => {
             line1: "Admin St 1",
             city: "Adminville",
             postcode: "99999",
-            countryCode: "US",
+            countryCode: "GB",
             isDefaultBilling: true,
           },
         },
@@ -189,11 +189,11 @@ describe("Order Dispatch HTTP Integration", () => {
     legoProductIdsForCleanup.push(legoProductId);
     const order = await createTestOrder(customerId, listingId);
     // Confirm the order to make it CONFIRMED
+    await recordVerifiedPayment(order.id);
     await fetch(`${url}/orders/${order.id}/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
-    await recordVerifiedPayment(order.id);
     const dispatchBody = {
       actualShippingCost: 5.99,
       shippingCarrier: "UPS",
@@ -201,7 +201,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
     const res = await fetch(`${url}/orders/${order.id}/dispatch`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },
@@ -231,14 +231,14 @@ describe("Order Dispatch HTTP Integration", () => {
     legoProductIdsForCleanup.push(legoProductId);
     const order = await createTestOrder(customerId, listingId);
     // Confirm the order
+    await recordVerifiedPayment(order.id);
     await fetch(`${url}/orders/${order.id}/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
-    await recordVerifiedPayment(order.id);
     const res = await fetch(`${url}/orders/${order.id}/dispatch`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${customerToken}`,
         "Content-Type": "application/json",
       },
@@ -258,7 +258,7 @@ describe("Order Dispatch HTTP Integration", () => {
     // Do NOT confirm, order remains PENDING
     const res = await fetch(`${url}/orders/${order.id}/dispatch`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },
@@ -271,7 +271,7 @@ describe("Order Dispatch HTTP Integration", () => {
   it("invalid orderId returns 400", async () => {
     const res = await fetch(`${url}/orders/abc/dispatch`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
       body: JSON.stringify({ actualShippingCost: 5, shippingCarrier: "UPS" }),
     });
     assert.strictEqual(res.status, 400);
@@ -284,7 +284,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
     const res = await fetch(`${url}/orders/1/dispatch`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json" },
       body: JSON.stringify(dispatchBody),
     });
     assert.strictEqual(res.status, 401);
@@ -297,7 +297,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
     const res = await fetch(`${url}/orders/999999/dispatch`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },
@@ -313,7 +313,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
         const res = await fetch(`${url}/orders/1/dispatch`, {
           method: "POST",
-          headers: {
+          headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
             Authorization: `Bearer ${adminToken}`,
             "Content-Type": "application/json",
           },
@@ -329,7 +329,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
         const res = await fetch(`${url}/orders/1/dispatch`, {
           method: "POST",
-          headers: {
+          headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
             Authorization: `Bearer ${adminToken}`,
             "Content-Type": "application/json",
           },
@@ -344,7 +344,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
         const res = await fetch(`${url}/orders/1/dispatch`, {
           method: "POST",
-          headers: {
+          headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
             Authorization: `Bearer ${adminToken}`,
             "Content-Type": "application/json",
           },
@@ -360,7 +360,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
     const res = await fetch(`${url}/orders/1/dispatch`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },
@@ -377,11 +377,11 @@ describe("Order Dispatch HTTP Integration", () => {
     customerToken = custToken;
     customerId = userId;
     const order = await createTestOrder(customerId, listingId);
+    await recordVerifiedPayment(order.id);
     await fetch(`${url}/orders/${order.id}/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
-    await recordVerifiedPayment(order.id);
     const stockBefore = (await prisma.productListing.findUnique({ where: { id: listingId } }))?.currentStock;
     const dispatchBody = {
       actualShippingCost: 5,
@@ -389,7 +389,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
     await fetch(`${url}/orders/${order.id}/dispatch`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },
@@ -407,11 +407,11 @@ describe("Order Dispatch HTTP Integration", () => {
     customerToken = custToken;
     customerId = userId;
     const order = await createTestOrder(customerId, listingId);
+    await recordVerifiedPayment(order.id);
     await fetch(`${url}/orders/${order.id}/confirm`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${adminToken}` },
     });
-    await recordVerifiedPayment(order.id);
     const movementCountBefore = await prisma.inventoryMovement.count({ where: { listingId, type: "WEBSITE_SALE" } });
     const dispatchBody = {
       actualShippingCost: 5,
@@ -419,7 +419,7 @@ describe("Order Dispatch HTTP Integration", () => {
     };
     await fetch(`${url}/orders/${order.id}/dispatch`, {
       method: "POST",
-      headers: {
+      headers: { ...{ "Idempotency-Key": crypto.randomUUID() },
         Authorization: `Bearer ${adminToken}`,
         "Content-Type": "application/json",
       },

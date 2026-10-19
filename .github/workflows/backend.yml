@@ -1,0 +1,63 @@
+name: backend
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: isolated-ci-only
+          POSTGRES_DB: colorful_life_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U test -d colorful_life_test" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://test:isolated-ci-only@localhost:5432/unused_normal
+      TEST_DATABASE_URL: postgresql://test:isolated-ci-only@localhost:5432/colorful_life_test
+      JWT_SECRET: synthetic-ci-only-not-production
+      STRIPE_SECRET_KEY: sk_test_synthetic
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # git show --check needs parents; a shallow boundary is treated as a root.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma validate
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: git diff --exit-code -- prisma/schema.prisma prisma/migrations
+      - run: git show --format= --check HEAD
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build --tag colorful-life-backend:ci .
+      - name: Verify non-root runtime and production dependencies
+        run: >-
+          docker run --rm --entrypoint node colorful-life-backend:ci
+          --input-type=module -e
+          "import assert from 'node:assert/strict'; import {existsSync} from 'node:fs';
+          assert.notEqual(process.getuid(), 0);
+          for (const name of ['bcrypt', 'pdfkit', 'fontkit', '@prisma/adapter-pg']) await import(name);
+          await import('./dist/generated/prisma-client/client.js'); assert.ok(existsSync('dist/index.js')); assert.ok(existsSync('src/assets')); assert.ok(existsSync('assets'));
+          assert.equal(existsSync('node_modules/typescript'), false); assert.equal(existsSync('node_modules/prisma'), false);"
+      - name: Build migration image
+        run: docker build --file Dockerfile.migrations --tag colorful-life-migrations:ci .
+      - name: Verify non-root migration CLI
+        run: >-
+          docker run --rm --env DATABASE_URL=postgresql://unused:unused@127.0.0.1/unused
+          --entrypoint node colorful-life-migrations:ci --input-type=module -e
+          "import assert from 'node:assert/strict'; import {spawnSync} from 'node:child_process';
+          assert.notEqual(process.getuid(), 0);
+          const result=spawnSync(process.execPath, ['node_modules/prisma/build/index.js', 'validate'], {stdio:'inherit'});
+          assert.equal(result.status, 0);"

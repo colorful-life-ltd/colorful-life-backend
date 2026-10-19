@@ -1,3 +1,5 @@
+import {providerFinancialHold} from "../payments/providerFinancialGuard.js";
+import { journalRefundEvidence } from "./refundEvidenceService.js";
 import { randomUUID } from "node:crypto";
 import { Decimal } from "@prisma/client/runtime/client";
 import type { Prisma, Refund } from "../../generated/prisma-client/client.js";
@@ -40,13 +42,8 @@ export async function assertNoUnresolvedRefund(tx: Prisma.TransactionClient, pay
   const existing=await tx.refund.findFirst({where:{paymentId,OR:[{status:"PROCESSING"},{reviewRequired:true}]},orderBy:{id:"asc"}});
   if(existing) throw new RefundIntentError("REFUND_UNRESOLVED",409,existing.id,existing.status);
   const payment=await tx.payment.findUniqueOrThrow({where:{id:paymentId}});
-  const parent=payment.provider==="STRIPE"?payment.providerReference:payment.providerCaptureReference;
-  if(parent&&payment.provider!=="MANUAL"){
-    const receipt=await tx.paymentWebhookEvent.findFirst({where:{provider:payment.provider,
-      AND:[{evidence:{path:["kind"],equals:"refund"}},{evidence:{path:["parentReference"],equals:parent}},
-        {OR:[{processedAt:null},{processingError:{not:null}}]}]},select:{id:true}});
-    if(receipt)throw new RefundIntentError("REFUND_PROVIDER_EVIDENCE_UNRESOLVED");
-  }
+  const hold=await providerFinancialHold(tx,payment);
+  if(hold==='REFUND')throw new RefundIntentError('REFUND_PROVIDER_EVIDENCE_UNRESOLVED');
 }
 export async function prepareExternalRefund(input:{orderId:number;paymentId:number;amount:Decimal|number;reason?:string;actor:number;provider:ExternalRefundProvider;clientRequestKey?:string;refundId?:number}) {
   const amount=new Decimal(input.amount);
@@ -88,11 +85,13 @@ export async function prepareExternalRefund(input:{orderId:number;paymentId:numb
   }
 }
 export type RefundObservation={provider:ExternalRefundProvider;reference?:string;parentReference:string;amount:string;currency:string;
-  status:"SUCCEEDED"|"FAILED"|"PENDING"|"UNKNOWN";rejectionCode?:string};
+  status:"SUCCEEDED"|"FAILED"|"PENDING"|"UNKNOWN";source?:"POST"|"GET"|"WEBHOOK";rejectionCode?:string};
 export async function retainUnresolved(refundId:number,code:string,review=false,evidence?:Prisma.InputJsonValue){
   return prisma.$transaction(async tx=>{
     const {refund}=await lockRefund(tx,refundId);
-    if(refund.status!=="PROCESSING")return refund;
+    const fresh = await journalRefundEvidence(tx,refundId,evidence ?? {issue:code});
+    if(!fresh)return refund;
+    if(refund.status!=="PROCESSING" && !review)return refund;
     // A delayed incomplete POST must not replace an identity already established by a webhook.
     const candidate=evidence && typeof evidence==="object"&&!Array.isArray(evidence)?(evidence as Prisma.InputJsonObject).reference:undefined;
     if(refund.provider==="PAYPAL"&&typeof candidate==="string"&&!refund.providerReference.startsWith("pending:")&&refund.providerReference!==candidate)
@@ -106,6 +105,8 @@ export async function applyRefundObservationInTransaction(tx:Prisma.TransactionC
   const expectedParent=refund.providerPaymentReference ?? (refund.provider==="STRIPE"?payment.providerReference:payment.providerCaptureReference);
   let moneyMatches=false;try{moneyMatches=new Decimal(observation.amount).isFinite() && new Decimal(observation.amount).eq(refund.amount);}catch{}
   const evidence={...observation};
+  const fresh=await journalRefundEvidence(tx,refundId,evidence);
+  if(!fresh && refund.status!=="PROCESSING")return refund;
   const valid=observation.provider===refund.provider && payment.provider===refund.provider && expectedParent===observation.parentReference
     && moneyMatches && typeof observation.currency==="string" && observation.currency.toUpperCase()===refund.currency.toUpperCase()
     && (observation.rejectionCode ? !observation.reference && refund.providerReference.startsWith("pending:")

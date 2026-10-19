@@ -10,7 +10,7 @@ import { createOrReuseStripePaymentIntent, type StripePaymentClient } from "../d
 import { recoverStripePayment } from "../domain/payments/stripePaymentRecoveryService.js";
 import { reconcileStripePaymentEvent } from "../domain/payments/stripeReconciliationService.js";
 import { expireOrderReservation } from "../domain/orders/orderExpiryService.js";
-import { createPayment } from "../domain/payments/paymentService.js";
+import { createPayment } from "./helpers/manualPayment.js";
 import { cancelOrder, cancelOrderByAdmin } from "../domain/orders/orderCancellationService.js";
 import { InsufficientAvailableStockError } from "../domain/orders/orderErrors.js";
 import { createOrder } from "../domain/orders/orderService.js";
@@ -371,9 +371,9 @@ it("verified failure binds a lost initiation identity and leaves retry usable",a
 it("manual-payment endpoint maps closed and unresolved admission to HTTP 409",async()=>{
  const f=await fixture(31);await prisma.user.update({where:{id:f.u.id},data:{role:"ADMIN"}});
  const token=jwt.sign({id:f.u.id,role:"ADMIN"},config.JWT_SECRET);const headers={Authorization:`Bearer ${token}`,"Content-Type":"application/json"};
- assert.equal((await fetch(`${base}/orders/${f.order.id}/payments`,{method:"POST",headers,body:JSON.stringify({providerReference:randomUUID()})})).status,409);
+ assert.equal((await fetch(`${base}/orders/${f.order.id}/payments`,{method:"POST",headers,body:JSON.stringify({reason:"Synthetic verified bank receipt",evidenceReference:"test-bank-receipt",providerReference:randomUUID()})})).status,409);
  const other=await fixture();const pending=await admitted(other);await prisma.paymentWebhookEvent.create({data:{provider:"STRIPE",providerEventId:randomUUID(),eventType:"payment_intent.succeeded",evidence:{orderId:String(other.order.id),paymentIntentId:pending.remote.id}}});
- assert.equal((await fetch(`${base}/orders/${other.order.id}/payments`,{method:"POST",headers,body:JSON.stringify({providerReference:randomUUID()})})).status,409);
+ assert.equal((await fetch(`${base}/orders/${other.order.id}/payments`,{method:"POST",headers,body:JSON.stringify({reason:"Synthetic verified bank receipt",evidenceReference:"test-bank-receipt",providerReference:randomUUID()})})).status,409);
  assert.equal(await prisma.payment.count({where:{orderId:{in:[f.order.id,other.order.id]}}}),1);
 });
 

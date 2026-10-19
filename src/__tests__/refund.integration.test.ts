@@ -7,7 +7,7 @@ import { Decimal } from "@prisma/client/runtime/client";
 import app from "../app.js";
 import { config } from "../config/index.js";
 import { createOrder } from "../domain/orders/orderService.js";
-import { createPayment } from "../domain/payments/paymentService.js";
+import { createPayment } from "./helpers/manualPayment.js";
 import { prisma } from "../prisma/runtime.js";
 import { PaymentProvider, PaymentStatus } from "../generated/prisma-client/enums.js";
 import { setPayPalRefundClientForTests } from "../domain/refunds/paypalRefundService.js";

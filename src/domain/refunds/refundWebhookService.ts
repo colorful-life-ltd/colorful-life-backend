@@ -1,3 +1,4 @@
+import { Decimal } from "@prisma/client/runtime/client";
 import { z } from "zod";
 import { prisma } from "../../prisma/runtime.js";
 import { applyRefundObservationInTransaction, lockRefund } from "./refundLifecycleService.js";
@@ -32,7 +33,29 @@ export async function processRefundWebhookReceipt(receiptId:number){
     let candidate=event.reference?await tx.refund.findUnique({where:{provider_providerReference:{provider:event.provider,providerReference:event.reference}}}):null;
     const localId=event.localRefundId&&/^[1-9][0-9]*$/.test(event.localRefundId)?Number(event.localRefundId):undefined;
     if(!candidate&&localId&&Number.isSafeInteger(localId))candidate=await tx.refund.findUnique({where:{id:localId}});
-    if(candidate)await lockRefund(tx,candidate.id);
+    // Provider-dashboard refunds have no application intent. Correlate only by
+    // a frozen provider parent; never infer ownership from arbitrary metadata.
+    if(!candidate && !event.localRefundId && !event.localOrderId && event.parentReference && event.reference){
+      const payment=await tx.payment.findFirst({where:{provider:event.provider,...(event.provider==='STRIPE'?{providerReference:event.parentReference}:{providerCaptureReference:event.parentReference})}});
+      if(payment){
+        await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${payment.orderId} FOR NO KEY UPDATE`;
+        await tx.$queryRaw`SELECT id FROM "Payment" WHERE id=${payment.id} FOR UPDATE`;
+        candidate=await tx.refund.findUnique({where:{provider_providerReference:{provider:event.provider,providerReference:event.reference}}});
+        if(!candidate && event.amount && event.currency && ['SUCCEEDED','PENDING','FAILED'].includes(event.status)){
+          const current=await tx.payment.findUniqueOrThrow({where:{id:payment.id}});
+          let amount:Decimal|undefined;try{amount=new Decimal(event.amount);}catch{}
+          if(current.status==='SUCCEEDED'&&current.paidAt&&amount?.isFinite()&&amount.gt(0)&&amount.mul(100).isInteger()&&event.currency.toUpperCase()===current.currency.toUpperCase()
+            && current.refundedAmount.add(current.reservedRefundAmount).add(amount).lte(current.amount)){
+            await tx.payment.update({where:{id:payment.id},data:{reservedRefundAmount:{increment:amount}}});
+            candidate=await tx.refund.create({data:{orderId:payment.orderId,paymentId:payment.id,provider:event.provider,
+              providerReference:event.reference,providerPaymentReference:event.parentReference,amount,currency:current.currency,status:'PROCESSING',
+              reason:'Verified external provider refund',performedByUserId:null}});
+          }
+        }
+      }
+    }
+    const locked=candidate?await lockRefund(tx,candidate.id):null;
+    if(locked)candidate=locked.refund;
     await tx.$queryRaw`SELECT id FROM "PaymentWebhookEvent" WHERE id=${receiptId} FOR UPDATE`;
     const receipt=await tx.paymentWebhookEvent.findUniqueOrThrow({where:{id:receiptId}});
     const current=RefundWebhookEvidenceSchema.safeParse(receipt.evidence);
@@ -42,9 +65,22 @@ export async function processRefundWebhookReceipt(receiptId:number){
     if(!candidate)return unresolved("REFUND_UNCORRELATED");
     if(candidate.provider!==event.provider || event.localRefundId!==undefined&&localId!==candidate.id
       || event.localOrderId!==undefined&&event.localOrderId!==String(candidate.orderId))return unresolved("REFUND_CORRELATION_MISMATCH");
-    if(!event.reference||!event.parentReference||!event.amount||!event.currency||event.status==="UNKNOWN")return unresolved("REFUND_EVIDENCE_INCOMPLETE");
+    if(!event.reference||!event.parentReference||!event.amount||!event.currency||event.status==="UNKNOWN"){
+      const expectedParent=candidate.providerPaymentReference??(candidate.provider==='STRIPE'?locked?.payment.providerReference:locked?.payment.providerCaptureReference);
+      let moneyMatches=!event.amount;try{if(event.amount)moneyMatches=new Decimal(event.amount).eq(candidate.amount);}catch{}
+      if(candidate.status!=='PROCESSING'&&candidate.providerOutcome&&!candidate.reviewRequired
+        && event.reference===candidate.providerReference&&(!event.parentReference||event.parentReference===expectedParent)
+        && moneyMatches&&(!event.currency||event.currency.toUpperCase()===candidate.currency.toUpperCase())
+        && (event.status==='UNKNOWN'||event.status==='PENDING'||event.status===candidate.status)){
+        await tx.$executeRaw`INSERT INTO "OperationalAudit" (kind,"orderId","refundId","requestKey",details)
+          VALUES ('REFUND_RECEIPT_CORROBORATED',${candidate.orderId},${candidate.id},${`refund-receipt-corroborated:${receiptId}`},${JSON.stringify({receiptId,providerOutcome:candidate.providerOutcome})}::jsonb) ON CONFLICT ("requestKey") DO NOTHING`;
+        await tx.paymentWebhookEvent.update({where:{id:receiptId},data:{processedAt:new Date(),processingError:null}});
+        return {handled:true,processed:true};
+      }
+      return unresolved('REFUND_EVIDENCE_INCOMPLETE');
+    }
     const result=await applyRefundObservationInTransaction(tx,candidate.id,{provider:event.provider,reference:event.reference,
-      parentReference:event.parentReference,amount:event.amount,currency:event.currency,status:event.status});
+      parentReference:event.parentReference,amount:event.amount,currency:event.currency,status:event.status,source:"WEBHOOK"});
     const error=result.reviewRequired?result.resolutionCode:null;
     await tx.paymentWebhookEvent.update({where:{id:receiptId},data:{processedAt:new Date(),processingError:error}});
     return {handled:!error,processed:true};

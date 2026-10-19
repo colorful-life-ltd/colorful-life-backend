@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import type { Request, Response } from "express";
 import { CatalogueArtworkProductNotFoundError, createCatalogueArtworkService } from "../domain/catalogueArtwork/catalogueArtworkService.js";
 import { ImageValidationError } from "../domain/productImages/productImageErrors.js";
@@ -13,7 +14,7 @@ export function createCatalogueArtworkController(storage: ImageStorage) {
   const mapError = (res: Response, error: unknown) => {
     if (error instanceof ImageValidationError) return res.status(400).json({ error: error.message });
     if (error instanceof CatalogueArtworkProductNotFoundError) return res.status(404).json({ error: error.message });
-    console.error("Catalogue artwork operation error", error instanceof Error ? error.message : "unknown error");
+    logOperationalError("Catalogue artwork operation error");
     return res.status(500).json({ error: "Internal server error" });
   };
   return {

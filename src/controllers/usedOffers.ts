@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { hasValidListingPrices, priceMessage } from "../domain/products/listingPrice.js";
 import type { Request, Response } from "express";
 import { Prisma } from "../generated/prisma-client/client.js";
@@ -39,7 +40,7 @@ export function createUsedOfferController(storage: ImageStorage) {
       if (error instanceof UsedOfferProductNotFoundError) return res.status(404).json({ error: "LegoProduct not found" });
       if (error instanceof UsedOfferInsufficientNewStockError) return res.status(409).json({ error: "Insufficient available NEW stock" });
       if (error instanceof UsedOfferConflictError || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) return res.status(409).json({ error: "An available Used offer already exists for this product" });
-      console.error("Used offer operation failed", error);
+      logOperationalError("Used offer operation failed", error);
       return res.status(500).json({ error: "Used offer could not be created" });
     }
   };

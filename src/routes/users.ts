@@ -1,3 +1,5 @@
+import {checkoutProtection} from "../middleware/checkoutProtection.js";
+import { changePassword } from "../controllers/passwordChange.js";
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail.js";
@@ -15,8 +17,9 @@ const router = Router();
 
 router.get("/me", authMiddleware, requireVerifiedEmail, getCurrentUserProfile);
 router.patch("/me", authMiddleware, requireVerifiedEmail, updateCurrentUserProfile);
-router.patch("/me/email", authMiddleware, changeCurrentUserEmail);
-router.delete("/me", authMiddleware, deleteCurrentUserAccount);
+router.patch("/me/email", authMiddleware, checkoutProtection("recovery"), changeCurrentUserEmail);
+router.post("/me/password", authMiddleware, checkoutProtection("recovery"), changePassword);
+router.delete("/me", authMiddleware, checkoutProtection("recovery"), deleteCurrentUserAccount);
 // Address management endpoints
 router.get("/me/addresses/lookup", authMiddleware, requireVerifiedEmail, lookupAddresses);
 router.get("/me/addresses", authMiddleware, requireVerifiedEmail, getAddresses);

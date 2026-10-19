@@ -3,7 +3,7 @@ import { checkPaymentAdmission, journalNewPayment, recordManagedSuccess } from "
 
 import { prisma } from "../../prisma/runtime.js"
 import { Decimal } from "@prisma/client/runtime/client"
-import { CreatePaymentInput } from "./paymentValidator.js"
+import { CreatePaymentInput,CreatePaymentSchema } from "./paymentValidator.js"
 import {
   PaymentConflictError,
   PaymentAlreadySucceededError,
@@ -29,12 +29,16 @@ import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/pri
  *     concurrency safety.  In the rare case of a P2002 during the create
  *     step we recover outside the transaction.
  */
+export class ManualPaymentAuthorizationError extends Error {constructor(readonly code:string,readonly status:number){super(code);}}
 export async function createPayment(
   orderId: number,
-  input: CreatePaymentInput
+  input: CreatePaymentInput,
+  actorId?: number
 ): Promise<
   Awaited<ReturnType<typeof prisma.payment.create>>
 > {
+  input=CreatePaymentSchema.parse(input);
+  if(!actorId||!input.reason||!input.evidenceReference)throw new ManualPaymentAuthorizationError("MANUAL_PAYMENT_EVIDENCE_REQUIRED",400);
   const { providerReference } = input
 
   let payment:
@@ -42,6 +46,8 @@ export async function createPayment(
     | Awaited<ReturnType<typeof prisma.payment.findFirst>>
   try {
     payment = await prisma.$transaction(async (tx) => {
+      const actor=await tx.user.findUnique({where:{id:actorId}});
+      if(!actor||actor.deletedAt||actor.role!=="ADMIN")throw new ManualPaymentAuthorizationError("ADMIN_REQUIRED",403);
       // Serialize payment decisions with expiry on the order row.
       const lockedOrders = await tx.$queryRaw<Array<{ id: number; status: OrderStatus; totalAmount: Decimal; reservationExpiresAt: Date | null }>>`
         SELECT id, status, "totalAmount", "reservationExpiresAt"
@@ -68,6 +74,8 @@ export async function createPayment(
         if (existing.orderId !== orderId) {
           throw new PaymentConflictError(orderId, existing.orderId)
         }
+        const proof=await tx.$queryRaw<Array<{actorId:number;details:{reason:string;evidenceReference:string}}>>`SELECT "actorId",details FROM "OperationalAudit" WHERE kind='MANUAL_PAYMENT_RECORDED' AND "orderId"=${orderId}`;
+        if(!proof.length||proof[0].actorId!==actorId||proof[0].details.reason!==input.reason||proof[0].details.evidenceReference!==input.evidenceReference)throw new ManualPaymentAuthorizationError('MANUAL_PAYMENT_REPLAY_CONFLICT',409);
         return existing
       }
 
@@ -94,6 +102,7 @@ export async function createPayment(
           paidAt: new Date(),
         },
       })
+      await tx.$executeRaw`INSERT INTO "OperationalAudit" (kind,"actorId","orderId",details) VALUES ('MANUAL_PAYMENT_RECORDED',${actorId},${orderId},${JSON.stringify({reason:input.reason,evidenceReference:input.evidenceReference,providerReference})}::jsonb)`;
       await journalNewPayment(tx, created, "CONFIRM")
       await recordManagedSuccess(tx, created, created.providerReference)
       return created

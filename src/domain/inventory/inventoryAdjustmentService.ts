@@ -1,3 +1,4 @@
+import {unresolvedFbaDiscrepancies} from "./inventoryDiscrepancy.js";
 import { prisma } from "../../prisma/runtime.js";
 import {
   InventoryAdjustmentReason,
@@ -144,6 +145,12 @@ export async function reconcileStocktake(input: StocktakeReconciliationInput) {
       throw new StocktakeBelowReservedStockError();
     }
 
+    const discrepancies=await unresolvedFbaDiscrepancies(tx,listing.id);
+    if(discrepancies.length){
+      const actor=await tx.user.findUnique({where:{id:input.performedByUserId}});
+      if(!actor||actor.deletedAt||actor.role!=='ADMIN'||!input.reasonNote||input.reasonNote.trim().length<10||input.reasonNote.length>2000)throw new InvalidInventoryAdjustmentReasonError();
+      for(const row of discrepancies)await tx.$executeRaw`INSERT INTO "OperationalAudit" (kind,"actorId","requestKey",details) VALUES ('FBA_DISCREPANCY_RESOLVED',${input.performedByUserId},${`fba-resolved:${row.id}`},${JSON.stringify({outboundId:row.id,listingId:listing.id,actualStock:input.actualStock,reservedStock:listing.reservedStock,reason:input.reasonNote.trim()})}::jsonb)`;
+    }
     const quantityChange = input.actualStock - listing.currentStock;
     if (quantityChange === 0) {
       return { listing: { id: listing.id, currentStock: listing.currentStock }, movement: null };

@@ -1,3 +1,4 @@
+import {logOperationalError} from "../../utils/operationalLog.js";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../../generated/prisma-client/client.js";
 import { prisma as defaultPrisma } from "../../prisma/runtime.js";
@@ -38,7 +39,7 @@ export function createProductImageService(storage: ImageStorage, db: Db = defaul
         });
       } catch (error) {
         try { await storage.delete(stored.publicId); } catch (compensationError) {
-          console.error("Product image upload compensation failed", compensationError instanceof Error ? compensationError.message : "unknown error");
+          logOperationalError("Product image upload compensation failed", compensationError);
         }
         throw error;
       }

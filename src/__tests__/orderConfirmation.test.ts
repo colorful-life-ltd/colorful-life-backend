@@ -32,7 +32,7 @@ async function createUserWithAddress(): Promise<void> {
           line1: "123 Test St",
           city: "Testville",
           postcode: "12345",
-          countryCode: "US",
+          countryCode: "GB",
           isDefaultBilling: true,
         },
       },
@@ -69,6 +69,7 @@ async function createProductAndListings(count: number): Promise<void> {
 
 async function recordOrder(input: { shippingMethod: "STANDARD"; items: { productListingId: number; quantity: number }[] }) {
   const order = await createOrder(userId, input);
+  await prisma.payment.create({data:{orderId:order.id,amount:order.totalAmount,currency:"GBP",provider:"STRIPE",providerReference:crypto.randomUUID(),status:"SUCCEEDED",paidAt:new Date()}});
   createdOrderIds.push(order.id);
   return order;
 }

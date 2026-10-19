@@ -74,3 +74,5 @@ export class DuplicateProductListingError extends Error {
     this.name = "DuplicateProductListingError";
   }
 }
+
+export class UnsupportedDeliveryCountryError extends Error {constructor(){super("Delivery is supported only in GB");}}

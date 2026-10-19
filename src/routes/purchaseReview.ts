@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth.js";
@@ -29,7 +30,7 @@ for (const [method, path, action] of [
       if (error instanceof z.ZodError) { res.status(400).json({ error: "Invalid purchase review input", details: error.flatten() }); return; }
       if (error instanceof ReviewError) { res.status(error.status).json({ error: error.message }); return; }
       if (error instanceof ValidationError) { res.status(400).json({ error: error.message }); return; }
-      console.error("Purchase review failed", error);
+      logOperationalError("Purchase review failed", error);
       res.status(500).json({ error: "Purchase review could not be completed" });
     }
   });

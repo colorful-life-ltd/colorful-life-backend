@@ -44,7 +44,7 @@ function provider() {
   return { client, get intent() { return intent; }, setIntent(value: Partial<Stripe.PaymentIntent>) { intent = { ...intent, ...value }; }, counts: () => ({ creates, reads }) };
 }
 async function post(f: Awaited<ReturnType<typeof fixture>>, body: unknown, key?: string) {
-  return fetch(`${url}/orders`, { method: 'POST', headers: { Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json', ...(key ? { 'Idempotency-Key': key } : {}) }, body: JSON.stringify(body) });
+  return fetch(`${url}/orders`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${f.token}`, 'Content-Type': 'application/json', ...(key ? { 'Idempotency-Key': key } : {}) }, body: JSON.stringify(body) });
 }
 it('public options endpoint exposes approved offers without requiring authentication', async () => {
   const response = await fetch(`${url}/orders/shipping-options`); assert.equal(response.status, 200);
@@ -103,7 +103,7 @@ for (const managed of [false, true]) for (const code of ['STANDARD', 'EXPRESS'] 
     try {
       const payload = JSON.stringify({ id: evt.id, type: evt.type, data: { object: p.intent } });
       const signature = new Stripe('sk_test_issue182_synthetic').webhooks.generateTestHeaderString({ payload, secret: config.STRIPE_WEBHOOK_SECRET });
-      const delivered = await fetch(`${url}/payments/stripe/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'stripe-signature': signature }, body: payload });
+      const delivered = await fetch(`${url}/payments/stripe/webhook`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json', 'stripe-signature': signature }, body: payload });
       assert.equal(delivered.status, 200);
     } finally { config.STRIPE_SECRET_KEY = oldKey; config.STRIPE_WEBHOOK_SECRET = oldSecret; }
   }

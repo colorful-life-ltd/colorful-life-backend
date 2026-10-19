@@ -446,7 +446,8 @@ export const ModelName = {
   PaymentAdmission: 'PaymentAdmission',
   PaymentSecurityEvent: 'PaymentSecurityEvent',
   PaymentFulfilmentReview: 'PaymentFulfilmentReview',
-  PaymentChallengeUse: 'PaymentChallengeUse'
+  PaymentChallengeUse: 'PaymentChallengeUse',
+  OperationalAudit: 'OperationalAudit'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -462,7 +463,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "fbaOutbound" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence" | "orderConfirmationJob" | "commercialInvoice" | "abuseBucket" | "paymentInitiationPolicy" | "paymentAdmission" | "paymentSecurityEvent" | "paymentFulfilmentReview" | "paymentChallengeUse"
+    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "fbaOutbound" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence" | "orderConfirmationJob" | "commercialInvoice" | "abuseBucket" | "paymentInitiationPolicy" | "paymentAdmission" | "paymentSecurityEvent" | "paymentFulfilmentReview" | "paymentChallengeUse" | "operationalAudit"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -4166,6 +4167,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    OperationalAudit: {
+      payload: Prisma.$OperationalAuditPayload<ExtArgs>
+      fields: Prisma.OperationalAuditFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.OperationalAuditFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.OperationalAuditFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>
+        }
+        findFirst: {
+          args: Prisma.OperationalAuditFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.OperationalAuditFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>
+        }
+        findMany: {
+          args: Prisma.OperationalAuditFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>[]
+        }
+        create: {
+          args: Prisma.OperationalAuditCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>
+        }
+        createMany: {
+          args: Prisma.OperationalAuditCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.OperationalAuditCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>[]
+        }
+        delete: {
+          args: Prisma.OperationalAuditDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>
+        }
+        update: {
+          args: Prisma.OperationalAuditUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>
+        }
+        deleteMany: {
+          args: Prisma.OperationalAuditDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.OperationalAuditUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.OperationalAuditUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>[]
+        }
+        upsert: {
+          args: Prisma.OperationalAuditUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OperationalAuditPayload>
+        }
+        aggregate: {
+          args: Prisma.OperationalAuditAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateOperationalAudit>
+        }
+        groupBy: {
+          args: Prisma.OperationalAuditGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OperationalAuditGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.OperationalAuditCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OperationalAuditCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4393,6 +4468,10 @@ export type ProductImageScalarFieldEnum = (typeof ProductImageScalarFieldEnum)[k
 
 
 export const FbaOutboundScalarFieldEnum = {
+  actualQuantity: 'actualQuantity',
+  appliedQuantity: 'appliedQuantity',
+  shortfall: 'shortfall',
+  productListingId: 'productListingId',
   id: 'id',
   movementId: 'movementId',
   idempotencyKey: 'idempotencyKey',
@@ -4548,6 +4627,7 @@ export const RefundScalarFieldEnum = {
   providerPaymentReference: 'providerPaymentReference',
   submissionStartedAt: 'submissionStartedAt',
   resolutionCode: 'resolutionCode',
+  reviewRevision: 'reviewRevision',
   reviewRequired: 'reviewRequired',
   reconciliationAttempts: 'reconciliationAttempts',
   providerOutcome: 'providerOutcome',
@@ -5021,6 +5101,22 @@ export const PaymentChallengeUseScalarFieldEnum = {
 } as const
 
 export type PaymentChallengeUseScalarFieldEnum = (typeof PaymentChallengeUseScalarFieldEnum)[keyof typeof PaymentChallengeUseScalarFieldEnum]
+
+
+export const OperationalAuditScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  actorId: 'actorId',
+  orderId: 'orderId',
+  refundId: 'refundId',
+  revision: 'revision',
+  requestKey: 'requestKey',
+  requestHash: 'requestHash',
+  details: 'details',
+  createdAt: 'createdAt'
+} as const
+
+export type OperationalAuditScalarFieldEnum = (typeof OperationalAuditScalarFieldEnum)[keyof typeof OperationalAuditScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -5872,6 +5968,7 @@ export type GlobalOmitConfig = {
   paymentSecurityEvent?: Prisma.PaymentSecurityEventOmit
   paymentFulfilmentReview?: Prisma.PaymentFulfilmentReviewOmit
   paymentChallengeUse?: Prisma.PaymentChallengeUseOmit
+  operationalAudit?: Prisma.OperationalAuditOmit
 }
 
 /* Types for Logging */

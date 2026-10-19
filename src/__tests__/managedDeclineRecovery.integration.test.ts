@@ -30,7 +30,7 @@ async function customer(stock = 5) {
   return { user, listing, token: jwt.sign({ id: user.id, role: 'CUSTOMER' }, config.JWT_SECRET) };
 }
 type Customer = Awaited<ReturnType<typeof customer>>;
-const http = (c: Customer, method: string, path: string, body?: unknown) => fetch(`${url}${path}`, { method, headers: { Authorization: `Bearer ${c.token}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
+const http = (c: Customer, method: string, path: string, body?: unknown) => fetch(`${url}${path}`, { method, headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${c.token}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
 const windowOf = async (c: Customer, id: number) => (await (await http(c, 'GET', `/orders/${id}`)).json()).paymentWindow;
 const stock = (c: Customer) => prisma.productListing.findUniqueOrThrow({ where: { id: c.listing.id } });
 

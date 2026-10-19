@@ -74,7 +74,7 @@ describe("checkout payment hardening", () => {
     const payload = JSON.stringify({ id: e.id, type: e.type, data: { object: { id: e.paymentIntentId, amount: e.amount, currency: e.currency, metadata: e.metadata } } });
     const stripe = new Stripe("sk_test_fake");
     const signature = stripe.webhooks.generateTestHeaderString({ payload, secret: config.STRIPE_WEBHOOK_SECRET! });
-    const post = (sig: string) => fetch(`${url}/payments/stripe/webhook`, { method: "POST", headers: { "Content-Type": "application/json", "stripe-signature": sig }, body: payload });
+    const post = (sig: string) => fetch(`${url}/payments/stripe/webhook`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", "stripe-signature": sig }, body: payload });
     assert.equal((await post("invalid")).status, 400); assert.equal((await state(f)).order.status, "PENDING");
     await prisma.productListing.update({ where: { id: f.listing.id }, data: { reservedStock: 0 } });
     assert.equal((await post(signature)).status, 500);
@@ -113,6 +113,7 @@ describe("checkout payment hardening", () => {
   it("records success without normally confirming other non-PENDING states", async () => {
     for (const terminal of ["CONFIRMED", "DISPATCHED", "COMPLETED", "RETURNED"] as const) {
       const f = await fixture();
+      await prisma.payment.update({where:{id:f.payment.id},data:{status:"SUCCEEDED",paidAt:new Date()}});
       await confirmOrder(f.user.id, f.order.id);
       await prisma.order.update({ where: { id: f.order.id }, data: { status: terminal } });
       await reconcileStripePaymentEvent(event(f)); const s = await state(f);
@@ -193,7 +194,7 @@ it("validly signed foreign success cannot claim pending stock using coincident o
   const deliver=async(e:StripePaymentIntentEvent)=>{
     const payload=JSON.stringify({id:e.id,type:e.type,data:{object:{id:e.paymentIntentId,amount:e.amount,currency:e.currency,metadata:e.metadata}}});
     const signature=stripe.webhooks.generateTestHeaderString({payload,secret:config.STRIPE_WEBHOOK_SECRET!});
-    return fetch(`${url}/payments/stripe/webhook`,{method:"POST",headers:{"Content-Type":"application/json","stripe-signature":signature},body:payload});
+    return fetch(`${url}/payments/stripe/webhook`,{method:"POST",headers: { ...{ "Idempotency-Key": crypto.randomUUID() },"Content-Type":"application/json","stripe-signature":signature},body:payload});
   };
   const foreignMetadata:Record<string,string>[]=[{orderId:String(f.order.id)},{orderId:String(f.order.id),paymentKey:`stripe-create-${randomUUID()}`}];
   for(const metadata of foreignMetadata){

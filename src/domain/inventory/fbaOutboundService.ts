@@ -22,7 +22,7 @@ function present(record: Outbound) {
   return {
     outbound: {
       id: record.id, productListingId: record.movement.listingId,
-      quantity: -record.movement.quantityChange, shipmentReference: record.shipmentReference,
+      quantity: record.actualQuantity, appliedQuantity:record.appliedQuantity, shortfall:record.shortfall, shipmentReference: record.shipmentReference,
       note: record.movement.note, idempotencyKey: record.idempotencyKey,
       performedByUserId: record.movement.performedByUserId, createdAt: record.movement.createdAt,
       movement: record.movement,
@@ -48,27 +48,36 @@ export async function recordFbaOutbound(raw: FbaOutboundInput, performedByUserId
       if (existing.requestHash !== requestHash) throw new FbaOutboundError(409, "IDEMPOTENCY_CONFLICT", "This idempotency key was used for different outbound details or an actor. Use a new key for a new shipment.");
       return { ...present(existing), replayed: true };
     }
+    const actor=await tx.user.findUnique({where:{id:performedByUserId}});
+    if(!actor||actor.deletedAt||actor.role!=="ADMIN")throw new FbaOutboundError(403,"FORBIDDEN","Active ADMIN required.");
     const listings = await tx.$queryRaw<Array<{ id: number; condition: string; currentStock: number; reservedStock: number }>>`
       SELECT id, condition, "currentStock", "reservedStock" FROM "ProductListing"
       WHERE id = ${input.productListingId} FOR UPDATE`;
     const listing = listings[0];
     if (!listing) throw new FbaOutboundError(404, "LISTING_NOT_FOUND", "Product listing not found.");
     if (listing.condition !== "NEW") throw new FbaOutboundError(409, "USED_OFFER_NOT_SUPPORTED", "Individually documented Used offers cannot be shipped through this operation.");
+    const duplicate = await tx.$queryRaw<Array<{id:number}>>`SELECT id FROM "FbaOutbound" WHERE "shipmentReference"=${input.shipmentReference} AND "productListingId"=${listing.id}`;
+    if(duplicate.length) throw new FbaOutboundError(409,"IDEMPOTENCY_CONFLICT","Shipment and listing already recorded; replay the original key.");
+    const applied=Math.min(input.quantity,Math.max(0,listing.currentStock-listing.reservedStock));
     // The guarded UPDATE shares the same row lock as checkout reservations.
     const updated = await tx.$executeRaw`
-      UPDATE "ProductListing" SET "currentStock" = "currentStock" - ${input.quantity}
+      UPDATE "ProductListing" SET "currentStock" = "currentStock" - ${applied}
       WHERE id = ${listing.id} AND "reservedStock" >= 0
-        AND "currentStock" - "reservedStock" >= ${input.quantity}`;
+        AND "currentStock" - "reservedStock" >= ${applied}`;
     if (updated !== 1) throw new FbaOutboundError(409, "INSUFFICIENT_AVAILABLE_STOCK", "Outbound quantity exceeds available local stock. Reserved website stock cannot be shipped to Amazon.");
     const movement = await tx.inventoryMovement.create({ data: {
-      listingId: listing.id, quantityChange: -input.quantity, type: "FBA_OUTBOUND",
+      listingId: listing.id, quantityChange: -applied, type: "FBA_OUTBOUND",
       note: input.note, performedByUserId,
     } });
     const record = await tx.fbaOutbound.create({ data: {
-      movementId: movement.id, idempotencyKey: input.idempotencyKey, requestHash,
+      actualQuantity:input.quantity,appliedQuantity:applied,shortfall:input.quantity-applied,productListingId: listing.id, movementId: movement.id, idempotencyKey: input.idempotencyKey, requestHash,
       shipmentReference: input.shipmentReference,
-      currentStockAfter: listing.currentStock - input.quantity, reservedStockAfter: listing.reservedStock,
+      currentStockAfter: listing.currentStock - applied, reservedStockAfter: listing.reservedStock,
     }, include: { movement: true } });
+    if(record.shortfall>0){
+      await tx.$executeRaw`INSERT INTO "OperationalAudit" (kind,"actorId",details) VALUES ('FBA_DISCREPANCY_RECORDED',${performedByUserId},${JSON.stringify({outboundId:record.id,listingId:listing.id,actualQuantity:input.quantity,appliedQuantity:applied,shortfall:record.shortfall,reservedStock:listing.reservedStock})}::jsonb)`;
+      console.warn(JSON.stringify({event:'inventory_discrepancy',listingId:listing.id,outboundId:record.id}));
+    }
     return { ...present(record), replayed: false };
   });
 }

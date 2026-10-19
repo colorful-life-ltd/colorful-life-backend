@@ -1,3 +1,4 @@
+import {logOperationalError} from "../utils/operationalLog.js";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail.js";
@@ -22,7 +23,7 @@ router.get("/", async (_req, res) => {
   try {
     res.json(await getPurchaseAnalyticsSummary());
   } catch (error) {
-    console.error("Purchase analytics summary failed", error);
+    logOperationalError("Purchase analytics summary failed", error);
     sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Purchase analytics could not be retrieved");
   }
 });
@@ -39,7 +40,7 @@ router.get("/suppliers/:supplierKey/monthly", async (req, res) => {
       sendApiError(res, 404, "PURCHASE_ANALYTICS_SUPPLIER_NOT_FOUND", error.message);
       return;
     }
-    console.error("Supplier purchase analytics failed", error);
+    logOperationalError("Supplier purchase analytics failed", error);
     sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Purchase analytics could not be retrieved");
   }
 });

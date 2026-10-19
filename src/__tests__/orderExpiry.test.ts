@@ -1,3 +1,4 @@
+import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { randomUUID } from "node:crypto";
@@ -6,7 +7,7 @@ import { prisma } from "../prisma/runtime.js";
 import { createOrder } from "../domain/orders/orderService.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import { cancelOrder } from "../domain/orders/orderCancellationService.js";
-import { createPayment } from "../domain/payments/paymentService.js";
+import { createPayment } from "./helpers/manualPayment.js";
 import { expireOrderReservation } from "../domain/orders/orderExpiryService.js";
 import { InsufficientReservedStockError } from "../domain/orders/orderCancellationErrors.js";
 
@@ -78,6 +79,7 @@ describe("Order expiry domain service", () => {
   it("does not expire terminal orders and repeated expiry is a no-op", async () => {
     const confirmed = await fixture(1);
     await prisma.order.update({ where: { id: confirmed.order.id }, data: { reservationExpiresAt: new Date(Date.now() - 1000) } });
+  await recordVerifiedPayment(confirmed.order.id);
     await confirmOrder(adminUserId, confirmed.order.id);
     assert.strictEqual(await expireOrderReservation(confirmed.order.id), null);
     const expired = await fixture(1);

@@ -80,7 +80,7 @@ function stripe() {
 }
 function auth(user: { id: number; role?: string }) { return { Authorization: `Bearer ${jwt.sign({ id: user.id, role: user.role ?? 'CUSTOMER' }, config.JWT_SECRET)}` }; }
 async function stripeHttp(f: Awaited<ReturnType<typeof order>>, extra: Record<string, string> = {}) {
-  return fetch(`${url}/orders/${f.o.id}/payments/stripe`, { method: 'POST', headers: { ...auth(f.u), ...extra } });
+  return fetch(`${url}/orders/${f.o.id}/payments/stripe`, { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, ...auth(f.u), ...extra } });
 }
 
 describe('distributed checkout admission', { concurrency: 1 }, () => {
@@ -299,7 +299,7 @@ describe('challenge and HTTP boundary', { concurrency: 1 }, () => {
   });
   it('ignores attacker forwarding headers when the socket is not a trusted proxy', async () => {
     configure({ loginNetwork: [1, 3600] });
-    const request = (ip: string) => fetch(url+'/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip }, body: '{}' });
+    const request = (ip: string) => fetch(url+'/auth/login', { method: 'POST', headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, 'Content-Type': 'application/json', 'X-Forwarded-For': ip }, body: '{}' });
     assert.equal((await request('192.0.2.1')).status, 400); assert.equal((await request('192.0.2.2')).status, 429);
   });
   it('returns predictable retry guidance without secrets or identity details', async () => {

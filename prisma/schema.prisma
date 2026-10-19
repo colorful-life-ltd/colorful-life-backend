@@ -302,6 +302,7 @@ model Category {
 }
 
 model ProductListing {
+  fbaOutbounds FbaOutbound[]
   id                    Int                  @id @default(autoincrement())
   legoProductId         Int
   legoProduct           LegoProduct          @relation(fields: [legoProductId], references: [id])
@@ -384,6 +385,11 @@ model ProductImage {
 // Shipment ledger only; no Amazon warehouse balance. Inventory values are the
 // immutable result of this operation, so retries do not return unrelated later stock.
 model FbaOutbound {
+  actualQuantity Int
+  appliedQuantity Int
+  shortfall Int
+  productListingId Int
+  productListing ProductListing @relation(fields:[productListingId], references:[id], onDelete:Restrict)
   id                 Int               @id @default(autoincrement())
   movementId         Int               @unique
   movement           InventoryMovement @relation(fields: [movementId], references: [id], onDelete: Restrict)
@@ -393,6 +399,8 @@ model FbaOutbound {
   currentStockAfter  Int
   reservedStockAfter Int
 
+  @@index([productListingId,shortfall,id],map:"FbaOutbound_listing_shortfall_id_idx")
+  @@unique([shipmentReference, productListingId], map:"FbaOutbound_shipment_listing_key")
   @@index([shipmentReference])
 }
 
@@ -508,9 +516,9 @@ enum CartReconciliationState {
 
 model OrderCartProvenance {
   orderId Int @id
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   cartId Int
-  cart Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cart Cart @relation(fields: [cartId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   state CartReconciliationState @default(ACTIVE)
   completedAt DateTime?
   lastError String?
@@ -523,10 +531,10 @@ model OrderCartProvenance {
 model OrderCartAllocation {
   id Int @id @default(autoincrement())
   orderId Int
-  provenance OrderCartProvenance @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  provenance OrderCartProvenance @relation(fields: [orderId], references: [orderId], onDelete: Cascade, onUpdate: NoAction)
   // Bound to a row identity, never to a listing recreated after removal.
   cartItemId Int?
-  cartItem CartItem? @relation(fields: [cartItemId], references: [id], onDelete: SetNull)
+  cartItem CartItem? @relation(fields: [cartItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   productListingId Int
   quantity Int
   visibleQuantity Int
@@ -600,13 +608,14 @@ model Refund {
   providerPaymentReference String?
   submissionStartedAt DateTime?      @db.Timestamptz(3)
   resolutionCode       String?        @db.VarChar(64)
+  reviewRevision       Int @default(0)
   reviewRequired       Boolean        @default(false)
   reconciliationAttempts Int          @default(0)
   providerOutcome      Json?
   reviewEvidence       Json?
   reason               String?
-  performedByUserId    Int
-  performedByUser      User           @relation(fields: [performedByUserId], references: [id], onDelete: Restrict)
+  performedByUserId    Int?
+  performedByUser      User?           @relation(fields: [performedByUserId], references: [id], onDelete: Restrict)
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -1136,13 +1145,13 @@ model ShipmentCarrierEvidence {
 model OrderConfirmationJob {
   id String @id @default(uuid())
   orderId Int
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   type String @default("ORDER_CONFIRMATION")
   deliveryRoute String @default("DURABLE")
   backlogApprovedAt DateTime? @db.Timestamptz(3)
   eventKey String @unique
   shipmentId Int? @unique
-  shipment Shipment? @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  shipment Shipment? @relation(fields: [shipmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   brandSnapshot Json?
   source Json
   state String @default("PENDING")
@@ -1164,7 +1173,7 @@ model OrderConfirmationJob {
 model CommercialInvoice {
   id Int @id @default(autoincrement())
   orderId Int @unique
-  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   invoiceNumber String @unique
   snapshot Json
   pdfBytes Bytes?
@@ -1218,4 +1227,20 @@ model PaymentChallengeUse {
   digest String @id
   expiresAt DateTime @db.Timestamptz(3)
   @@index([expiresAt])
+}
+
+// Retain audit identity snapshots even if a source object is removed by privileged maintenance.
+model OperationalAudit {
+ id BigInt @id @default(autoincrement())
+ kind String
+ actorId Int?
+ orderId Int?
+ refundId Int?
+ revision Int?
+ requestKey String? @unique
+ requestHash String?
+ details Json
+ createdAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(3)
+ @@index([orderId,kind,id],map:"OperationalAudit_order_kind_id_idx")
+ @@index([refundId,id],map:"OperationalAudit_refund_id")
 }

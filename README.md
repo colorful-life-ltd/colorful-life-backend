@@ -1262,3 +1262,7 @@ Retrieve a shipment with `GET /inventory/fba-outbounds/:id`. The existing
 endpoint is provided. The new `FbaOutbound` table requires migration
 `20261018150000_add_fba_outbound_ledger`, followed by Prisma client generation/build.
 It is additive and does not backfill or modify historical inventory records.
+
+## Production audit remediation
+
+See [the Issue #208 remediation matrix, API changes and deployment safeguards](docs/production-audit-remediation.md). Docker/ECS artefacts are templates requiring owner review and isolated staging acceptance. No deployment is authorized by these instructions.

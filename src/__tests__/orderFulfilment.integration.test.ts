@@ -74,7 +74,7 @@ async function makeOrder(customerId: number, { paid = true, status = "CONFIRMED"
 function call(path: string, token?: string, body?: unknown) {
   return fetch(`${url}${path}`, {
     method: body === undefined ? "GET" : "POST",
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }

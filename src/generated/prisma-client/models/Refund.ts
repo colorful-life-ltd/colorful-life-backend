@@ -31,6 +31,7 @@ export type RefundAvgAggregateOutputType = {
   orderId: number | null
   paymentId: number | null
   amount: runtime.Decimal | null
+  reviewRevision: number | null
   reconciliationAttempts: number | null
   performedByUserId: number | null
 }
@@ -40,6 +41,7 @@ export type RefundSumAggregateOutputType = {
   orderId: number | null
   paymentId: number | null
   amount: runtime.Decimal | null
+  reviewRevision: number | null
   reconciliationAttempts: number | null
   performedByUserId: number | null
 }
@@ -58,6 +60,7 @@ export type RefundMinAggregateOutputType = {
   providerPaymentReference: string | null
   submissionStartedAt: Date | null
   resolutionCode: string | null
+  reviewRevision: number | null
   reviewRequired: boolean | null
   reconciliationAttempts: number | null
   reason: string | null
@@ -80,6 +83,7 @@ export type RefundMaxAggregateOutputType = {
   providerPaymentReference: string | null
   submissionStartedAt: Date | null
   resolutionCode: string | null
+  reviewRevision: number | null
   reviewRequired: boolean | null
   reconciliationAttempts: number | null
   reason: string | null
@@ -102,6 +106,7 @@ export type RefundCountAggregateOutputType = {
   providerPaymentReference: number
   submissionStartedAt: number
   resolutionCode: number
+  reviewRevision: number
   reviewRequired: number
   reconciliationAttempts: number
   providerOutcome: number
@@ -119,6 +124,7 @@ export type RefundAvgAggregateInputType = {
   orderId?: true
   paymentId?: true
   amount?: true
+  reviewRevision?: true
   reconciliationAttempts?: true
   performedByUserId?: true
 }
@@ -128,6 +134,7 @@ export type RefundSumAggregateInputType = {
   orderId?: true
   paymentId?: true
   amount?: true
+  reviewRevision?: true
   reconciliationAttempts?: true
   performedByUserId?: true
 }
@@ -146,6 +153,7 @@ export type RefundMinAggregateInputType = {
   providerPaymentReference?: true
   submissionStartedAt?: true
   resolutionCode?: true
+  reviewRevision?: true
   reviewRequired?: true
   reconciliationAttempts?: true
   reason?: true
@@ -168,6 +176,7 @@ export type RefundMaxAggregateInputType = {
   providerPaymentReference?: true
   submissionStartedAt?: true
   resolutionCode?: true
+  reviewRevision?: true
   reviewRequired?: true
   reconciliationAttempts?: true
   reason?: true
@@ -190,6 +199,7 @@ export type RefundCountAggregateInputType = {
   providerPaymentReference?: true
   submissionStartedAt?: true
   resolutionCode?: true
+  reviewRevision?: true
   reviewRequired?: true
   reconciliationAttempts?: true
   providerOutcome?: true
@@ -301,12 +311,13 @@ export type RefundGroupByOutputType = {
   providerPaymentReference: string | null
   submissionStartedAt: Date | null
   resolutionCode: string | null
+  reviewRevision: number
   reviewRequired: boolean
   reconciliationAttempts: number
   providerOutcome: runtime.JsonValue | null
   reviewEvidence: runtime.JsonValue | null
   reason: string | null
-  performedByUserId: number
+  performedByUserId: number | null
   createdAt: Date
   updatedAt: Date
   _count: RefundCountAggregateOutputType | null
@@ -348,17 +359,18 @@ export type RefundWhereInput = {
   providerPaymentReference?: Prisma.StringNullableFilter<"Refund"> | string | null
   submissionStartedAt?: Prisma.DateTimeNullableFilter<"Refund"> | Date | string | null
   resolutionCode?: Prisma.StringNullableFilter<"Refund"> | string | null
+  reviewRevision?: Prisma.IntFilter<"Refund"> | number
   reviewRequired?: Prisma.BoolFilter<"Refund"> | boolean
   reconciliationAttempts?: Prisma.IntFilter<"Refund"> | number
   providerOutcome?: Prisma.JsonNullableFilter<"Refund">
   reviewEvidence?: Prisma.JsonNullableFilter<"Refund">
   reason?: Prisma.StringNullableFilter<"Refund"> | string | null
-  performedByUserId?: Prisma.IntFilter<"Refund"> | number
+  performedByUserId?: Prisma.IntNullableFilter<"Refund"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
   payment?: Prisma.XOR<Prisma.PaymentScalarRelationFilter, Prisma.PaymentWhereInput>
-  performedByUser?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  performedByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
 }
 
 export type RefundOrderByWithRelationInput = {
@@ -375,12 +387,13 @@ export type RefundOrderByWithRelationInput = {
   providerPaymentReference?: Prisma.SortOrderInput | Prisma.SortOrder
   submissionStartedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   resolutionCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewRevision?: Prisma.SortOrder
   reviewRequired?: Prisma.SortOrder
   reconciliationAttempts?: Prisma.SortOrder
   providerOutcome?: Prisma.SortOrderInput | Prisma.SortOrder
   reviewEvidence?: Prisma.SortOrderInput | Prisma.SortOrder
   reason?: Prisma.SortOrderInput | Prisma.SortOrder
-  performedByUserId?: Prisma.SortOrder
+  performedByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   order?: Prisma.OrderOrderByWithRelationInput
@@ -406,17 +419,18 @@ export type RefundWhereUniqueInput = Prisma.AtLeast<{
   providerPaymentReference?: Prisma.StringNullableFilter<"Refund"> | string | null
   submissionStartedAt?: Prisma.DateTimeNullableFilter<"Refund"> | Date | string | null
   resolutionCode?: Prisma.StringNullableFilter<"Refund"> | string | null
+  reviewRevision?: Prisma.IntFilter<"Refund"> | number
   reviewRequired?: Prisma.BoolFilter<"Refund"> | boolean
   reconciliationAttempts?: Prisma.IntFilter<"Refund"> | number
   providerOutcome?: Prisma.JsonNullableFilter<"Refund">
   reviewEvidence?: Prisma.JsonNullableFilter<"Refund">
   reason?: Prisma.StringNullableFilter<"Refund"> | string | null
-  performedByUserId?: Prisma.IntFilter<"Refund"> | number
+  performedByUserId?: Prisma.IntNullableFilter<"Refund"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
   order?: Prisma.XOR<Prisma.OrderScalarRelationFilter, Prisma.OrderWhereInput>
   payment?: Prisma.XOR<Prisma.PaymentScalarRelationFilter, Prisma.PaymentWhereInput>
-  performedByUser?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  performedByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
 }, "id" | "refundIdempotencyKey" | "clientRequestKey" | "provider_providerReference">
 
 export type RefundOrderByWithAggregationInput = {
@@ -433,12 +447,13 @@ export type RefundOrderByWithAggregationInput = {
   providerPaymentReference?: Prisma.SortOrderInput | Prisma.SortOrder
   submissionStartedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   resolutionCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  reviewRevision?: Prisma.SortOrder
   reviewRequired?: Prisma.SortOrder
   reconciliationAttempts?: Prisma.SortOrder
   providerOutcome?: Prisma.SortOrderInput | Prisma.SortOrder
   reviewEvidence?: Prisma.SortOrderInput | Prisma.SortOrder
   reason?: Prisma.SortOrderInput | Prisma.SortOrder
-  performedByUserId?: Prisma.SortOrder
+  performedByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.RefundCountOrderByAggregateInput
@@ -465,12 +480,13 @@ export type RefundScalarWhereWithAggregatesInput = {
   providerPaymentReference?: Prisma.StringNullableWithAggregatesFilter<"Refund"> | string | null
   submissionStartedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Refund"> | Date | string | null
   resolutionCode?: Prisma.StringNullableWithAggregatesFilter<"Refund"> | string | null
+  reviewRevision?: Prisma.IntWithAggregatesFilter<"Refund"> | number
   reviewRequired?: Prisma.BoolWithAggregatesFilter<"Refund"> | boolean
   reconciliationAttempts?: Prisma.IntWithAggregatesFilter<"Refund"> | number
   providerOutcome?: Prisma.JsonNullableWithAggregatesFilter<"Refund">
   reviewEvidence?: Prisma.JsonNullableWithAggregatesFilter<"Refund">
   reason?: Prisma.StringNullableWithAggregatesFilter<"Refund"> | string | null
-  performedByUserId?: Prisma.IntWithAggregatesFilter<"Refund"> | number
+  performedByUserId?: Prisma.IntNullableWithAggregatesFilter<"Refund"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Refund"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Refund"> | Date | string
 }
@@ -486,6 +502,7 @@ export type RefundCreateInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -495,7 +512,7 @@ export type RefundCreateInput = {
   updatedAt?: Date | string
   order: Prisma.OrderCreateNestedOneWithoutRefundsInput
   payment: Prisma.PaymentCreateNestedOneWithoutRefundsInput
-  performedByUser: Prisma.UserCreateNestedOneWithoutRefundsInput
+  performedByUser?: Prisma.UserCreateNestedOneWithoutRefundsInput
 }
 
 export type RefundUncheckedCreateInput = {
@@ -512,12 +529,13 @@ export type RefundUncheckedCreateInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
-  performedByUserId: number
+  performedByUserId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -533,6 +551,7 @@ export type RefundUpdateInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -542,7 +561,7 @@ export type RefundUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   order?: Prisma.OrderUpdateOneRequiredWithoutRefundsNestedInput
   payment?: Prisma.PaymentUpdateOneRequiredWithoutRefundsNestedInput
-  performedByUser?: Prisma.UserUpdateOneRequiredWithoutRefundsNestedInput
+  performedByUser?: Prisma.UserUpdateOneWithoutRefundsNestedInput
 }
 
 export type RefundUncheckedUpdateInput = {
@@ -559,12 +578,13 @@ export type RefundUncheckedUpdateInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
+  performedByUserId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -583,12 +603,13 @@ export type RefundCreateManyInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
-  performedByUserId: number
+  performedByUserId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -604,6 +625,7 @@ export type RefundUpdateManyMutationInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -627,12 +649,13 @@ export type RefundUncheckedUpdateManyInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
+  performedByUserId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -666,6 +689,7 @@ export type RefundCountOrderByAggregateInput = {
   providerPaymentReference?: Prisma.SortOrder
   submissionStartedAt?: Prisma.SortOrder
   resolutionCode?: Prisma.SortOrder
+  reviewRevision?: Prisma.SortOrder
   reviewRequired?: Prisma.SortOrder
   reconciliationAttempts?: Prisma.SortOrder
   providerOutcome?: Prisma.SortOrder
@@ -681,6 +705,7 @@ export type RefundAvgOrderByAggregateInput = {
   orderId?: Prisma.SortOrder
   paymentId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
+  reviewRevision?: Prisma.SortOrder
   reconciliationAttempts?: Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
 }
@@ -699,6 +724,7 @@ export type RefundMaxOrderByAggregateInput = {
   providerPaymentReference?: Prisma.SortOrder
   submissionStartedAt?: Prisma.SortOrder
   resolutionCode?: Prisma.SortOrder
+  reviewRevision?: Prisma.SortOrder
   reviewRequired?: Prisma.SortOrder
   reconciliationAttempts?: Prisma.SortOrder
   reason?: Prisma.SortOrder
@@ -721,6 +747,7 @@ export type RefundMinOrderByAggregateInput = {
   providerPaymentReference?: Prisma.SortOrder
   submissionStartedAt?: Prisma.SortOrder
   resolutionCode?: Prisma.SortOrder
+  reviewRevision?: Prisma.SortOrder
   reviewRequired?: Prisma.SortOrder
   reconciliationAttempts?: Prisma.SortOrder
   reason?: Prisma.SortOrder
@@ -734,6 +761,7 @@ export type RefundSumOrderByAggregateInput = {
   orderId?: Prisma.SortOrder
   paymentId?: Prisma.SortOrder
   amount?: Prisma.SortOrder
+  reviewRevision?: Prisma.SortOrder
   reconciliationAttempts?: Prisma.SortOrder
   performedByUserId?: Prisma.SortOrder
 }
@@ -883,6 +911,7 @@ export type RefundCreateWithoutPerformedByUserInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -908,6 +937,7 @@ export type RefundUncheckedCreateWithoutPerformedByUserInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -960,12 +990,13 @@ export type RefundScalarWhereInput = {
   providerPaymentReference?: Prisma.StringNullableFilter<"Refund"> | string | null
   submissionStartedAt?: Prisma.DateTimeNullableFilter<"Refund"> | Date | string | null
   resolutionCode?: Prisma.StringNullableFilter<"Refund"> | string | null
+  reviewRevision?: Prisma.IntFilter<"Refund"> | number
   reviewRequired?: Prisma.BoolFilter<"Refund"> | boolean
   reconciliationAttempts?: Prisma.IntFilter<"Refund"> | number
   providerOutcome?: Prisma.JsonNullableFilter<"Refund">
   reviewEvidence?: Prisma.JsonNullableFilter<"Refund">
   reason?: Prisma.StringNullableFilter<"Refund"> | string | null
-  performedByUserId?: Prisma.IntFilter<"Refund"> | number
+  performedByUserId?: Prisma.IntNullableFilter<"Refund"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Refund"> | Date | string
 }
@@ -981,6 +1012,7 @@ export type RefundCreateWithoutOrderInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -989,7 +1021,7 @@ export type RefundCreateWithoutOrderInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   payment: Prisma.PaymentCreateNestedOneWithoutRefundsInput
-  performedByUser: Prisma.UserCreateNestedOneWithoutRefundsInput
+  performedByUser?: Prisma.UserCreateNestedOneWithoutRefundsInput
 }
 
 export type RefundUncheckedCreateWithoutOrderInput = {
@@ -1005,12 +1037,13 @@ export type RefundUncheckedCreateWithoutOrderInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
-  performedByUserId: number
+  performedByUserId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1052,6 +1085,7 @@ export type RefundCreateWithoutPaymentInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1060,7 +1094,7 @@ export type RefundCreateWithoutPaymentInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   order: Prisma.OrderCreateNestedOneWithoutRefundsInput
-  performedByUser: Prisma.UserCreateNestedOneWithoutRefundsInput
+  performedByUser?: Prisma.UserCreateNestedOneWithoutRefundsInput
 }
 
 export type RefundUncheckedCreateWithoutPaymentInput = {
@@ -1076,12 +1110,13 @@ export type RefundUncheckedCreateWithoutPaymentInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
-  performedByUserId: number
+  performedByUserId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1126,6 +1161,7 @@ export type RefundCreateManyPerformedByUserInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1146,6 +1182,7 @@ export type RefundUpdateWithoutPerformedByUserInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1171,6 +1208,7 @@ export type RefundUncheckedUpdateWithoutPerformedByUserInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1194,6 +1232,7 @@ export type RefundUncheckedUpdateManyWithoutPerformedByUserInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1216,12 +1255,13 @@ export type RefundCreateManyOrderInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
-  performedByUserId: number
+  performedByUserId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1237,6 +1277,7 @@ export type RefundUpdateWithoutOrderInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1245,7 +1286,7 @@ export type RefundUpdateWithoutOrderInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   payment?: Prisma.PaymentUpdateOneRequiredWithoutRefundsNestedInput
-  performedByUser?: Prisma.UserUpdateOneRequiredWithoutRefundsNestedInput
+  performedByUser?: Prisma.UserUpdateOneWithoutRefundsNestedInput
 }
 
 export type RefundUncheckedUpdateWithoutOrderInput = {
@@ -1261,12 +1302,13 @@ export type RefundUncheckedUpdateWithoutOrderInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
+  performedByUserId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1284,12 +1326,13 @@ export type RefundUncheckedUpdateManyWithoutOrderInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
+  performedByUserId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1307,12 +1350,13 @@ export type RefundCreateManyPaymentInput = {
   providerPaymentReference?: string | null
   submissionStartedAt?: Date | string | null
   resolutionCode?: string | null
+  reviewRevision?: number
   reviewRequired?: boolean
   reconciliationAttempts?: number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: string | null
-  performedByUserId: number
+  performedByUserId?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1328,6 +1372,7 @@ export type RefundUpdateWithoutPaymentInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1336,7 +1381,7 @@ export type RefundUpdateWithoutPaymentInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   order?: Prisma.OrderUpdateOneRequiredWithoutRefundsNestedInput
-  performedByUser?: Prisma.UserUpdateOneRequiredWithoutRefundsNestedInput
+  performedByUser?: Prisma.UserUpdateOneWithoutRefundsNestedInput
 }
 
 export type RefundUncheckedUpdateWithoutPaymentInput = {
@@ -1352,12 +1397,13 @@ export type RefundUncheckedUpdateWithoutPaymentInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
+  performedByUserId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1375,12 +1421,13 @@ export type RefundUncheckedUpdateManyWithoutPaymentInput = {
   providerPaymentReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   submissionStartedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   resolutionCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reviewRevision?: Prisma.IntFieldUpdateOperationsInput | number
   reviewRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   reconciliationAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   providerOutcome?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reviewEvidence?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  performedByUserId?: Prisma.IntFieldUpdateOperationsInput | number
+  performedByUserId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1401,6 +1448,7 @@ export type RefundSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   providerPaymentReference?: boolean
   submissionStartedAt?: boolean
   resolutionCode?: boolean
+  reviewRevision?: boolean
   reviewRequired?: boolean
   reconciliationAttempts?: boolean
   providerOutcome?: boolean
@@ -1411,7 +1459,7 @@ export type RefundSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   updatedAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
   payment?: boolean | Prisma.PaymentDefaultArgs<ExtArgs>
-  performedByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  performedByUser?: boolean | Prisma.Refund$performedByUserArgs<ExtArgs>
 }, ExtArgs["result"]["refund"]>
 
 export type RefundSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1428,6 +1476,7 @@ export type RefundSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   providerPaymentReference?: boolean
   submissionStartedAt?: boolean
   resolutionCode?: boolean
+  reviewRevision?: boolean
   reviewRequired?: boolean
   reconciliationAttempts?: boolean
   providerOutcome?: boolean
@@ -1438,7 +1487,7 @@ export type RefundSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   updatedAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
   payment?: boolean | Prisma.PaymentDefaultArgs<ExtArgs>
-  performedByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  performedByUser?: boolean | Prisma.Refund$performedByUserArgs<ExtArgs>
 }, ExtArgs["result"]["refund"]>
 
 export type RefundSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1455,6 +1504,7 @@ export type RefundSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   providerPaymentReference?: boolean
   submissionStartedAt?: boolean
   resolutionCode?: boolean
+  reviewRevision?: boolean
   reviewRequired?: boolean
   reconciliationAttempts?: boolean
   providerOutcome?: boolean
@@ -1465,7 +1515,7 @@ export type RefundSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   updatedAt?: boolean
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
   payment?: boolean | Prisma.PaymentDefaultArgs<ExtArgs>
-  performedByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  performedByUser?: boolean | Prisma.Refund$performedByUserArgs<ExtArgs>
 }, ExtArgs["result"]["refund"]>
 
 export type RefundSelectScalar = {
@@ -1482,6 +1532,7 @@ export type RefundSelectScalar = {
   providerPaymentReference?: boolean
   submissionStartedAt?: boolean
   resolutionCode?: boolean
+  reviewRevision?: boolean
   reviewRequired?: boolean
   reconciliationAttempts?: boolean
   providerOutcome?: boolean
@@ -1492,21 +1543,21 @@ export type RefundSelectScalar = {
   updatedAt?: boolean
 }
 
-export type RefundOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orderId" | "paymentId" | "amount" | "currency" | "status" | "provider" | "providerReference" | "refundIdempotencyKey" | "clientRequestKey" | "providerPaymentReference" | "submissionStartedAt" | "resolutionCode" | "reviewRequired" | "reconciliationAttempts" | "providerOutcome" | "reviewEvidence" | "reason" | "performedByUserId" | "createdAt" | "updatedAt", ExtArgs["result"]["refund"]>
+export type RefundOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "orderId" | "paymentId" | "amount" | "currency" | "status" | "provider" | "providerReference" | "refundIdempotencyKey" | "clientRequestKey" | "providerPaymentReference" | "submissionStartedAt" | "resolutionCode" | "reviewRevision" | "reviewRequired" | "reconciliationAttempts" | "providerOutcome" | "reviewEvidence" | "reason" | "performedByUserId" | "createdAt" | "updatedAt", ExtArgs["result"]["refund"]>
 export type RefundInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
   payment?: boolean | Prisma.PaymentDefaultArgs<ExtArgs>
-  performedByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  performedByUser?: boolean | Prisma.Refund$performedByUserArgs<ExtArgs>
 }
 export type RefundIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
   payment?: boolean | Prisma.PaymentDefaultArgs<ExtArgs>
-  performedByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  performedByUser?: boolean | Prisma.Refund$performedByUserArgs<ExtArgs>
 }
 export type RefundIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   order?: boolean | Prisma.OrderDefaultArgs<ExtArgs>
   payment?: boolean | Prisma.PaymentDefaultArgs<ExtArgs>
-  performedByUser?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  performedByUser?: boolean | Prisma.Refund$performedByUserArgs<ExtArgs>
 }
 
 export type $RefundPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1514,7 +1565,7 @@ export type $RefundPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
   objects: {
     order: Prisma.$OrderPayload<ExtArgs>
     payment: Prisma.$PaymentPayload<ExtArgs>
-    performedByUser: Prisma.$UserPayload<ExtArgs>
+    performedByUser: Prisma.$UserPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -1530,12 +1581,13 @@ export type $RefundPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     providerPaymentReference: string | null
     submissionStartedAt: Date | null
     resolutionCode: string | null
+    reviewRevision: number
     reviewRequired: boolean
     reconciliationAttempts: number
     providerOutcome: runtime.JsonValue | null
     reviewEvidence: runtime.JsonValue | null
     reason: string | null
-    performedByUserId: number
+    performedByUserId: number | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["refund"]>
@@ -1934,7 +1986,7 @@ export interface Prisma__RefundClient<T, Null = never, ExtArgs extends runtime.T
   readonly [Symbol.toStringTag]: "PrismaPromise"
   order<T extends Prisma.OrderDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrderDefaultArgs<ExtArgs>>): Prisma.Prisma__OrderClient<runtime.Types.Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   payment<T extends Prisma.PaymentDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PaymentDefaultArgs<ExtArgs>>): Prisma.Prisma__PaymentClient<runtime.Types.Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  performedByUser<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  performedByUser<T extends Prisma.Refund$performedByUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Refund$performedByUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1977,6 +2029,7 @@ export interface RefundFieldRefs {
   readonly providerPaymentReference: Prisma.FieldRef<"Refund", 'String'>
   readonly submissionStartedAt: Prisma.FieldRef<"Refund", 'DateTime'>
   readonly resolutionCode: Prisma.FieldRef<"Refund", 'String'>
+  readonly reviewRevision: Prisma.FieldRef<"Refund", 'Int'>
   readonly reviewRequired: Prisma.FieldRef<"Refund", 'Boolean'>
   readonly reconciliationAttempts: Prisma.FieldRef<"Refund", 'Int'>
   readonly providerOutcome: Prisma.FieldRef<"Refund", 'Json'>
@@ -2383,6 +2436,25 @@ export type RefundDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Limit how many Refunds to delete.
    */
   limit?: number
+}
+
+/**
+ * Refund.performedByUser
+ */
+export type Refund$performedByUserArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the User
+   */
+  select?: Prisma.UserSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the User
+   */
+  omit?: Prisma.UserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  where?: Prisma.UserWhereInput
 }
 
 /**

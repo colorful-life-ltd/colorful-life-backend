@@ -1,3 +1,4 @@
+import { providerFinancialHold } from './providerFinancialGuard.js';
 import { hasBlockingOrderReturns, warnBlockedReturnReservation } from "../orders/returnInventorySafety.js";
 import type Stripe from "stripe";
 import { createHash, randomUUID } from "node:crypto";
@@ -41,7 +42,20 @@ export async function checkPaymentAdmission(tx: Prisma.TransactionClient, orderI
     SELECT EXISTS (SELECT 1 FROM "PaymentWebhookEvent" w WHERE (w."processedAt" IS NULL OR w."processingError" IS NOT NULL)
       AND ((w.provider <> 'STRIPE' AND w.evidence->>'orderId'=${String(orderId)}) OR EXISTS (SELECT 1 FROM "PaymentAttempt" a WHERE a."orderId"=${orderId} AND a.provider=w.provider
         AND (w.evidence->>'paymentIntentId'=a."providerReference" OR w.evidence->>'paypalOrderId'=a."providerReference" OR w.evidence->>'captureId'=a."providerCaptureReference")))) AS unresolved`;
-  if (inbox.unresolved) throw new PaymentResolutionUnavailableError();
+  if (inbox.unresolved) {
+    await tx.$queryRaw`SELECT id FROM "Payment" WHERE "orderId"=${orderId} FOR UPDATE`;
+    const payment = await tx.payment.findUnique({ where: { orderId } });
+    if (!payment || await providerFinancialHold(tx, payment)) throw new PaymentResolutionUnavailableError();
+    // The classifier has just revalidated financial proof and appended receipt-specific audit.
+    // Other inbox errors (including unknown capture outcomes) still forbid new provider calls.
+    const [remaining] = await tx.$queryRaw<Array<{ unresolved: boolean }>>`
+      SELECT EXISTS (SELECT 1 FROM "PaymentWebhookEvent" w WHERE (w."processedAt" IS NULL OR w."processingError" IS NOT NULL)
+        AND ((w.provider <> 'STRIPE' AND w.evidence->>'orderId'=${String(orderId)}) OR EXISTS (SELECT 1 FROM "PaymentAttempt" a WHERE a."orderId"=${orderId} AND a.provider=w.provider
+          AND (w.evidence->>'paymentIntentId'=a."providerReference" OR w.evidence->>'paypalOrderId'=a."providerReference" OR w.evidence->>'captureId'=a."providerCaptureReference")))
+        AND NOT EXISTS (SELECT 1 FROM "OperationalAudit" a WHERE a."orderId"=${orderId} AND a.kind='PROVIDER_RECEIPT_FINANCIAL_RESOLVED'
+          AND a.details->>'receiptId'=w.id::text AND a.details->>'paymentId'=${String(payment.id)})) AS unresolved`;
+    if (remaining.unresolved) throw new PaymentResolutionUnavailableError();
+  }
   const terminating = await tx.paymentOperation.findFirst({ where: { type: "TERMINATE", state: { not: "RESULT_RECORDED" }, attempt: { orderId } } });
   if (terminating) throw new PaymentResolutionUnavailableError();
   if (order.status !== "PENDING" || r.paymentAdmissionClosedAt || r.reservationDisposition !== "HELD"
