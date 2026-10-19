@@ -113,7 +113,8 @@ describe("customer order reads", () => {
     assert.strictEqual(body.inventoryMovements, undefined);
     assert.strictEqual(body.inventoryAudits, undefined);
     assert.strictEqual(body.payments, undefined);
-    assert.strictEqual(body.refunds, undefined);
+    assert.deepEqual(body.refunds, []); // Only the additive customer-safe summary, never raw refund rows.
+    assert.deepEqual(body.orderItems[0].returns, []);
     assert.strictEqual(body.returns, undefined);
   });
 

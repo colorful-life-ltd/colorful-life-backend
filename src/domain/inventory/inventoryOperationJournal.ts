@@ -13,7 +13,7 @@ export async function inventoryOperation<T>(tx: Prisma.TransactionClient, key: s
   inventoryOperationKey(key);
   const requestKey = `inventory-operation:${key}`;
   const fingerprint = JSON.stringify(input, Object.keys(input).sort());
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${requestKey},0))`;
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${requestKey},0))::text`;
   const [prior] = await tx.$queryRaw<Array<{ details: { fingerprint: string; result: T } }>>`SELECT details FROM "OperationalAudit" WHERE "requestKey"=${requestKey}`;
   if (prior) {
     if (prior.details.fingerprint !== fingerprint) throw new InventoryOperationConflict('IDEMPOTENCY_CONFLICT');

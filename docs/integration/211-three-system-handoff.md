@@ -34,12 +34,12 @@ F10 remains the owner-accepted **staged** audited intent → chosen durable refu
 
 On 2026-10-19 the owner explicitly confirmed:
 
-- **Discontinued:** set manually by an active ADMIN only after definitive confirmation the product will never be restocked or sold again. Backend requires a reason and appends `PRODUCT_AVAILABILITY_UPDATED`; it never derives the state from stock, time or supplier data. New purchases are blocked even if stock remains.
-- **More on the Way:** explicit ADMIN policy backed by genuine restock expectation. It is informational and never permits backorders. Available physical stock can still be sold normally.
+- **Discontinued:** requires `permanentDiscontinuationConfirmed: true` plus a recorded reason; set manually by an active ADMIN only after definitive confirmation the product will never be restocked or sold again. Backend requires a reason and appends `PRODUCT_AVAILABILITY_UPDATED`; it never derives the state from stock, time or supplier data. New purchases are blocked even if stock remains.
+- **More on the Way:** requires `restockExpectationConfirmed: true`; explicit ADMIN policy backed by genuine restock expectation. It is informational and never permits backorders. Available physical stock can still be sold normally.
 - **Sold Out:** default when no stock is sellable and restock status is unknown.
 - Existing orders remain valid. Previously public product identities retain read-only detail URLs after unpublishing/discontinuation. The monotonic `everPublished` marker is backfilled from current publication or order history; never-published drafts remain private. No URLs or orders are deleted.
 
-## Verification status before the owner-controlled build gate
+## Historical checkpoint before owner approval
 
 - Complete Admin unit suite: **519 passed**, 34 files; no failures/skips. Admin renderer and Electron no-emit typechecks and lint passed.
 - Complete Storefront suite: **972 passed**, 69 files; no failures/skips. No-emit typecheck and lint passed. The existing Sold Out tests were updated to the owner's required wording while retaining no-price, disabled-purchase and permanent-link assertions.
@@ -47,7 +47,7 @@ On 2026-10-19 the owner explicitly confirmed:
 - Backend no-emit typecheck and Prisma validation passed. New Backend service regressions are written but have not been executed yet.
 - No application build, application/server launch, Electron runtime, packaging, Backend integration/full suite or CI has been run for this change. The owner explicitly required permission for builds/application starts. These are required verification gates, not passing claims.
 
-Required next gate after owner authorization: focused Backend integration/financial/catalogue suites and migration/schema checks on a new isolated `colorful_life_test` database, then one final complete Backend run; client builds and Admin packaging/archive validation; Electron runtime harnesses with display isolation; final client checks if fixes change their code; push/open the three linked PRs and collect all CI results. Never weaken tests or classify this as complete merely because unit tests pass.
+The owner subsequently approved the execution gate. The originally required next steps were: focused Backend integration/financial/catalogue suites and migration/schema checks on a new isolated `colorful_life_test` database, then one final complete Backend run; client builds and Admin packaging/archive validation; Electron runtime harnesses with display isolation; final client checks if fixes change their code; push/open the three linked PRs and collect all CI results. Never weaken tests or classify this as complete merely because unit tests pass.
 
 ## Remaining operational limitations and review focus
 
@@ -59,3 +59,16 @@ Required next gate after owner authorization: focused Backend integration/financ
 - Claude's independent final review should verify route/IPC validation, precise requestId/revision handling, money/status presentation, uncertainty recovery, additive rollout, lifecycle locks/history privacy, customer ownership and exact idempotent inventory replay.
 
 Main-checkout changes were preserved through isolated worktrees. No merge, deployment, production database, provider payment, carrier mutation, email or independent review agent was initiated. Final PR URLs, commit SHAs and executed gate results will be added to the master issue after validation.
+
+
+## Approved verification gate — 2026-10-19
+
+Owner authorization now covers builds, local disposable Backend tests, Electron runtime, packaging, pushes and GitHub CI. The final code includes fixes found by execution: FBA's persisted `actualQuantity` is projected as API `quantity`; advisory locks are cast to text for Prisma decoding; Admin detail retains its separate refund-read privacy boundary; strict response tests assert the additive public summary and management fields; Electron's exact IPC allowlist explicitly includes only the four validated operation channels; Packager uses its named export. No guard or test is disabled.
+
+Verified at the code freeze: **201 focused Backend tests passed, zero failures/skips**, including migration replay, refund/return safety, original targeted payment retry/withdrawal regressions and the new integration cases. The corrected response assertions preserve strict exact-field/private-data checks. All72 committed migrations were applied to a new disposable PostgreSQL16 test database; Prisma schema diff is empty. Complete Admin unit tests still pass519; renderer/Electron typechecks, lint, boundary checks, production builds, all five Electron fixture harnesses (including development CSP/renderer identity checks) and unsigned Linux x64 package/archive checks pass. Storefront final typecheck/lint,972 tests, production build and byte-identical contract check pass. The expanded compiled order harness exercises saved cancellation lost-response retry with one identical key and exact string requestId above JS safe-integer range, then reasoned withdrawal.
+
+**Storefront count reconciliation:** the intermediate974-test run included two provisional customer return-write tests in `RequestReturn.test.tsx`. Contract inspection showed that the controller is ADMIN-only. The provisional form/API write helper and its two tests were removed before the Storefront implementation commit, preserving authorization; customers retain progress and arrange returns with the team. The resulting committed suite is972 tests in69 files. No existing baseline test was skipped or removed to obtain a pass: audit baseline965 + seven retained new regressions =972.
+
+The complete Backend run is executing once against a separate fresh isolated `colorful_life_test` database. Its exact totals, final commit IDs and final-head CI links will be recorded in PR descriptions and Master Issue #211. Source is frozen unless that run or CI identifies a defect. Final independent review remains Claude's responsibility; this is not a production-readiness declaration.
+
+The unchanged safe runner leaves three real Stripe tests unverified: real Sandbox create/confirm/refund/retry, a real payment webhook and a real refund webhook. Signed PayPal events, actual carrier polling, cloud image storage, signed/notarized installers, actual three-system staging smoke/load/rollout and production infrastructure permissions/backup drills are also unverified. Synthetic fixture providers and local test resources cannot certify those environments.

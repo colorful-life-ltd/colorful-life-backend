@@ -196,7 +196,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       salePrice: salePriceSchema,
     })
     // Category and publication are product-level: PATCH /admin/products/:productId.
-    .omit({ categoryId: true, isPublished: true, availabilityState: true, availabilityReason: true })
+    .omit({ categoryId: true, isPublished: true, availabilityState: true, availabilityReason: true, permanentDiscontinuationConfirmed: true, restockExpectationConfirmed: true })
     .partial();
 
   const parseResult = updateSchema.safeParse(req.body);

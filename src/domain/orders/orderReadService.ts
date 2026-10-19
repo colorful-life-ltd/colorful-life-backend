@@ -139,7 +139,7 @@ export async function getAdminOrder(orderId: number) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
-      ...orderReadSelect, ...adminOrderSummarySelect,
+      ...orderReadSelect, ...adminOrderSummarySelect, refunds: false,
       actualShippingCost: true, reservationExpiresAt: true,
       cancelledAt: true, cancelledBy: true, cancellationReason: true,
       deliveryRecipientName: true, deliveryLine1: true, deliveryLine2: true,

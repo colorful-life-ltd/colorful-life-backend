@@ -41,8 +41,12 @@ export function createAdminProductUpdateService(db = defaultPrisma) {
           const actor = actorId ? await tx.user.findUnique({ where: { id: actorId }, select: { role: true, deletedAt: true } }) : null;
           if (!actor || actor.deletedAt || actor.role !== 'ADMIN' || !fields.availabilityReason || fields.availabilityReason.trim().length < 10)
             throw new AdminProductPolicyError('An active ADMIN and explicit availability evidence/reason are required. Never infer discontinuation from stock.');
+          if (fields.availabilityState === 'DISCONTINUED' && fields.permanentDiscontinuationConfirmed !== true)
+            throw new AdminProductPolicyError('Explicit confirmation that the product will never be restocked or sold again is required.');
+          if (fields.availabilityState === 'MORE_ON_THE_WAY' && fields.restockExpectationConfirmed !== true)
+            throw new AdminProductPolicyError('Explicit confirmation of a genuine restock expectation is required.');
           await tx.operationalAudit.create({ data: { kind: 'PRODUCT_AVAILABILITY_UPDATED', actorId, details: {
-            productId, previous: product.availabilityState, availabilityState: fields.availabilityState, reason: fields.availabilityReason.trim(),
+            productId, previous: product.availabilityState, availabilityState: fields.availabilityState, permanentDiscontinuationConfirmed: fields.permanentDiscontinuationConfirmed === true, restockExpectationConfirmed: fields.restockExpectationConfirmed === true, reason: fields.availabilityReason.trim(),
           } } });
         } else if (fields.availabilityReason !== undefined) throw new AdminProductPolicyError('Availability reason requires an explicit policy state.');
         if (fields.categoryId !== undefined) {

@@ -40,7 +40,9 @@ async function paid() {
 it('explicit availability policy never derives Discontinued from stock; it blocks new purchases while retaining old orders and URLs',async()=>{
  const f=await paid(), update=createAdminProductUpdateService();
  await assert.rejects(update.update(f.product.id,{availabilityState:'DISCONTINUED'}),/ADMIN/);
- await update.update(f.product.id,{availabilityState:'DISCONTINUED',availabilityReason:'Definitively confirmed no future restock or sale'},f.admin.id);
+ await assert.rejects(update.update(f.product.id,{availabilityState:'DISCONTINUED',availabilityReason:'Stock has been unavailable for a long time'},f.admin.id),/Explicit confirmation/);
+ await assert.rejects(update.update(f.product.id,{availabilityState:'DISCONTINUED',availabilityReason:'Definitively confirmed permanent stop',permanentDiscontinuationConfirmed:true},f.user.id),/ADMIN/);
+ await update.update(f.product.id,{availabilityState:'DISCONTINUED',availabilityReason:'Definitively confirmed no future restock or sale',permanentDiscontinuationConfirmed:true},f.admin.id);
  const page=await getCatalogueProductById(f.product.id);assert.equal(page?.availability,'DISCONTINUED');assert.deepEqual(page?.offers,[]);
  await assert.rejects(addCartItem(f.user.id,f.listing.id,1));
  await assert.rejects(createOrder(f.user.id,{shippingMethod:'STANDARD',items:[{productListingId:f.listing.id,quantity:1}]},randomUUID()));
@@ -51,7 +53,7 @@ it('explicit availability policy never derives Discontinued from stock; it block
  await update.update(f.product.id,{isPublished:true,availabilityState:'STANDARD',availabilityReason:'Administrator restored regular availability'},f.admin.id);
  assert.equal((await getCatalogueProductById(f.product.id))?.availability,'IN_STOCK');
  const empty=await fixture(0);assert.equal((await getCatalogueProductById(empty.product.id))?.availability,'OUT_OF_STOCK');
- await update.update(empty.product.id,{availabilityState:'MORE_ON_THE_WAY',availabilityReason:'Confirmed supplier replenishment expected'},empty.admin.id);
+ await update.update(empty.product.id,{availabilityState:'MORE_ON_THE_WAY',availabilityReason:'Confirmed supplier replenishment expected',restockExpectationConfirmed:true},empty.admin.id);
  assert.equal((await getCatalogueProductById(empty.product.id))?.availability,'MORE_ON_THE_WAY');
  await assert.rejects(addCartItem(empty.user.id,empty.listing.id,1));
 });

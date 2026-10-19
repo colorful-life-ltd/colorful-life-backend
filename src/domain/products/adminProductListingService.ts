@@ -41,7 +41,7 @@ export function createAdminProductListingService(db = defaultPrisma) {
         ]);
 
         const discrepancies = await tx.$queryRaw<Array<{ productListingId: number; id: number; quantity: number; appliedQuantity: number; shortfall: number; shipmentReference: string }>>`
-          SELECT f."productListingId",f.id,f.quantity,f."appliedQuantity",f.shortfall,f."shipmentReference" FROM "FbaOutbound" f
+          SELECT f."productListingId",f.id,f."actualQuantity" AS quantity,f."appliedQuantity",f.shortfall,f."shipmentReference" FROM "FbaOutbound" f
           WHERE f."productListingId"=ANY(${listings.map(l => l.id)}::int[]) AND f.shortfall>0
           AND NOT EXISTS(SELECT 1 FROM "OperationalAudit" a WHERE a.kind='FBA_DISCREPANCY_RESOLVED' AND a."requestKey"='fba-resolved:'||f.id::text)`;
         return {
