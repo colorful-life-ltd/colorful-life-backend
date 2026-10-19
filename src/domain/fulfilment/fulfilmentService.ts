@@ -1,3 +1,4 @@
+import { activePaidCancellation } from '../orders/paidCancellationState.js';
 import {providerFinancialHold} from "../payments/providerFinancialGuard.js";
 import {unresolvedFbaDiscrepancies} from "../inventory/inventoryDiscrepancy.js";
 import { assertNoFulfilmentHold } from "../security/paymentAbuse.js";
@@ -54,8 +55,7 @@ async function lockOrder(tx: Prisma.TransactionClient, orderId: number) {
  * historical rows the verified payment record decides, matching managedResolution().
  */
 export async function assertPaymentVerifiedForFulfilment(tx: Prisma.TransactionClient, orderId: number) {
-  const cancellation=await tx.$queryRaw<Array<{id:bigint}>>`SELECT id FROM "OperationalAudit" WHERE "orderId"=${orderId} AND kind='PAID_CANCELLATION_REQUESTED' LIMIT 1`;
-  if(cancellation.length)throw new FulfilmentPaymentNotVerifiedError(orderId,'CANCELLATION_PENDING');
+  if(await activePaidCancellation(tx,orderId))throw new FulfilmentPaymentNotVerifiedError(orderId,'CANCELLATION_PENDING');
   if (!await assertNoFulfilmentHold(tx, orderId)) throw new FulfilmentPaymentNotVerifiedError(orderId, "SECURITY_REVIEW_REQUIRED");
   await tx.$queryRaw`SELECT id FROM "Payment" WHERE "orderId" = ${orderId} FOR UPDATE`;
   const payment = await tx.payment.findUnique({ where: { orderId } });
@@ -75,7 +75,7 @@ export async function assertPaymentVerifiedForFulfilment(tx: Prisma.TransactionC
     if((await unresolvedFbaDiscrepancies(tx,item.productListingId)).length)throw new FulfilmentPaymentNotVerifiedError(orderId,'INVENTORY_DISCREPANCY');
   }
   const hold=await providerFinancialHold(tx,payment);
-  if(hold)throw new FulfilmentPaymentNotVerifiedError(orderId,hold==='REFUND'?'REFUND_REVIEW_REQUIRED':hold==='DISPUTE'?'PROVIDER_DISPUTE_REVIEW_REQUIRED':'PAYMENT_UNRESOLVED');
+  if(hold)throw new FulfilmentPaymentNotVerifiedError(orderId,hold==='REFUND'?'REFUND_REVIEW_REQUIRED':hold==='DISPUTE'?'PROVIDER_DISPUTE_REVIEW_REQUIRED':hold==='REVERSAL'?'PROVIDER_REVERSAL_REVIEW_REQUIRED':'PAYMENT_UNRESOLVED');
   if (payment.reservedRefundAmount.gt(0)) throw new FulfilmentPaymentNotVerifiedError(orderId, "REFUND_IN_PROGRESS");
   if (payment.refundedAmount.gte(payment.amount)) throw new FulfilmentPaymentNotVerifiedError(orderId, "FULLY_REFUNDED");
   const resolution = await tx.paymentResolution.findUnique({ where: { orderId } });

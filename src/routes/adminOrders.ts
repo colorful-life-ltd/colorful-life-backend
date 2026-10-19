@@ -1,7 +1,7 @@
 import {logOperationalError} from "../utils/operationalLog.js";
 import {prisma} from "../prisma/runtime.js";
 import {z} from "zod";
-import {cancelFullyRefundedOrder,requestPaidCancellation} from "../domain/orders/paidCancellation.js";
+import {cancelFullyRefundedOrder,requestPaidCancellation,withdrawPaidCancellation} from "../domain/orders/paidCancellation.js";
 import {RefundIntentError} from "../domain/refunds/refundLifecycleService.js";
 import { Router, type Request, type Response } from "express";
 import { authMiddleware } from "../middleware/auth.js";
@@ -26,6 +26,13 @@ router.post('/:orderId/request-paid-cancellation',async(req,res)=>{
  const id=AdminOrderIdSchema.safeParse(req.params.orderId);const body=z.object({reason:z.string().trim().min(10).max(1000)}).strict().safeParse(req.body);
  if(!id.success||!body.success)return res.status(400).json({error:'INVALID_CANCELLATION'});
  try{res.json(await requestPaidCancellation(req.user!.id,id.data,body.data.reason,req.get('Idempotency-Key')??''));}
+ catch(e){if(e instanceof RefundIntentError)return res.status(e.httpStatus).json({error:e.code});res.status(503).json({error:'CANCELLATION_UNAVAILABLE'});}
+});
+router.post('/:orderId/withdraw-paid-cancellation',async(req,res)=>{
+ const id=AdminOrderIdSchema.safeParse(req.params.orderId);
+ const body=z.object({requestId:z.string().regex(/^[1-9][0-9]{0,18}$/),reason:z.string().trim().min(10).max(1000)}).strict().safeParse(req.body);
+ if(!id.success||!body.success)return res.status(400).json({error:'INVALID_CANCELLATION'});
+ try{res.json(await withdrawPaidCancellation(req.user!.id,id.data,body.data.requestId,body.data.reason,req.get('Idempotency-Key')??''));}
  catch(e){if(e instanceof RefundIntentError)return res.status(e.httpStatus).json({error:e.code});res.status(503).json({error:'CANCELLATION_UNAVAILABLE'});}
 });
 router.post('/:orderId/cancel-refunded',async(req,res)=>{

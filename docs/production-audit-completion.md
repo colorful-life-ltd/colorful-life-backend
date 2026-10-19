@@ -2,6 +2,10 @@
 
 Issue [#208](https://github.com/colorful-life-ltd/colorful-life-backend/issues/208), PR [#209](https://github.com/colorful-life-ltd/colorful-life-backend/pull/209), branch `feature/production-audit-remediation`. Baseline `b78da7493dca8fce59b05b52978c7e9475d7ab92`; recovered implementation `fb4f2af31d26e06790394894447e8172cc081216`. Resumed 19 October 2026. **Not deployed; not merged.**
 
+## Targeted review follow-up
+
+The D1/D2/D3 implementation and regression evidence are in [production-review-remediation.md](production-review-remediation.md). It adds proof-derived provider classification and an audited pre-refund cancellation withdrawal. The user requested preservation of the staged F10 approach for owner review; the original single-action contract remains undelivered. The matrix below records the earlier implementation handoff.
+
 ## Scope recovery and acceptance
 
 The original Claude report contains **20 finding IDs (F1–F20), grouped into 16 proposed implementation backlog items**, with 0 P0 and 4 P1 findings. “16 findings” in the resume request refers to that grouped backlog. Every ID and every backlog item is mapped below; none has been dropped. The recovered original report is preserved verbatim in [production-audit-original-2026-10-18.md](production-audit-original-2026-10-18.md). It was recovered from Claude's saved `Write` tool payload for the original report, session `34d99e9d-b4c8-4bfd-b808-98f26b5221ad`; the temporary scratchpad itself no longer existed. This is implementation verification against that report, not a replacement audit.
@@ -63,7 +67,7 @@ All20 original finding IDs have a disposition. Eighteen have implemented code/ar
 
 ## Remaining blockers and review boundary
 
-- F10's literal original one-action workflow is not delivered; the recovered safe staged architecture is implemented and tested. This deviation needs explicit independent-review/owner acceptance, or a separately scoped durable orchestration implementation before merge.
+- F10's literal original one-action workflow is not delivered. The user instructed preservation of the safe staged architecture for owner review in the targeted follow-up. The new audited withdrawal is available only before refund initiation; no provider/database atomicity is claimed.
 - Signed Stripe/PayPal acceptance, actual ECS/ALB lifecycle behavior, least-privilege IAM/database grants, approved origins/secrets, SES identity/recipient controls, backups/PITR/restore drills and alert routing still require an isolated staging environment and owner approval. No production readiness certification is made.
 - Bank-payment approval/evidence, retention and authorized financial-correction policies remain owner decisions. Financial contradictions cannot be acknowledged into success or cleared merely because they age. PayPal customer initiation stays disabled pending acceptance.
 - Independent Claude review is pending and has **not** been initiated. User controls review, merge and deployment.

@@ -2,6 +2,10 @@
 
 Baseline b78da7493dca8fce59b05b52978c7e9475d7ab92. NOT DEPLOYED. Independent review and staging acceptance remain mandatory.
 
+## Targeted review follow-up
+
+D1/D2 evidence-aware holds, D3 cancellation withdrawal and the staged F10 owner-review contract are documented in [production-review-remediation.md](production-review-remediation.md). This supersedes the earlier irrevocable-intent limitation. No single-action cancellation contract is claimed.
+
 ## Finding matrix
 
 Resume completion matrix, original-acceptance deviations, CI root cause and current verification: [production-audit-completion.md](production-audit-completion.md). Original Claude report: [production-audit-original-2026-10-18.md](production-audit-original-2026-10-18.md). The original report has20 finding IDs grouped into16 backlog items.
@@ -51,7 +55,8 @@ Evidence journal and resolution audit are append-only. Repeated normalized evide
 * DELETE /users/me requires `{password}`. Wrong/missing password returns403 REAUTHENTICATION_REQUIRED.
 * POST /users/me/password: `{currentPassword,newPassword}`;204 revokes all existing sessions/access credentials. Log in again.
 * PATCH /users/me/email accepts password for verified customers. Replacement email must be verified; verified users must log in again.
-* POST /admin/orders/:orderId/request-paid-cancellation: `{reason}`, Idempotency-Key. This audited intent fences dispatch before any refund operation. The operator then uses the existing refund API with an explicitly chosen amount. No automatic provider call or shipping refund allocation. An accepted intent remains a hold until completion.
+* POST /admin/orders/:orderId/request-paid-cancellation: `{reason}`, Idempotency-Key. This audited intent fences dispatch before any refund operation. The operator then uses the existing refund API with an explicitly chosen amount. No automatic provider call or shipping refund allocation. An accepted intent remains a hold until completion or an audited withdrawal before any refund initiation. Request responses now include requestId/active; see the targeted review remediation contract.
+* POST /admin/orders/:orderId/withdraw-paid-cancellation: `{requestId,reason}`, Idempotency-Key; active ADMIN only, before any refund initiation. Withdrawal appends audit and closes only that request generation.
 * POST /admin/orders/:orderId/cancel-refunded: `{reason}`, Idempotency-Key; only fully refunded, confirmed, unshipped NEW orders with no return/review ambiguity.
 * FBA responses include actual quantity, appliedQuantity and shortfall. Duplicate shipment/listing under a new key is409.
 
