@@ -10,7 +10,9 @@ An earlier attempt's negative receipt becomes non-blocking only when its `TERMIN
 
 Verified SUCCESS on the same current Stripe intent explains nonterminal declines, including delayed deliveries. A terminal cancellation conflicting with that success remains held. Earlier-attempt successes, actual disputes and unresolved refunds are never treated as harmless negative receipts. Existing fully refunded/in-flight/review fulfilment fences remain authoritative.
 
-Each explained receipt appends one immutable `PROVIDER_RECEIPT_FINANCIAL_RESOLVED` audit, referencing payment, receipt, attempt and financial-evidence IDs. Its unique request key deduplicates concurrent evaluation. Original provider evidence and processing diagnostics remain unchanged. The guard recomputes the decision on every use; an audit record is not a force-clear token and does not exempt later contradictory receipts.
+Legacy Stripe payments without managed attempts can explain nonterminal failures through a fully validated, processed successful provider receipt for the same exact identity/principal. The GET recovery service now retains an allowlisted immutable `payment_intent.recovered` success payload as well, so recovery does not require a later webhook. This does not manufacture managed attempts or FinancialEvidence. Terminal cancellations and invalid financial identities still hold.
+
+Each explained receipt appends one immutable `PROVIDER_RECEIPT_FINANCIAL_RESOLVED` audit, referencing payment, receipt, attempt and financial-evidence IDs, or an explicit verified success-receipt ID for the legacy path. Its unique request key deduplicates concurrent evaluation. Original provider evidence and processing diagnostics remain unchanged. The guard recomputes the decision on every use; an audit record is not a force-clear token and does not exempt later contradictory receipts.
 
 `src/domain/payments/paymentResolutionService.ts` also revalidates this classification at retry admission. This handles an old cancellation delivered while a new provider intent is being created. Only individually audited, freshly revalidated benign receipts can satisfy that admission check; other inbox errors remain blocking. Existing database stock-release/inbox triggers are unchanged. There is no new financial-finality shortcut or provider mutation.
 
@@ -82,19 +84,19 @@ Before step2, an eligible mistaken request can now be withdrawn. Once refund ini
 
 ## Regression and verification evidence
 
-`src/__tests__/productionReviewRemediation.integration.test.ts` adds23 tests:
+`src/__tests__/productionReviewRemediation.integration.test.ts` adds25 tests:
 
 - Real Stripe service journey: create → decline → independently retrieved canceled/zero-money finality → distinct retry → verified success; late old cancellations/failures and concurrent duplicate delivery remain fulfillable with one audit per proof/receipt.
-- A late old Stripe event during provider creation does not strand the valid retry. Same-intent delayed nonterminal failures remain explained by verified success.
+- A late old Stripe event during provider creation does not strand the valid retry. Same-intent delayed nonterminal failures remain explained by verified success. Legacy webhook and GET-only recovery journeys remain fulfillable without a managed ledger.
 - Earlier success contradictions, amount/capture mismatches, unproven historical attempts, actual disputes/reversals and current PayPal success/decline conflicts stay held. Acknowledgement never supplies proof.
 - Real PayPal create/capture-decline → independent resolver GET → new Order/Capture → success; retained earlier decline resolves only through exact immutable finality.
 - Full external dashboard refund after paid retry is booked exactly once and still blocks fulfilment; the original successful dashboard-refund regressions remain unchanged.
 - Withdrawal authorization/validation, HTTP contract, exact and concurrent replay, old/new request generations, immutable audit, initiated/failed refunds and unresolved financial holds.
 - Real PostgreSQL lock queues exercise refund-first/withdrawal-first and dispatch-first/withdrawal-first orderings, preserving stock and shipment invariants.
 
-Targeted suite: **23 passed, 0 failed, 0 skipped**. Broader focused financial suite: **279 passed, 0 failed, 0 skipped**. Build and Prisma validation passed. All71 existing committed migrations applied on a new disposable PostgreSQL16 cluster; schema drift diff empty. No schema, migration, generated-client, dependency or infrastructure change is needed for this follow-up. Final full-suite and final-head CI results are recorded in the PR #209 description after completion; the existing CI checks are unchanged.
+Targeted suite: **25 passed, 0 failed, 0 skipped**. Broader focused financial suite: **320 passed, 0 failed, 0 skipped**. Build and Prisma validation passed. All71 existing committed migrations applied on a new disposable PostgreSQL16 cluster; schema drift diff empty. No schema, migration, generated-client, dependency or infrastructure change is needed for this follow-up. Final full-suite and final-head CI results are recorded in the PR #209 description after completion; the existing CI checks are unchanged.
 
-Local disposable target: `127.0.0.1:55440/colorful_life_test`; the normal URL used an unused different database name. The safe runner enforces synthetic AWS credentials, injected providers, disabled real-provider tests and the external-network guard. No real payments or emails are sent.
+Local focused disposable targets: ports55440/55441; final fresh full-suite target: `127.0.0.1:55442/colorful_life_test`; the normal URL used an unused different database name. The safe runner enforces synthetic AWS credentials, injected providers, disabled real-provider tests and the external-network guard. No real payments or emails are sent.
 
 ## Outstanding staging and owner acceptance
 

@@ -10,6 +10,7 @@ import { config } from '../config/index.js';
 import { createOrder } from '../domain/orders/orderService.js';
 import { createOrReuseStripePaymentIntent, StripePaymentNotPayableError, type StripePaymentClient } from '../domain/payments/stripePaymentService.js';
 import { reconcileStripePaymentEvent, reconcileStripeRefundEvent } from '../domain/payments/stripeReconciliationService.js';
+import { recoverStripePayment } from '../domain/payments/stripePaymentRecoveryService.js';
 import { createOrReusePayPalOrder } from '../domain/payments/paypalOrderService.js';
 import { capturePayPalOrder } from '../domain/payments/paypalCaptureService.js';
 import { resolvePayPalPaymentOutcome, type PayPalResolutionOrder } from '../domain/payments/paypalResolutionService.js';
@@ -316,4 +317,29 @@ it('PayPal: a decline contradicting the current successful capture remains finan
   const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: 'PAYPAL', providerEventId: id } } });
   await acknowledgePayPalWebhookReview(receipt.id, f.admin.id);
   assert.equal(await hold(f.order.id), 'PAYMENT'); await assert.rejects(startPreparing(f.admin.id, f.order.id));
+});
+
+for (const recovery of [true, false]) it(`legacy Stripe decline → ${recovery ? 'verified GET recovery' : 'verified webhook'} success has receipt-backed proof without inventing managed attempts`, async () => {
+  config.PAYMENT_RESOLUTION_ENABLED = false;
+  const f = await fixture(); let intent!: Stripe.PaymentIntent;
+  const client = { paymentIntents: {
+    create: async (params: Stripe.PaymentIntentCreateParams) => {
+      intent = { ...params, id: `pi_${randomUUID()}`, status: 'requires_payment_method', client_secret: 'synthetic', amount_received: 0, amount_capturable: 0 } as unknown as Stripe.PaymentIntent; return intent;
+    }, retrieve: async () => intent,
+  } } as unknown as StripePaymentClient;
+  await createOrReuseStripePaymentIntent(f.order.id, f.user.id, client);
+  const event = (type: 'payment_intent.payment_failed' | 'payment_intent.succeeded') => reconcileStripePaymentEvent({ id: randomUUID(), type, paymentIntentId: intent.id, amount: intent.amount, currency: 'gbp', metadata: intent.metadata });
+  await event('payment_intent.payment_failed');
+  intent.status = 'succeeded'; intent.amount_received = intent.amount;
+  if (recovery) await recoverStripePayment(f.order.id, f.user.id, client);
+  else await event('payment_intent.succeeded');
+  await event('payment_intent.payment_failed'); // Delayed nonterminal notification, same paid identity.
+  assert.equal(await prisma.paymentAttempt.count({ where: { orderId: f.order.id } }), 0);
+  assert.equal(await prisma.financialEvidence.count({ where: { orderId: f.order.id } }), 0);
+  assert.equal(await hold(f.order.id), null);
+  const audits = await prisma.operationalAudit.findMany({ where: { orderId: f.order.id, kind: 'PROVIDER_RECEIPT_FINANCIAL_RESOLVED' } });
+  assert.ok(audits.length > 0); assert.ok(audits.every(a => (a.details as { source: string }).source === 'verified-success-receipt'));
+  await startPreparing(f.admin.id, f.order.id); await dispatchShipment(f.admin.id, f.order.id, shipment);
+  await reconcileStripePaymentEvent({ id: randomUUID(), type: 'payment_intent.canceled', paymentIntentId: intent.id, amount: intent.amount, currency: 'gbp', metadata: intent.metadata });
+  assert.equal(await hold(f.order.id), 'PAYMENT'); // Success never explains a contradictory TERMINAL cancellation.
 });

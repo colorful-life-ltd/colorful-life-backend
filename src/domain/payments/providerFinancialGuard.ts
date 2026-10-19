@@ -31,6 +31,24 @@ async function retainResolution(tx: Prisma.TransactionClient, payment: Payment, 
     ON CONFLICT ("requestKey") DO NOTHING`;
 }
 
+type StripeReceipt = { id: number; eventType: string; evidence: Prisma.JsonValue; processedAt: Date | null; processingError: string | null };
+function stripeIdentityMatches(payment: Payment, attempt: Attempt | undefined, data: Evidence) {
+  return (!attempt || attempt.orderId === payment.orderId && attempt.amount.eq(payment.amount) && attempt.currency === payment.currency)
+    && data.version === 1 && data.amount === payment.amount.mul(100).toNumber()
+    && typeof data.currency === 'string' && data.currency.toUpperCase() === payment.currency
+    && (data.orderId === undefined || data.orderId === String(payment.orderId))
+    && (data.attemptId === undefined || data.attemptId === String(attempt?.id))
+    && (data.paymentKey === undefined || data.paymentKey === (attempt?.creationKey ?? payment.idempotencyKey));
+}
+/** Legacy payments have no managed FinancialEvidence ledger. An accepted verified
+ * success receipt is their durable provider proof; never manufacture an attempt. */
+async function retainSuccessReceiptResolution(tx: Prisma.TransactionClient, payment: Payment, receiptId: number, successReceiptId: number) {
+  const key = `provider-receipt-safe:STRIPE:${receiptId}:success-receipt:${successReceiptId}`;
+  await tx.$executeRaw`INSERT INTO "OperationalAudit" (kind,"orderId","requestKey",details)
+    VALUES ('PROVIDER_RECEIPT_FINANCIAL_RESOLVED',${payment.orderId},${key},${JSON.stringify({ paymentId: payment.id, receiptId, successReceiptId, source: 'verified-success-receipt' })}::jsonb)
+    ON CONFLICT ("requestKey") DO NOTHING`;
+}
+
 export type ProviderFinancialHold = 'REFUND' | 'DISPUTE' | 'REVERSAL' | 'PAYMENT';
 /** Caller holds Order then Payment. Only locally bound IDs establish ownership. No provider calls. */
 export async function providerFinancialHold(tx: Prisma.TransactionClient, payment: Payment): Promise<ProviderFinancialHold | null> {
@@ -45,21 +63,19 @@ export async function providerFinancialHold(tx: Prisma.TransactionClient, paymen
   const attempts = await tx.paymentAttempt.findMany({ where: { paymentId: payment.id, provider: payment.provider },
     include: { finalityEvidence: { include: { operation: true } }, successEvidence: true, operations: true } });
   if (payment.provider === 'STRIPE') {
-    const receipts = await tx.$queryRaw<Array<{ id: number; eventType: string; evidence: Prisma.JsonValue; receivedAt: Date }>>`SELECT e.id,e."eventType",e.evidence,e."receivedAt" FROM "PaymentWebhookEvent" e
-      WHERE e.provider='STRIPE' AND (e.evidence->>'kind'='stripe-dispute' OR e."eventType" IN ('payment_intent.succeeded','payment_intent.payment_failed','payment_intent.canceled'))
+    const receipts = await tx.$queryRaw<StripeReceipt[]>`SELECT e.id,e."eventType",e.evidence,e."processedAt",e."processingError" FROM "PaymentWebhookEvent" e
+      WHERE e.provider='STRIPE' AND (e.evidence->>'kind'='stripe-dispute' OR e."eventType" IN ('payment_intent.succeeded','payment_intent.recovered','payment_intent.payment_failed','payment_intent.canceled'))
       AND (e.evidence->>'paymentIntentId'=${payment.providerReference} OR EXISTS(SELECT 1 FROM "PaymentAttempt" a WHERE a."paymentId"=${payment.id} AND a.provider='STRIPE' AND a."providerReference"=e.evidence->>'paymentIntentId')) ORDER BY e.id`;
+    const currentAttempt = attempts.find(a => a.providerReference === payment.providerReference);
+    const acceptedSuccess = receipts.find(r => ['payment_intent.succeeded', 'payment_intent.recovered'].includes(r.eventType) && r.processedAt && r.processingError === null
+      && object(r.evidence).paymentIntentId === payment.providerReference && stripeIdentityMatches(payment, currentAttempt, object(r.evidence)));
     for (const receipt of receipts) {
       const data = object(receipt.evidence);
       if (data.kind === 'stripe-dispute') return 'DISPUTE';
       const attempt = attempts.find(a => a.providerReference === data.paymentIntentId);
-      if (attempt && (attempt.orderId !== payment.orderId || !attempt.amount.eq(payment.amount) || attempt.currency !== payment.currency)) return 'PAYMENT';
-      const amount = attempt?.amount ?? payment.amount;
-      if (data.version !== 1 || data.amount !== amount.mul(100).toNumber() || typeof data.currency !== 'string' || data.currency.toUpperCase() !== payment.currency
-        || data.orderId !== undefined && data.orderId !== String(payment.orderId)
-        || data.attemptId !== undefined && data.attemptId !== String(attempt?.id)
-        || data.paymentKey !== undefined && data.paymentKey !== (attempt?.creationKey ?? payment.idempotencyKey)) return 'PAYMENT';
+      if (!stripeIdentityMatches(payment, attempt, data)) return 'PAYMENT';
       if (data.paymentIntentId === payment.providerReference && payment.status === 'SUCCEEDED' && payment.paidAt) {
-        if (receipt.eventType === 'payment_intent.succeeded' && !attempt?.finalityEvidenceId) continue;
+        if (['payment_intent.succeeded', 'payment_intent.recovered'].includes(receipt.eventType) && !attempt?.finalityEvidenceId) continue;
         // Verified success is monotonic on this same intent; a delayed nonterminal decline cannot undo it.
         const success = attempt?.successEvidence;
         const facts = object(success?.normalized ?? null);
@@ -68,6 +84,9 @@ export async function providerFinancialHold(tx: Prisma.TransactionClient, paymen
           && facts.providerReference === payment.providerReference && facts.amount === payment.amount.toFixed(2) && facts.currency === payment.currency
           && !attempt!.finalityEvidenceId) {
           await retainResolution(tx, payment, receipt.id, attempt!.id, success.id); continue;
+        }
+        if (receipt.eventType === 'payment_intent.payment_failed' && acceptedSuccess && !attempt?.finalityEvidenceId) {
+          await retainSuccessReceiptResolution(tx, payment, receipt.id, acceptedSuccess.id); continue;
         }
         return 'PAYMENT';
       }
