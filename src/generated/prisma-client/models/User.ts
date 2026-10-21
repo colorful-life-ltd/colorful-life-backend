@@ -286,6 +286,7 @@ export type UserWhereInput = {
   cart?: Prisma.XOR<Prisma.CartNullableScalarRelationFilter, Prisma.CartWhereInput> | null
   shipmentsCreated?: Prisma.ShipmentListRelationFilter
   fulfilmentEvents?: Prisma.OrderFulfilmentEventListRelationFilter
+  fbaShipments?: Prisma.FbaShipmentListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -315,6 +316,7 @@ export type UserOrderByWithRelationInput = {
   cart?: Prisma.CartOrderByWithRelationInput
   shipmentsCreated?: Prisma.ShipmentOrderByRelationAggregateInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventOrderByRelationAggregateInput
+  fbaShipments?: Prisma.FbaShipmentOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -347,6 +349,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   cart?: Prisma.XOR<Prisma.CartNullableScalarRelationFilter, Prisma.CartWhereInput> | null
   shipmentsCreated?: Prisma.ShipmentListRelationFilter
   fulfilmentEvents?: Prisma.OrderFulfilmentEventListRelationFilter
+  fbaShipments?: Prisma.FbaShipmentListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -413,6 +416,7 @@ export type UserCreateInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -442,6 +446,7 @@ export type UserUncheckedCreateInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUpdateInput = {
@@ -470,6 +475,7 @@ export type UserUpdateInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -499,6 +505,7 @@ export type UserUncheckedUpdateInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -694,6 +701,20 @@ export type UserUpdateOneRequiredWithoutCartNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCartInput, Prisma.UserUpdateWithoutCartInput>, Prisma.UserUncheckedUpdateWithoutCartInput>
 }
 
+export type UserCreateNestedOneWithoutFbaShipmentsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutFbaShipmentsInput, Prisma.UserUncheckedCreateWithoutFbaShipmentsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutFbaShipmentsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutFbaShipmentsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutFbaShipmentsInput, Prisma.UserUncheckedCreateWithoutFbaShipmentsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutFbaShipmentsInput
+  upsert?: Prisma.UserUpsertWithoutFbaShipmentsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutFbaShipmentsInput, Prisma.UserUpdateWithoutFbaShipmentsInput>, Prisma.UserUncheckedUpdateWithoutFbaShipmentsInput>
+}
+
 export type UserCreateNestedOneWithoutInventoryMovementsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutInventoryMovementsInput, Prisma.UserUncheckedCreateWithoutInventoryMovementsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutInventoryMovementsInput
@@ -849,6 +870,7 @@ export type UserCreateWithoutRefreshSessionsInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutRefreshSessionsInput = {
@@ -877,6 +899,7 @@ export type UserUncheckedCreateWithoutRefreshSessionsInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutRefreshSessionsInput = {
@@ -920,6 +943,7 @@ export type UserUpdateWithoutRefreshSessionsInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRefreshSessionsInput = {
@@ -948,6 +972,7 @@ export type UserUncheckedUpdateWithoutRefreshSessionsInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutEmailVerificationTokenInput = {
@@ -975,6 +1000,7 @@ export type UserCreateWithoutEmailVerificationTokenInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutEmailVerificationTokenInput = {
@@ -1003,6 +1029,7 @@ export type UserUncheckedCreateWithoutEmailVerificationTokenInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutEmailVerificationTokenInput = {
@@ -1046,6 +1073,7 @@ export type UserUpdateWithoutEmailVerificationTokenInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutEmailVerificationTokenInput = {
@@ -1074,6 +1102,7 @@ export type UserUncheckedUpdateWithoutEmailVerificationTokenInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutPasswordResetTokenInput = {
@@ -1101,6 +1130,7 @@ export type UserCreateWithoutPasswordResetTokenInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutPasswordResetTokenInput = {
@@ -1129,6 +1159,7 @@ export type UserUncheckedCreateWithoutPasswordResetTokenInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutPasswordResetTokenInput = {
@@ -1172,6 +1203,7 @@ export type UserUpdateWithoutPasswordResetTokenInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPasswordResetTokenInput = {
@@ -1200,6 +1232,7 @@ export type UserUncheckedUpdateWithoutPasswordResetTokenInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutAddressesInput = {
@@ -1227,6 +1260,7 @@ export type UserCreateWithoutAddressesInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutAddressesInput = {
@@ -1255,6 +1289,7 @@ export type UserUncheckedCreateWithoutAddressesInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutAddressesInput = {
@@ -1298,6 +1333,7 @@ export type UserUpdateWithoutAddressesInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAddressesInput = {
@@ -1326,6 +1362,7 @@ export type UserUncheckedUpdateWithoutAddressesInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutCartInput = {
@@ -1353,6 +1390,7 @@ export type UserCreateWithoutCartInput = {
   refreshSessions?: Prisma.RefreshSessionCreateNestedManyWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutCartInput = {
@@ -1381,6 +1419,7 @@ export type UserUncheckedCreateWithoutCartInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedCreateNestedManyWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutCartInput = {
@@ -1424,6 +1463,7 @@ export type UserUpdateWithoutCartInput = {
   refreshSessions?: Prisma.RefreshSessionUpdateManyWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCartInput = {
@@ -1450,6 +1490,137 @@ export type UserUncheckedUpdateWithoutCartInput = {
   emailVerificationToken?: Prisma.EmailVerificationTokenUncheckedUpdateOneWithoutUserNestedInput
   passwordResetToken?: Prisma.PasswordResetTokenUncheckedUpdateOneWithoutUserNestedInput
   refreshSessions?: Prisma.RefreshSessionUncheckedUpdateManyWithoutUserNestedInput
+  shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
+}
+
+export type UserCreateWithoutFbaShipmentsInput = {
+  email: string
+  credentialVersion?: string | null
+  passwordHash: string
+  emailVerified?: boolean
+  role?: $Enums.UserRole
+  firstName?: string | null
+  lastName?: string | null
+  phone?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  addresses?: Prisma.AddressCreateNestedManyWithoutUserInput
+  inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutPerformedByUserInput
+  purchaseDocuments?: Prisma.PurchaseDocumentCreateNestedManyWithoutImportedByUserInput
+  orders?: Prisma.OrderCreateNestedManyWithoutUserInput
+  orderReturns?: Prisma.OrderReturnCreateNestedManyWithoutPerformedByUserInput
+  inspectedOrderReturns?: Prisma.OrderReturnCreateNestedManyWithoutInspectedByUserInput
+  refunds?: Prisma.RefundCreateNestedManyWithoutPerformedByUserInput
+  inventoryAudits?: Prisma.InventoryAuditCreateNestedManyWithoutPerformedByUserInput
+  emailVerificationToken?: Prisma.EmailVerificationTokenCreateNestedOneWithoutUserInput
+  passwordResetToken?: Prisma.PasswordResetTokenCreateNestedOneWithoutUserInput
+  refreshSessions?: Prisma.RefreshSessionCreateNestedManyWithoutUserInput
+  cart?: Prisma.CartCreateNestedOneWithoutUserInput
+  shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+}
+
+export type UserUncheckedCreateWithoutFbaShipmentsInput = {
+  id?: number
+  email: string
+  credentialVersion?: string | null
+  passwordHash: string
+  emailVerified?: boolean
+  role?: $Enums.UserRole
+  firstName?: string | null
+  lastName?: string | null
+  phone?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  addresses?: Prisma.AddressUncheckedCreateNestedManyWithoutUserInput
+  inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutPerformedByUserInput
+  purchaseDocuments?: Prisma.PurchaseDocumentUncheckedCreateNestedManyWithoutImportedByUserInput
+  orders?: Prisma.OrderUncheckedCreateNestedManyWithoutUserInput
+  orderReturns?: Prisma.OrderReturnUncheckedCreateNestedManyWithoutPerformedByUserInput
+  inspectedOrderReturns?: Prisma.OrderReturnUncheckedCreateNestedManyWithoutInspectedByUserInput
+  refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutPerformedByUserInput
+  inventoryAudits?: Prisma.InventoryAuditUncheckedCreateNestedManyWithoutPerformedByUserInput
+  emailVerificationToken?: Prisma.EmailVerificationTokenUncheckedCreateNestedOneWithoutUserInput
+  passwordResetToken?: Prisma.PasswordResetTokenUncheckedCreateNestedOneWithoutUserInput
+  refreshSessions?: Prisma.RefreshSessionUncheckedCreateNestedManyWithoutUserInput
+  cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
+  shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+}
+
+export type UserCreateOrConnectWithoutFbaShipmentsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutFbaShipmentsInput, Prisma.UserUncheckedCreateWithoutFbaShipmentsInput>
+}
+
+export type UserUpsertWithoutFbaShipmentsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutFbaShipmentsInput, Prisma.UserUncheckedUpdateWithoutFbaShipmentsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutFbaShipmentsInput, Prisma.UserUncheckedCreateWithoutFbaShipmentsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutFbaShipmentsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutFbaShipmentsInput, Prisma.UserUncheckedUpdateWithoutFbaShipmentsInput>
+}
+
+export type UserUpdateWithoutFbaShipmentsInput = {
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  credentialVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  addresses?: Prisma.AddressUpdateManyWithoutUserNestedInput
+  inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutPerformedByUserNestedInput
+  purchaseDocuments?: Prisma.PurchaseDocumentUpdateManyWithoutImportedByUserNestedInput
+  orders?: Prisma.OrderUpdateManyWithoutUserNestedInput
+  orderReturns?: Prisma.OrderReturnUpdateManyWithoutPerformedByUserNestedInput
+  inspectedOrderReturns?: Prisma.OrderReturnUpdateManyWithoutInspectedByUserNestedInput
+  refunds?: Prisma.RefundUpdateManyWithoutPerformedByUserNestedInput
+  inventoryAudits?: Prisma.InventoryAuditUpdateManyWithoutPerformedByUserNestedInput
+  emailVerificationToken?: Prisma.EmailVerificationTokenUpdateOneWithoutUserNestedInput
+  passwordResetToken?: Prisma.PasswordResetTokenUpdateOneWithoutUserNestedInput
+  refreshSessions?: Prisma.RefreshSessionUpdateManyWithoutUserNestedInput
+  cart?: Prisma.CartUpdateOneWithoutUserNestedInput
+  shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutFbaShipmentsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  credentialVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  emailVerified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  addresses?: Prisma.AddressUncheckedUpdateManyWithoutUserNestedInput
+  inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  purchaseDocuments?: Prisma.PurchaseDocumentUncheckedUpdateManyWithoutImportedByUserNestedInput
+  orders?: Prisma.OrderUncheckedUpdateManyWithoutUserNestedInput
+  orderReturns?: Prisma.OrderReturnUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  inspectedOrderReturns?: Prisma.OrderReturnUncheckedUpdateManyWithoutInspectedByUserNestedInput
+  refunds?: Prisma.RefundUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  inventoryAudits?: Prisma.InventoryAuditUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  emailVerificationToken?: Prisma.EmailVerificationTokenUncheckedUpdateOneWithoutUserNestedInput
+  passwordResetToken?: Prisma.PasswordResetTokenUncheckedUpdateOneWithoutUserNestedInput
+  refreshSessions?: Prisma.RefreshSessionUncheckedUpdateManyWithoutUserNestedInput
+  cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
@@ -1479,6 +1650,7 @@ export type UserCreateWithoutInventoryMovementsInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutInventoryMovementsInput = {
@@ -1507,6 +1679,7 @@ export type UserUncheckedCreateWithoutInventoryMovementsInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutInventoryMovementsInput = {
@@ -1550,6 +1723,7 @@ export type UserUpdateWithoutInventoryMovementsInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutInventoryMovementsInput = {
@@ -1578,6 +1752,7 @@ export type UserUncheckedUpdateWithoutInventoryMovementsInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutInventoryAuditsInput = {
@@ -1605,6 +1780,7 @@ export type UserCreateWithoutInventoryAuditsInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutInventoryAuditsInput = {
@@ -1633,6 +1809,7 @@ export type UserUncheckedCreateWithoutInventoryAuditsInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutInventoryAuditsInput = {
@@ -1676,6 +1853,7 @@ export type UserUpdateWithoutInventoryAuditsInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutInventoryAuditsInput = {
@@ -1704,6 +1882,7 @@ export type UserUncheckedUpdateWithoutInventoryAuditsInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutOrdersInput = {
@@ -1731,6 +1910,7 @@ export type UserCreateWithoutOrdersInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutOrdersInput = {
@@ -1759,6 +1939,7 @@ export type UserUncheckedCreateWithoutOrdersInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutOrdersInput = {
@@ -1802,6 +1983,7 @@ export type UserUpdateWithoutOrdersInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutOrdersInput = {
@@ -1830,6 +2012,7 @@ export type UserUncheckedUpdateWithoutOrdersInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutRefundsInput = {
@@ -1857,6 +2040,7 @@ export type UserCreateWithoutRefundsInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutRefundsInput = {
@@ -1885,6 +2069,7 @@ export type UserUncheckedCreateWithoutRefundsInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutRefundsInput = {
@@ -1928,6 +2113,7 @@ export type UserUpdateWithoutRefundsInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRefundsInput = {
@@ -1956,6 +2142,7 @@ export type UserUncheckedUpdateWithoutRefundsInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutOrderReturnsInput = {
@@ -1983,6 +2170,7 @@ export type UserCreateWithoutOrderReturnsInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutOrderReturnsInput = {
@@ -2011,6 +2199,7 @@ export type UserUncheckedCreateWithoutOrderReturnsInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutOrderReturnsInput = {
@@ -2043,6 +2232,7 @@ export type UserCreateWithoutInspectedOrderReturnsInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutInspectedOrderReturnsInput = {
@@ -2071,6 +2261,7 @@ export type UserUncheckedCreateWithoutInspectedOrderReturnsInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutInspectedOrderReturnsInput = {
@@ -2114,6 +2305,7 @@ export type UserUpdateWithoutOrderReturnsInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutOrderReturnsInput = {
@@ -2142,6 +2334,7 @@ export type UserUncheckedUpdateWithoutOrderReturnsInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUpsertWithoutInspectedOrderReturnsInput = {
@@ -2180,6 +2373,7 @@ export type UserUpdateWithoutInspectedOrderReturnsInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutInspectedOrderReturnsInput = {
@@ -2208,6 +2402,7 @@ export type UserUncheckedUpdateWithoutInspectedOrderReturnsInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutPurchaseDocumentsInput = {
@@ -2235,6 +2430,7 @@ export type UserCreateWithoutPurchaseDocumentsInput = {
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutPurchaseDocumentsInput = {
@@ -2263,6 +2459,7 @@ export type UserUncheckedCreateWithoutPurchaseDocumentsInput = {
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutPurchaseDocumentsInput = {
@@ -2306,6 +2503,7 @@ export type UserUpdateWithoutPurchaseDocumentsInput = {
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPurchaseDocumentsInput = {
@@ -2334,6 +2532,7 @@ export type UserUncheckedUpdateWithoutPurchaseDocumentsInput = {
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutShipmentsCreatedInput = {
@@ -2361,6 +2560,7 @@ export type UserCreateWithoutShipmentsCreatedInput = {
   refreshSessions?: Prisma.RefreshSessionCreateNestedManyWithoutUserInput
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutShipmentsCreatedInput = {
@@ -2389,6 +2589,7 @@ export type UserUncheckedCreateWithoutShipmentsCreatedInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedCreateNestedManyWithoutUserInput
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutPerformedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutShipmentsCreatedInput = {
@@ -2432,6 +2633,7 @@ export type UserUpdateWithoutShipmentsCreatedInput = {
   refreshSessions?: Prisma.RefreshSessionUpdateManyWithoutUserNestedInput
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutShipmentsCreatedInput = {
@@ -2460,6 +2662,7 @@ export type UserUncheckedUpdateWithoutShipmentsCreatedInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedUpdateManyWithoutUserNestedInput
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutPerformedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserCreateWithoutFulfilmentEventsInput = {
@@ -2487,6 +2690,7 @@ export type UserCreateWithoutFulfilmentEventsInput = {
   refreshSessions?: Prisma.RefreshSessionCreateNestedManyWithoutUserInput
   cart?: Prisma.CartCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentCreateNestedManyWithoutCreatedByUserInput
+  fbaShipments?: Prisma.FbaShipmentCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserUncheckedCreateWithoutFulfilmentEventsInput = {
@@ -2515,6 +2719,7 @@ export type UserUncheckedCreateWithoutFulfilmentEventsInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedCreateNestedManyWithoutUserInput
   cart?: Prisma.CartUncheckedCreateNestedOneWithoutUserInput
   shipmentsCreated?: Prisma.ShipmentUncheckedCreateNestedManyWithoutCreatedByUserInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedCreateNestedManyWithoutPerformedByUserInput
 }
 
 export type UserCreateOrConnectWithoutFulfilmentEventsInput = {
@@ -2558,6 +2763,7 @@ export type UserUpdateWithoutFulfilmentEventsInput = {
   refreshSessions?: Prisma.RefreshSessionUpdateManyWithoutUserNestedInput
   cart?: Prisma.CartUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUpdateManyWithoutCreatedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUpdateManyWithoutPerformedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFulfilmentEventsInput = {
@@ -2586,6 +2792,7 @@ export type UserUncheckedUpdateWithoutFulfilmentEventsInput = {
   refreshSessions?: Prisma.RefreshSessionUncheckedUpdateManyWithoutUserNestedInput
   cart?: Prisma.CartUncheckedUpdateOneWithoutUserNestedInput
   shipmentsCreated?: Prisma.ShipmentUncheckedUpdateManyWithoutCreatedByUserNestedInput
+  fbaShipments?: Prisma.FbaShipmentUncheckedUpdateManyWithoutPerformedByUserNestedInput
 }
 
 
@@ -2605,6 +2812,7 @@ export type UserCountOutputType = {
   refreshSessions: number
   shipmentsCreated: number
   fulfilmentEvents: number
+  fbaShipments: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2619,6 +2827,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   refreshSessions?: boolean | UserCountOutputTypeCountRefreshSessionsArgs
   shipmentsCreated?: boolean | UserCountOutputTypeCountShipmentsCreatedArgs
   fulfilmentEvents?: boolean | UserCountOutputTypeCountFulfilmentEventsArgs
+  fbaShipments?: boolean | UserCountOutputTypeCountFbaShipmentsArgs
 }
 
 /**
@@ -2708,6 +2917,13 @@ export type UserCountOutputTypeCountFulfilmentEventsArgs<ExtArgs extends runtime
   where?: Prisma.OrderFulfilmentEventWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountFbaShipmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.FbaShipmentWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2736,6 +2952,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   cart?: boolean | Prisma.User$cartArgs<ExtArgs>
   shipmentsCreated?: boolean | Prisma.User$shipmentsCreatedArgs<ExtArgs>
   fulfilmentEvents?: boolean | Prisma.User$fulfilmentEventsArgs<ExtArgs>
+  fbaShipments?: boolean | Prisma.User$fbaShipmentsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -2800,6 +3017,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   cart?: boolean | Prisma.User$cartArgs<ExtArgs>
   shipmentsCreated?: boolean | Prisma.User$shipmentsCreatedArgs<ExtArgs>
   fulfilmentEvents?: boolean | Prisma.User$fulfilmentEventsArgs<ExtArgs>
+  fbaShipments?: boolean | Prisma.User$fbaShipmentsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -2822,6 +3040,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     cart: Prisma.$CartPayload<ExtArgs> | null
     shipmentsCreated: Prisma.$ShipmentPayload<ExtArgs>[]
     fulfilmentEvents: Prisma.$OrderFulfilmentEventPayload<ExtArgs>[]
+    fbaShipments: Prisma.$FbaShipmentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -3244,6 +3463,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   cart<T extends Prisma.User$cartArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$cartArgs<ExtArgs>>): Prisma.Prisma__CartClient<runtime.Types.Result.GetResult<Prisma.$CartPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   shipmentsCreated<T extends Prisma.User$shipmentsCreatedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$shipmentsCreatedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ShipmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   fulfilmentEvents<T extends Prisma.User$fulfilmentEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$fulfilmentEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderFulfilmentEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  fbaShipments<T extends Prisma.User$fbaShipmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$fbaShipmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FbaShipmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3996,6 +4216,30 @@ export type User$fulfilmentEventsArgs<ExtArgs extends runtime.Types.Extensions.I
   take?: number
   skip?: number
   distinct?: Prisma.OrderFulfilmentEventScalarFieldEnum | Prisma.OrderFulfilmentEventScalarFieldEnum[]
+}
+
+/**
+ * User.fbaShipments
+ */
+export type User$fbaShipmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the FbaShipment
+   */
+  select?: Prisma.FbaShipmentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the FbaShipment
+   */
+  omit?: Prisma.FbaShipmentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.FbaShipmentInclude<ExtArgs> | null
+  where?: Prisma.FbaShipmentWhereInput
+  orderBy?: Prisma.FbaShipmentOrderByWithRelationInput | Prisma.FbaShipmentOrderByWithRelationInput[]
+  cursor?: Prisma.FbaShipmentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.FbaShipmentScalarFieldEnum | Prisma.FbaShipmentScalarFieldEnum[]
 }
 
 /**

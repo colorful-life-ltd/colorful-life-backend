@@ -1251,9 +1251,12 @@ reference/note or authenticated actor returns HTTP 409 `IDEMPOTENCY_CONFLICT`.
 Separate legitimate shipments use separate keys; shipment references alone are not
 assumed unique. Failed transactions do not consume a key.
 
-Insufficient available stock returns HTTP 409 `INSUFFICIENT_AVAILABLE_STOCK`; Used
-offers return 409 `USED_OFFER_NOT_SUPPORTED`; missing listings return 404
-`LISTING_NOT_FOUND`. Validation failures return 400 `VALIDATION_ERROR`. Authentication
+This legacy endpoint records the physical fact even when it exceeds recorded stock: it
+deducts only the available quantity (`appliedQuantity`) and records the remainder as a
+`shortfall` with an `FBA_DISCREPANCY_RECORDED` audit. That blocks further website
+commitments for the listing until a reasoned stocktake resolves it. The multi-item Admin
+builder below never records shortfalls. Used offers return 409
+`USED_OFFER_NOT_SUPPORTED`; missing listings return 404 `LISTING_NOT_FOUND`. Validation failures return 400 `VALIDATION_ERROR`. Authentication
 and ADMIN authorization are required for both writes and audit reads.
 
 Retrieve a shipment with `GET /inventory/fba-outbounds/:id`. The existing
@@ -1262,6 +1265,80 @@ Retrieve a shipment with `GET /inventory/fba-outbounds/:id`. The existing
 endpoint is provided. The new `FbaOutbound` table requires migration
 `20261018150000_add_fba_outbound_ledger`, followed by Prisma client generation/build.
 It is additive and does not backfill or modify historical inventory records.
+
+#### Multi-item shipments
+
+The Admin shipment builder uses `POST /inventory/fba-shipments`, which records one
+logical shipment containing several listings:
+
+```json
+{
+  "idempotencyKey": "a-client-generated-unique-key",
+  "items": [
+    { "productListingId": 123, "quantity": 2 },
+    { "productListingId": 456, "quantity": 1 }
+  ],
+  "externalReference": "FBA15ABCDE",
+  "note": "Optional shipment note"
+}
+```
+
+- **All or nothing.** Every line is validated under ascending `FOR UPDATE` listing
+  locks before any write. If any line is missing, Used or exceeds available stock
+  (`currentStock - reservedStock`), the whole shipment is refused (404
+  `LISTING_NOT_FOUND`, 409 `USED_OFFER_NOT_SUPPORTED` or 409
+  `INSUFFICIENT_AVAILABLE_STOCK`) with an `error.items` array naming every affected
+  line. Nothing is deducted, and no partial or shortfall deduction is recorded.
+- **Reference.** The backend generates `FBA-YYYYMMDD-NNNN` (Europe/London business day)
+  from a database-owned per-day counter incremented under a row lock, backed by a unique
+  index. Clients cannot supply it, and the header is immutable once recorded.
+- **Ledger.** Each line becomes one `FbaOutbound` row (linked by `fbaShipmentId`,
+  `shipmentReference` = the generated reference) and one signed `FBA_OUTBOUND`
+  movement attributed to the authenticated ADMIN.
+- **Idempotency.** Keys are 1–100 characters (letters, digits, dots, underscores,
+  hyphens). A retry with the same key and the same items, in any order, plus the same
+  optional fields returns HTTP 200 with `replayed: true` and the original shipment.
+  A changed payload or another ADMIN using the key returns 409 `IDEMPOTENCY_CONFLICT`.
+- **Validation.** Listings must be distinct (combine quantities into one line), with
+  1–100 lines and positive 32-bit quantities. `externalReference` (≤200) and `note`
+  (≤2,000) are optional; blank values are treated as absent.
+- **Eligibility.** NEW listings may be shipped whether active, inactive or
+  unpublished, because this records local logistics, not storefront sellability. Used
+  offers are always refused. Reserved website stock is never consumed.
+
+**Duplicate physical shipments.** Retries are handled by the idempotency key, and the
+key replay always runs first. Separately, two business checks stop the same physical
+goods being recorded twice under different keys:
+
+- **With an Amazon shipment ID.** The ID is normalized (whitespace removed, upper case)
+  and stored under a unique index. Concurrent requests serialize on it. A second
+  shipment with the same ID returns 409 `DUPLICATE_FBA_SHIPMENT` naming the recorded
+  shipment, with no override. Correcting a recorded shipment requires an audited stock
+  correction, not another shipment.
+- **Without an Amazon shipment ID.** A shipment whose exact listings and quantities match
+  shipments recorded in the last 72 hours returns 409 `POSSIBLE_DUPLICATE_SHIPMENT`, with
+  `error.duplicates` (ID, reference, Amazon ID, time). To record a genuinely new
+  shipment, resubmit with `acknowledgedDuplicateShipmentIds` listing every match shown.
+  The acknowledgement is stored on the shipment. Identical shipments serialize so that
+  concurrent repeats cannot both pass. Older identical replenishments are not blocked.
+  Acknowledgement is refused (400) when an Amazon shipment ID is given.
+
+Read shipments with `GET /inventory/fba-shipments?page=&pageSize=` (newest first,
+`pageSize` ≤ 50) or `GET /inventory/fba-shipments/:id`. The Admin listing feed accepts
+an optional `q` (1–100 characters) matching set number or title, including inactive
+listings. Migration `20261027120000_fba_shipment_builder` adds `FbaShipment` (with a
+unique normalized `externalReference`, `lineFingerprint` and
+`acknowledgedDuplicateShipmentIds`), `FbaShipmentSequence` and the nullable
+`FbaOutbound.fbaShipmentId`. Deployed runtime roles need SELECT and INSERT on
+`FbaShipment`, and SELECT, INSERT and UPDATE on `FbaShipmentSequence`, plus sequence
+usage for the `FbaShipment` id. It is additive:
+legacy single-listing outbounds keep a NULL header, and `POST /inventory/fba-outbounds`
+is unchanged.
+
+The request, receipt, history and refusal shapes are Backend-owned in
+`contracts/fba-shipments-v1.json`. `fbaShipmentContract.integration.test.ts` checks that
+every real response has exactly that structure, and the Admin pins and parses the same
+file.
 
 ## Production audit remediation
 

@@ -207,6 +207,7 @@ model User {
   cart                   Cart?
   shipmentsCreated       Shipment[]
   fulfilmentEvents       OrderFulfilmentEvent[]
+  fbaShipments           FbaShipment[]
 }
 
 model RefreshSession {
@@ -400,10 +401,46 @@ model FbaOutbound {
   shipmentReference  String            @db.VarChar(200)
   currentStockAfter  Int
   reservedStockAfter Int
+  // Null for legacy single-listing outbounds recorded before shipment headers existed.
+  fbaShipmentId      Int?
+  fbaShipment        FbaShipment?      @relation(fields: [fbaShipmentId], references: [id], onDelete: Restrict)
 
+  @@index([fbaShipmentId])
   @@index([productListingId,shortfall,id],map:"FbaOutbound_listing_shortfall_id_idx")
   @@unique([shipmentReference, productListingId], map:"FbaOutbound_shipment_listing_key")
   @@index([shipmentReference])
+}
+
+// One confirmed home-to-Amazon shipment. Lines are FbaOutbound rows; the header is immutable.
+model FbaShipment {
+  id                Int           @id @default(autoincrement())
+  // Backend-generated FBA-YYYYMMDD-NNNN (Europe/London business day), unique and never edited.
+  reference         String        @unique @db.VarChar(32)
+  // Normalized Amazon shipment ID (whitespace removed, upper case). One physical shipment, one record.
+  externalReference String?       @unique @db.VarChar(200)
+  note              String?
+  // sha256 of the sorted listing:quantity lines; finds recent identical shipments recorded without an Amazon ID.
+  lineFingerprint   String        @db.VarChar(64)
+  // Earlier shipments the operator explicitly confirmed this is not a repeat of.
+  acknowledgedDuplicateShipmentIds Int[] @default([])
+  idempotencyKey    String        @unique @db.VarChar(128)
+  requestHash       String        @db.VarChar(64)
+  performedByUserId Int
+  performedByUser   User          @relation(fields: [performedByUserId], references: [id], onDelete: Restrict)
+  lineCount         Int
+  totalUnits        Int
+  createdAt         DateTime      @default(now())
+  lines             FbaOutbound[]
+
+  @@index([createdAt])
+  @@index([performedByUserId])
+  @@index([lineFingerprint, createdAt])
+}
+
+// Per-day counter behind FbaShipment.reference; incremented under a row lock.
+model FbaShipmentSequence {
+  day       DateTime @id @db.Date
+  lastValue Int
 }
 
 model InventoryMovement {

@@ -7,9 +7,14 @@ export function createAdminProductListingService(db = defaultPrisma) {
     async list(query: AdminProductListingQuery) {
       // Management visibility is independent of stock, activation and Used lifecycle.
       return db.$transaction(async (tx) => {
+        const where: Prisma.ProductListingWhereInput = query.q ? { legoProduct: { OR: [
+          { setNumber: { contains: query.q, mode: "insensitive" } },
+          { title: { contains: query.q, mode: "insensitive" } },
+        ] } } : {};
         const [totalItems, listings] = await Promise.all([
-          tx.productListing.count(),
+          tx.productListing.count({ where }),
           tx.productListing.findMany({
+            where,
             select: {
               id: true,
               condition: true,

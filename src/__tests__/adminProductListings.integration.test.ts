@@ -472,7 +472,7 @@ describe("Admin ProductListing feed", () => {
     for (const query of [
       "page=0", "page=-1", "page=1.5", "page=10001", "page=abc", "page=", "page=1e2",
       "pageSize=0", "pageSize=51", "pageSize=1.5", "pageSize=", "pageSize=9007199254740993",
-      "page=1&page=2", "pageSize[x]=2", "q=lego", "active=true",
+      "page=1&page=2", "pageSize[x]=2", "q=", "q=%20%20", "q=lego&q=duplo", "q[x]=lego", "active=true",
     ]) {
       assert.equal((await request(`/admin/product-listings?${query}`)).status, 400, query);
     }

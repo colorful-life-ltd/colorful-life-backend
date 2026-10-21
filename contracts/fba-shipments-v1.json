@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "shipmentRequest": {
+    "idempotencyKey": "contract-fba-shipment-1",
+    "items": [{ "productListingId": 11, "quantity": 2 }, { "productListingId": 12, "quantity": 1 }],
+    "externalReference": "FBA15CONTRACT",
+    "note": "Contract pallet"
+  },
+  "shipmentCreated": {
+    "replayed": false,
+    "shipment": {
+      "id": 7,
+      "reference": "FBA-20261021-0001",
+      "externalReference": "FBA15CONTRACT",
+      "note": "Contract pallet",
+      "idempotencyKey": "contract-fba-shipment-1",
+      "performedByUserId": 1,
+      "createdAt": "2026-10-21T10:00:00.000Z",
+      "lineCount": 2,
+      "totalUnits": 3,
+      "acknowledgedDuplicateShipmentIds": [],
+      "lines": [
+        { "outboundId": 21, "movementId": 31, "productListingId": 11, "productId": 101, "setNumber": "91100", "title": "Contract set one", "condition": "NEW", "quantity": 2, "quantityChange": -2, "currentStockAfter": 8, "reservedStockAfter": 0, "availableStockAfter": 8 },
+        { "outboundId": 22, "movementId": 32, "productListingId": 12, "productId": 102, "setNumber": "91200", "title": "Contract set two", "condition": "NEW", "quantity": 1, "quantityChange": -1, "currentStockAfter": 2, "reservedStockAfter": 0, "availableStockAfter": 2 }
+      ]
+    }
+  },
+  "duplicateReferenceError": {
+    "error": {
+      "code": "DUPLICATE_FBA_SHIPMENT",
+      "message": "Amazon shipment FBA15CONTRACT is already recorded as FBA-20261021-0001. Nothing was deducted. A correction to a recorded shipment needs an audited stock correction, not a second shipment.",
+      "duplicates": [{ "shipmentId": 7, "reference": "FBA-20261021-0001", "externalReference": "FBA15CONTRACT", "createdAt": "2026-10-21T10:00:00.000Z" }]
+    }
+  },
+  "possibleDuplicateError": {
+    "error": {
+      "code": "POSSIBLE_DUPLICATE_SHIPMENT",
+      "message": "The same listings and quantities were shipped within the last 72 hours. Nothing was deducted. Confirm explicitly that this is a new physical shipment, or add its Amazon shipment ID.",
+      "duplicates": [{ "shipmentId": 8, "reference": "FBA-20261021-0002", "externalReference": null, "createdAt": "2026-10-21T10:05:00.000Z" }]
+    }
+  },
+  "acknowledgedShipment": {
+    "replayed": false,
+    "shipment": {
+      "id": 9,
+      "reference": "FBA-20261021-0003",
+      "externalReference": null,
+      "note": null,
+      "idempotencyKey": "contract-fba-shipment-3",
+      "performedByUserId": 1,
+      "createdAt": "2026-10-21T10:06:00.000Z",
+      "lineCount": 1,
+      "totalUnits": 1,
+      "acknowledgedDuplicateShipmentIds": [8],
+      "lines": [
+        { "outboundId": 24, "movementId": 34, "productListingId": 11, "productId": 101, "setNumber": "91100", "title": "Contract set one", "condition": "NEW", "quantity": 1, "quantityChange": -1, "currentStockAfter": 6, "reservedStockAfter": 0, "availableStockAfter": 6 }
+      ]
+    }
+  },
+  "insufficientStockError": {
+    "error": {
+      "code": "INSUFFICIENT_AVAILABLE_STOCK",
+      "message": "Some lines exceed available local stock. Reserved website stock cannot be shipped to Amazon. Nothing was deducted.",
+      "items": [{ "productListingId": 12, "reason": "INSUFFICIENT_AVAILABLE_STOCK", "availableQuantity": 2, "requestedQuantity": 5 }]
+    }
+  },
+  "shipmentPage": {
+    "items": [
+      {
+        "id": 7,
+        "reference": "FBA-20261021-0001",
+        "externalReference": "FBA15CONTRACT",
+        "note": "Contract pallet",
+        "idempotencyKey": "contract-fba-shipment-1",
+        "performedByUserId": 1,
+        "createdAt": "2026-10-21T10:00:00.000Z",
+        "lineCount": 2,
+        "totalUnits": 3,
+        "acknowledgedDuplicateShipmentIds": [],
+        "lines": [
+          { "outboundId": 21, "movementId": 31, "productListingId": 11, "productId": 101, "setNumber": "91100", "title": "Contract set one", "condition": "NEW", "quantity": 2, "quantityChange": -2, "currentStockAfter": 8, "reservedStockAfter": 0, "availableStockAfter": 8 },
+          { "outboundId": 22, "movementId": 32, "productListingId": 12, "productId": 102, "setNumber": "91200", "title": "Contract set two", "condition": "NEW", "quantity": 1, "quantityChange": -1, "currentStockAfter": 2, "reservedStockAfter": 0, "availableStockAfter": 2 }
+        ]
+      }
+    ],
+    "pagination": { "page": 1, "pageSize": 10, "totalItems": 1, "totalPages": 1 }
+  }
+}
