@@ -1,10 +1,11 @@
+import { databaseUrl } from "./database.js";
 import { validateProduction } from "./production.js";
 import { isolateTestAwsEnvironment, testEmailMode } from "./testEmail.js";
 import { validateAbuseStartup } from "./paymentAbuse.js";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { config as dotenvConfig } from "dotenv";
-import { resolveDatabaseUrl } from "./testDatabase.js";
+import { isTestExecution, resolveDatabaseUrl } from "./testDatabase.js";
 import { parsePublicSiteOrigin } from "../domain/seo/publicSiteOrigin.js";
 
 // Load environment variables from .env if present
@@ -72,7 +73,7 @@ const configSchema = z.object({
 
 const parsed = configSchema.safeParse({
   ...process.env,
-  DATABASE_URL: resolveDatabaseUrl(process.env),
+  DATABASE_URL: isTestExecution(process.env) ? resolveDatabaseUrl(process.env) : databaseUrl(process.env),
 });
 if (!parsed.success) {
   console.error("❌ Invalid environment configuration:", parsed.error.format());

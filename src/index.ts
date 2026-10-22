@@ -1,3 +1,4 @@
+import {assertFinancialSchemaReady} from './operations/readiness.js';
 import { assertEmailStartupReady } from './domain/orderConfirmation/readiness.js';
 import { startOrderConfirmationWorker } from './domain/orderConfirmation/worker.js';
 import { startPaymentResolutionWorker } from './domain/payments/stripeResolutionService.js';
@@ -7,11 +8,7 @@ import { prisma } from './prisma/runtime.js';
 import app from './app.js';
 import { config } from './config/index.js';
 await assertEmailStartupReady();
-// A missing financial review schema is fatal; providers remaining unavailable are not.
-await prisma.$queryRaw`SELECT r."reviewRevision",a.id FROM "Refund" r LEFT JOIN "OperationalAudit" a ON false LIMIT 0`;
-const [schema]=await prisma.$queryRaw<Array<{ready:boolean}>>`SELECT to_regclass('"FbaOutbound_shipment_listing_key"') IS NOT NULL
- AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='"Refund"'::regclass AND tgname='refund_review_revision' AND tgenabled IN ('O','A')) AS ready`;
-if(!schema?.ready)throw new Error('Financial review schema not ready; migrate before starting');
+await assertFinancialSchemaReady();
 const server=app.listen(config.PORT,()=>console.log(`Server listening on port ${config.PORT}`));
 const stops:Array<()=>void|Promise<void>>=config.BACKGROUND_WORKERS_ENABLED ? [
   startCartReconciliationWorker(),startPayPalWebhookReplayWorker(),startPaymentResolutionWorker(),startOrderConfirmationWorker(),

@@ -1,3 +1,4 @@
+import { completedSweep } from "../../operations/health.js";
 import {logOperationalError} from "../../utils/operationalLog.js";
 import { prisma } from "../../prisma/runtime.js";
 import { PaymentProvider } from "../../generated/prisma-client/enums.js";
@@ -44,7 +45,7 @@ export function startPayPalWebhookReplayWorker(intervalMs = 5_000) {
   const tick = async () => {
     if (running || stopped) return;
     running = true;
-    try { await replayPendingPayPalWebhooks(); }
+    try { await replayPendingPayPalWebhooks(); completedSweep('paypal'); }
     catch { logOperationalError("PayPal webhook replay sweep failed; will retry"); }
     finally { running = false; }
   };

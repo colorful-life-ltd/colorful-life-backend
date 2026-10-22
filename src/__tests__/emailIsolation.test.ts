@@ -91,6 +91,9 @@ for (const mode of ['development', 'production']) it(`${mode} delivery behavior 
   const serviceUrl = new URL('../services/emailService.js', import.meta.url).href;
   const deliveryUrl = new URL('../domain/orderConfirmation/delivery.js', import.meta.url).href;
   const fixtureUrl = new URL('./fixtures/orderConfirmation.fixture.js', import.meta.url).href;
+  // config/index.ts loads .env from the working directory and fills keys missing from env.
+  // An empty directory keeps a developer's local credentials out of this explicit environment.
+  const isolatedCwd = mkdtempSync(join(tmpdir(), 'email-delivery-'));
   const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';const {SESClient}=await import(${JSON.stringify(sesUrl)});
     let sends=0;SESClient.prototype.send=async()=>{sends++;return {MessageId:'synthetic-accepted'}};
@@ -101,6 +104,7 @@ for (const mode of ['development', 'production']) it(`${mode} delivery behavior 
     await service.sendDispatchNotification({customerEmail:'synthetic@example.test',orderId:1,shippingCarrier:'Test',dispatchedAt:new Date()});
     const {sesConfirmationTransport}=await import(${JSON.stringify(deliveryUrl)});await sesConfirmationTransport.send(Buffer.from('synthetic MIME'));
     assert.equal(sends,4);assert.equal(process.env.AWS_ACCESS_KEY_ID,'synthetic-development-key');
-  `], { env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_OPTIONS: process.env.NODE_OPTIONS, NODE_ENV: mode, DEPLOYMENT_ENVIRONMENT:"production", DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', JWT_SECRET: '5b369df5a36ac4799dda7a836f56bd752ee916c946b33346ae622e15c9f8578bb', FRONTEND_URL:'https://shop.colorful-life.co.uk', CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk', PAYMENT_RESOLUTION_ENABLED:'true', SES_FROM_EMAIL:'no-reply@colorful-life.co.uk', CLIENT_IP_MODE: 'direct', PAYMENT_ABUSE_HMAC_SECRET: 'synthetic-shared-abuse-secret-at-least-32', ORDER_CONFIRMATION_EMAIL_ENABLED: 'true', AWS_ACCESS_KEY_ID: 'synthetic-development-key', AWS_SECRET_ACCESS_KEY: 'synthetic-development-secret' }, encoding: 'utf8', timeout: 10000 });
+  `], { cwd: isolatedCwd, env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_OPTIONS: process.env.NODE_OPTIONS, NODE_ENV: mode, DEPLOYMENT_ENVIRONMENT:"production", RDS_CA_FILE: new URL('../../certs/rds-ca-rsa2048-g1.pem',import.meta.url).pathname, DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', JWT_SECRET: '5b369df5a36ac4799dda7a836f56bd752ee916c946b33346ae622e15c9f8578bb', FRONTEND_URL:'https://shop.colorful-life.co.uk', CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk', PAYMENT_RESOLUTION_ENABLED:'true', SES_FROM_EMAIL:'no-reply@colorful-life.co.uk', CLIENT_IP_MODE: 'direct', PAYMENT_ABUSE_HMAC_SECRET: 'synthetic-shared-abuse-secret-at-least-32', ORDER_CONFIRMATION_EMAIL_ENABLED: 'true', AWS_ACCESS_KEY_ID: 'synthetic-development-key', AWS_SECRET_ACCESS_KEY: 'synthetic-development-secret' }, encoding: 'utf8', timeout: 10000 });
+  rmSync(isolatedCwd, { recursive: true, force: true });
   assert.equal(child.status, 0, child.stderr);
 });

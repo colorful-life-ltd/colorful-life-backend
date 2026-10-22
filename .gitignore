@@ -5,3 +5,5 @@ dist
 !.env.example
 .idea/
 .codex/
+__pycache__/
+*.pyc

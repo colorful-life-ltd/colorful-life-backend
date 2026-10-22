@@ -1,0 +1,23 @@
+import {assertFinancialSchemaReady} from './operations/readiness.js';
+import {createServer} from 'node:http';
+import {config} from './config/index.js';
+import {prisma} from './prisma/runtime.js';
+import {assertEmailStartupReady} from './domain/orderConfirmation/readiness.js';
+import {startOrderConfirmationWorker} from './domain/orderConfirmation/worker.js';
+import {startPaymentResolutionWorker} from './domain/payments/stripeResolutionService.js';
+import {startPayPalWebhookReplayWorker} from './domain/payments/paypalWebhookReplayService.js';
+import {startCartReconciliationWorker} from './domain/cart/cartProvenanceService.js';
+import {operationalMetrics} from './operations/metrics.js';
+import {logOperationalError} from './utils/operationalLog.js';
+if(!config.BACKGROUND_WORKERS_ENABLED)throw new Error('Worker entrypoint requires explicit worker enablement');
+await assertEmailStartupReady();
+await assertFinancialSchemaReady();
+let stopping=false,probeHealthy=false;
+const stops=[startCartReconciliationWorker(),startPayPalWebhookReplayWorker(),startPaymentResolutionWorker(),startOrderConfirmationWorker()];
+let pending=Promise.resolve();
+let probing=false;
+const probe=()=>{if(probing||stopping)return;probing=true;pending=operationalMetrics().then(()=>{probeHealthy=true;}).catch(()=>{probeHealthy=false;logOperationalError('Worker monitoring failed');}).finally(()=>{probing=false;});};
+probe();const timer=setInterval(probe,60000);timer.unref();
+const server=createServer((req,res)=>{if(req.url==='/health'){res.end('ok');return;}if(req.url==='/ready'){res.statusCode=!stopping&&probeHealthy?200:503;res.end(probeHealthy?'ready':'unavailable');return;}res.statusCode=404;res.end();}).listen(3000,'127.0.0.1');
+async function shutdown(){if(stopping)return;stopping=true;clearInterval(timer);const deadline=setTimeout(()=>process.exit(1),25000);deadline.unref();await Promise.all([pending,...stops.map(stop=>Promise.resolve(stop())),new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()))]);await prisma.$disconnect();clearTimeout(deadline);}
+for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>void shutdown().catch(()=>{logOperationalError('Worker shutdown failed');process.exitCode=1;}));

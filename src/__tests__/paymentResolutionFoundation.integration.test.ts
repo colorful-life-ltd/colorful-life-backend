@@ -221,6 +221,9 @@ describe("foundation historical backfill and PostgreSQL enforcement", () => {
     const f=await eligible();const role=`foundation_runtime_${randomUUID().replaceAll("-","")}`;
     const schema=(await c.query('SELECT current_schema() AS name')).rows[0].name;
     await c.query(`CREATE ROLE "${role}" NOLOGIN`);
+    // PostgreSQL 16 does not give a non-superuser creator SET membership automatically.
+    // This synthetic membership is rolled back with the test; production grants are unchanged.
+    await c.query(`GRANT "${role}" TO CURRENT_USER WITH SET TRUE`);
     await c.query(`GRANT USAGE ON SCHEMA "${schema}" TO "${role}"`);
     await c.query(`GRANT SELECT,INSERT,UPDATE ON ALL TABLES IN SCHEMA "${schema}" TO "${role}"`);
     await c.query(`GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA "${schema}" TO "${role}"`);
