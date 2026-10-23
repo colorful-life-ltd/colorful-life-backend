@@ -1,0 +1,10 @@
+import {spawnSync} from 'node:child_process';
+import {migrationDatabaseUrl} from '../src/config/database.ts';
+const allowed=new Set(['status','deploy']);
+const command=process.argv[2];
+if(!allowed.has(command))throw new Error('Only migration status/deploy supported');
+const env={...process.env,DATABASE_URL:migrationDatabaseUrl(process.env)};
+delete env.DB_PASSWORD;
+if(command==='deploy'&&process.env.MIGRATION_WRITES_APPROVED!=='true')throw Error('Owner-approved migration writes required');
+const result=spawnSync(process.execPath,['node_modules/prisma/build/index.js','migrate',command],{env,stdio:'inherit'});
+process.exit(result.status??1);

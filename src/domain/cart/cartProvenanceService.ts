@@ -1,3 +1,4 @@
+import { completedSweep } from "../../operations/health.js";
 import {logOperationalError} from "../../utils/operationalLog.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
 import { prisma } from "../../prisma/runtime.js";
@@ -128,7 +129,7 @@ export function startCartReconciliationWorker(intervalMs = 5_000) {
   const tick = async () => {
     if (running || stopped) return;
     running = true;
-    try { await reconcilePendingCarts(); }
+    try { await reconcilePendingCarts(); completedSweep('cart'); }
     catch (error) { logOperationalError("Cart reconciliation worker failed; will retry", error); }
     finally { running = false; }
   };

@@ -1,9 +1,13 @@
-FROM node:24-bookworm-slim
+FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 COPY src/config/testDatabase.ts ./src/config/testDatabase.ts
+COPY src/config/database.ts ./src/config/database.ts
+COPY certs ./certs
+COPY scripts ./scripts
+RUN sha256sum -c certs/SHA256SUMS
 USER node
-CMD ["node","node_modules/prisma/build/index.js","migrate","deploy"]
+CMD ["node","scripts/migrate.mjs","status"]

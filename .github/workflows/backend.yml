@@ -21,16 +21,17 @@ jobs:
       JWT_SECRET: synthetic-ci-only-not-production
       STRIPE_SECRET_KEY: sk_test_synthetic
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           # git show --check needs parents; a shallow boundary is treated as a root.
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx prisma generate
+      - run: npm run test:deployment-contracts
+      - run: npm run generate:client
       - run: npx prisma validate
       - run: npx tsc --noEmit
       - run: npm test
@@ -39,7 +40,7 @@ jobs:
   packaging:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Build API image
         run: docker build --tag colorful-life-backend:ci .
       - name: Verify non-root runtime and production dependencies
@@ -49,7 +50,7 @@ jobs:
           "import assert from 'node:assert/strict'; import {existsSync} from 'node:fs';
           assert.notEqual(process.getuid(), 0);
           for (const name of ['bcrypt', 'pdfkit', 'fontkit', '@prisma/adapter-pg']) await import(name);
-          await import('./dist/generated/prisma-client/client.js'); assert.ok(existsSync('dist/index.js')); assert.ok(existsSync('src/assets')); assert.ok(existsSync('assets'));
+          await import('./dist/generated/prisma-client/client.js'); assert.ok(existsSync('dist/index.js')); assert.ok(existsSync('dist/worker.js')); assert.ok(existsSync('certs/rds-ca-rsa2048-g1.pem')); assert.ok(existsSync('src/assets')); assert.ok(existsSync('assets'));
           assert.equal(existsSync('node_modules/typescript'), false); assert.equal(existsSync('node_modules/prisma'), false);"
       - name: Build migration image
         run: docker build --file Dockerfile.migrations --tag colorful-life-migrations:ci .
@@ -61,3 +62,25 @@ jobs:
           assert.notEqual(process.getuid(), 0);
           const result=spawnSync(process.execPath, ['node_modules/prisma/build/index.js', 'validate'], {stdio:'inherit'});
           assert.equal(result.status, 0);"
+
+  deployment-rehearsal:
+    runs-on: ubuntu-latest
+    env:
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+      - run: test -x /usr/lib/postgresql/16/bin/initdb
+      - run: npm ci
+      - run: DATABASE_URL=postgresql://unused@127.0.0.1:1/unused npm run generate:client
+      - name: Rehearse fresh database, grants and runtime privilege probes
+        run: python3 scripts/rehearse-database.py
+      - name: Rehearse failed migration and audited owner recovery
+        run: python3 scripts/rehearse-database.py --recovery-drill
+      - name: Rehearse runtime and Prisma strict TLS
+        run: python3 scripts/rehearse-tls.py
+      - name: Rehearse populated FBA schema upgrade and restricted-runtime journey
+        run: python3 scripts/rehearse-database.py --fba-upgrade --skip-application-tests

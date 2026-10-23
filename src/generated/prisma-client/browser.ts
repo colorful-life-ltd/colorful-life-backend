@@ -88,6 +88,16 @@ export type ProductImage = Prisma.ProductImageModel
  */
 export type FbaOutbound = Prisma.FbaOutboundModel
 /**
+ * Model FbaShipment
+ *
+ */
+export type FbaShipment = Prisma.FbaShipmentModel
+/**
+ * Model FbaShipmentSequence
+ *
+ */
+export type FbaShipmentSequence = Prisma.FbaShipmentSequenceModel
+/**
  * Model InventoryMovement
  *
  */

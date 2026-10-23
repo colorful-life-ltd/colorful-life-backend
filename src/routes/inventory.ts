@@ -1,4 +1,5 @@
 import { createFbaOutbound, readFbaOutbound } from "../controllers/fbaOutbound.js";
+import { createFbaShipment, readFbaShipment, readFbaShipments } from "../controllers/fbaShipments.js";
 import { Router } from "express";
 import { createInventoryAdjustment, reconcileStocktakeInventory } from "../controllers/inventory.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -7,6 +8,9 @@ const router = Router();
 
 router.post("/fba-outbounds", authMiddleware, createFbaOutbound);
 router.get("/fba-outbounds/:id", authMiddleware, readFbaOutbound);
+router.post("/fba-shipments", authMiddleware, createFbaShipment);
+router.get("/fba-shipments", authMiddleware, readFbaShipments);
+router.get("/fba-shipments/:id", authMiddleware, readFbaShipment);
 
 router.post("/condition-adjustments", authMiddleware, createInventoryAdjustment);
 router.post("/stocktakes", authMiddleware, reconcileStocktakeInventory);

@@ -5,6 +5,8 @@ export type ApiErrorCode =
   | "INVENTORY_DISCREPANCY_REVIEW_REQUIRED"
   | "VALIDATION_ERROR"
   | "IDEMPOTENCY_CONFLICT"
+  | "DUPLICATE_FBA_SHIPMENT"
+  | "POSSIBLE_DUPLICATE_SHIPMENT"
   | "LISTING_NOT_FOUND"
   | "OUTBOUND_NOT_FOUND"
   | "USED_OFFER_NOT_SUPPORTED"
@@ -49,6 +51,8 @@ export type ApiErrorCode =
 
 /** Sends a stable machine-readable API error envelope. */
 export function sendApiError(res: Response, status: number, code: ApiErrorCode, message: string,
-  details?: { productListingId?: number; reason?: string; availableQuantity?: number; requestedQuantity?: number }) {
+  details?: { productListingId?: number; reason?: string; availableQuantity?: number; requestedQuantity?: number;
+    items?: Array<{ productListingId: number; reason: string; availableQuantity?: number; requestedQuantity?: number }>;
+    duplicates?: Array<{ shipmentId: number; reference: string; externalReference: string | null; createdAt: Date }> }) {
   return res.status(status).json({ error: { code, message, ...details } });
 }

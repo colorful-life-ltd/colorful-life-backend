@@ -65,6 +65,8 @@ export const ModelName = {
   CartItem: 'CartItem',
   ProductImage: 'ProductImage',
   FbaOutbound: 'FbaOutbound',
+  FbaShipment: 'FbaShipment',
+  FbaShipmentSequence: 'FbaShipmentSequence',
   InventoryMovement: 'InventoryMovement',
   InventoryAudit: 'InventoryAudit',
   Order: 'Order',
@@ -320,10 +322,37 @@ export const FbaOutboundScalarFieldEnum = {
   requestHash: 'requestHash',
   shipmentReference: 'shipmentReference',
   currentStockAfter: 'currentStockAfter',
-  reservedStockAfter: 'reservedStockAfter'
+  reservedStockAfter: 'reservedStockAfter',
+  fbaShipmentId: 'fbaShipmentId'
 } as const
 
 export type FbaOutboundScalarFieldEnum = (typeof FbaOutboundScalarFieldEnum)[keyof typeof FbaOutboundScalarFieldEnum]
+
+
+export const FbaShipmentScalarFieldEnum = {
+  id: 'id',
+  reference: 'reference',
+  externalReference: 'externalReference',
+  note: 'note',
+  lineFingerprint: 'lineFingerprint',
+  acknowledgedDuplicateShipmentIds: 'acknowledgedDuplicateShipmentIds',
+  idempotencyKey: 'idempotencyKey',
+  requestHash: 'requestHash',
+  performedByUserId: 'performedByUserId',
+  lineCount: 'lineCount',
+  totalUnits: 'totalUnits',
+  createdAt: 'createdAt'
+} as const
+
+export type FbaShipmentScalarFieldEnum = (typeof FbaShipmentScalarFieldEnum)[keyof typeof FbaShipmentScalarFieldEnum]
+
+
+export const FbaShipmentSequenceScalarFieldEnum = {
+  day: 'day',
+  lastValue: 'lastValue'
+} as const
+
+export type FbaShipmentSequenceScalarFieldEnum = (typeof FbaShipmentSequenceScalarFieldEnum)[keyof typeof FbaShipmentSequenceScalarFieldEnum]
 
 
 export const InventoryMovementScalarFieldEnum = {

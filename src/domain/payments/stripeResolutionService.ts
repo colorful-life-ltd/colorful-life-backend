@@ -1,3 +1,4 @@
+import { completedSweep } from "../../operations/health.js";
 import {logOperationalError} from "../../utils/operationalLog.js";
 import { resolvePayPalPaymentOutcome } from "./paypalResolutionService.js";
 import type Stripe from "stripe";
@@ -209,7 +210,7 @@ export function startPaymentResolutionWorker(intervalMs = 15_000) {
   const tick = async () => {
     if (running || stopped) return;
     running = true;
-    try { await runPaymentResolutionSweep(resolvePaymentReservation, () => stopped);
+    try { await runPaymentResolutionSweep(resolvePaymentReservation, () => stopped); completedSweep('payment');
     } catch { logOperationalError("Payment resolution sweep failed; durable records retained"); }
     // Orders from before managed enrolment have no ledger for the sweep above.
     try { if (!stopped) await expireUnledgeredUnpaidReservations();
