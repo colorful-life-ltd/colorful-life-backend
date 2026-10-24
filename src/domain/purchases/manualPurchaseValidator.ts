@@ -51,7 +51,7 @@ export const ManualPurchaseSchema = z.object({
     .number()
     .int()
     .nonnegative({ message: "finalTotalPaid must be non‑negative" }),
-  items: z.array(PurchaseItemSchema).min(1, { message: "items array must contain at least one item" }),
+  items: z.array(PurchaseItemSchema).max(500, { message: "at most 500 purchase items are supported" }).min(1, { message: "items array must contain at least one item" }),
 });
 
 // Export the inferred TypeScript type for convenience.

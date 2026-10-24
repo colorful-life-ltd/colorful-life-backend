@@ -8,7 +8,7 @@ export const stagingLimits = {
   paymentOrder: [5, 900], provider: [100, 900], requestAccount: [60, 900], requestNetwork: [120, 900],
   recoveryAccount: [60, 900], recoveryNetwork: [120, 900], recoveryOrder: [30, 900], challengeAfter: [3, 900],
 } satisfies Record<string, [number, number]>;
-const schema = z.record(z.tuple([z.number().int().min(1).max(1000000), z.number().int().min(1).max(604800)]));
+const schema = z.record(z.string(), z.tuple([z.number().int().min(1).max(1000000), z.number().int().min(1).max(604800)]));
 export function parseAbuseLimits(value?: string): typeof stagingLimits {
   const supplied = value === undefined ? {} : schema.parse(JSON.parse(value));
   if (Object.keys(supplied).some(k => !Object.hasOwn(stagingLimits, k))) throw new Error('Unsupported abuse limit');
