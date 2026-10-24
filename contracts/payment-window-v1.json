@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "description": "Provider-aware payment window v1: provider is mandatory for upgraded clients; MANUAL carries no browser payment action. Missing/unknown provider fails closed. Stripe states remain unchanged. No credentials or provider diagnostics.",
+  "providers": [
+    "STRIPE",
+    "PAYPAL",
+    "MANUAL"
+  ],
+  "windows": [
+    {
+      "version": 1,
+      "provider": "PAYPAL",
+      "evaluatedAt": "2026-10-15T12:00:00.000Z",
+      "mode": "MANAGED",
+      "state": "INITIAL_PAYMENT",
+      "paymentOutcome": "NOT_STARTED",
+      "paymentDeadline": "2026-10-15T12:30:00.000Z",
+      "retryDeadline": null,
+      "resumeEligibility": "INELIGIBLE",
+      "initiationEligibility": "ELIGIBLE",
+      "reason": "INITIAL_WINDOW_OPEN"
+    },
+    {
+      "version": 1,
+      "provider": "PAYPAL",
+      "evaluatedAt": "2026-10-15T12:00:00.000Z",
+      "mode": "MANAGED",
+      "state": "CHECKOUT_RESUMABLE",
+      "paymentOutcome": "PENDING",
+      "paymentDeadline": "2026-10-15T12:30:00.000Z",
+      "retryDeadline": null,
+      "resumeEligibility": "ELIGIBLE",
+      "initiationEligibility": "INELIGIBLE",
+      "reason": "EXISTING_CHECKOUT_OPEN"
+    },
+    {
+      "version": 1,
+      "provider": "PAYPAL",
+      "evaluatedAt": "2026-10-15T12:00:00.000Z",
+      "mode": "MANAGED",
+      "state": "PROCESSING",
+      "paymentOutcome": "PENDING",
+      "paymentDeadline": "2026-10-15T12:30:00.000Z",
+      "retryDeadline": null,
+      "resumeEligibility": "INELIGIBLE",
+      "initiationEligibility": "INELIGIBLE",
+      "reason": "AWAITING_PAYMENT_OUTCOME"
+    },
+    {
+      "version": 1,
+      "provider": "PAYPAL",
+      "evaluatedAt": "2026-10-15T12:00:00.000Z",
+      "mode": "MANAGED",
+      "state": "PAID",
+      "paymentOutcome": "SUCCEEDED",
+      "paymentDeadline": "2026-10-15T12:30:00.000Z",
+      "retryDeadline": null,
+      "resumeEligibility": "INELIGIBLE",
+      "initiationEligibility": "INELIGIBLE",
+      "reason": "PAYMENT_SUCCEEDED"
+    }
+  ]
+}
