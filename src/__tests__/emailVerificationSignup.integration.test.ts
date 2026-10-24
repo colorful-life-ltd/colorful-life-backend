@@ -8,6 +8,8 @@ import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { hashEmailVerificationToken } from "../domain/auth/emailVerificationService.js";
 import { setVerificationEmailSenderForTests, type VerificationEmail } from "../services/emailService.js";
+// Public registration is closed by default; these tests exercise the signup flow explicitly.
+before(() => { config.REGISTRATION_ENABLED = true; });
 
 const userIds: number[] = [];
 let server: Server;

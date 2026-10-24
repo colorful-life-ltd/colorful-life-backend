@@ -29,6 +29,8 @@ const configSchema = z.object({
   REFUND_RECONCILIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   CARRIER_TRACKING_POLLING_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   PAYMENT_RESOLUTION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
+  // Public self-registration. Closed by default so pre-launch environments cannot collect accounts.
+  REGISTRATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   PAYMENT_STRIPE_INITIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   PAYMENT_PAYPAL_INITIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   CLIENT_IP_MODE: z.enum(["direct", "proxy"]).optional(),

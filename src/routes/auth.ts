@@ -1,4 +1,5 @@
 import { checkoutProtection } from "../middleware/checkoutProtection.js";
+import { registrationOpen } from "../middleware/registrationOpen.js";
 import { Router } from "express";
 import { signup, login, refreshSession, logout, verifyEmail, resendVerification, forgotPassword, resetPasswordHandler } from "../controllers/authController.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -7,7 +8,7 @@ import { passwordRecoveryLimit } from "../middleware/passwordRecoveryLimit.js";
 
 const router = Router();
 
-router.post("/signup", checkoutProtection("signup"), signup);
+router.post("/signup", registrationOpen, checkoutProtection("signup"), signup);
 router.post("/login", checkoutProtection("login"), login);
 router.post("/refresh", refreshSession);
 router.post("/logout", logout);

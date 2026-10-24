@@ -10,6 +10,8 @@ import app from "../app.js";
 import jwt from "jsonwebtoken";
 import { config } from "../config/index.js";
 import { randomUUID } from "node:crypto";
+// Public registration is closed by default; these tests exercise the signup flow explicitly.
+before(() => { config.REGISTRATION_ENABLED = true; });
 
 // Arrays that will be used for cleanup; they need to be in module scope so that helper
 // functions defined above the `describe` block can push IDs into them.

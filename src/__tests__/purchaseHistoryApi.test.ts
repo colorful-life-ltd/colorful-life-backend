@@ -1,8 +1,11 @@
 import assert from "node:assert";
 import type { Server } from "node:http";
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
+import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import app from "../app.js";
+// Public registration is closed by default; these tests exercise the signup flow explicitly.
+before(() => { config.REGISTRATION_ENABLED = true; });
 
 const listingIds: number[] = [];
 const productIds: number[] = [];

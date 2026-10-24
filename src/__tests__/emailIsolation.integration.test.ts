@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
-import { it } from 'node:test';
+import { it, before } from 'node:test';
 import { SESClient } from '@aws-sdk/client-ses';
 import { randomUUID } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import app from '../app.js';
 import { config } from '../config/index.js';
 import { prisma } from '../prisma/runtime.js';
+// Public registration is closed by default; these tests exercise the signup flow explicitly.
+before(() => { config.REGISTRATION_ENABLED = true; });
 it('signup, resend, email change and password reset use the safe default without real SES', async () => {
   const original = SESClient.prototype.send; let sends = 0; let userId: number | undefined;
   (SESClient.prototype as any).send = async () => { sends++; throw new Error('Real SES invoked'); };

@@ -2,10 +2,13 @@ import assert from "node:assert";
 import path from "node:path";
 import fs from "node:fs";
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
+import { config } from "../config/index.js";
 import type { Server } from "node:http";
 import { createHash } from "node:crypto";
 import { prisma } from "../prisma/runtime.js";
 import app from "../app.js";
+// Public registration is closed by default; these tests exercise the signup flow explicitly.
+before(() => { config.REGISTRATION_ENABLED = true; });
 
 // Helper to start the server on a random port and return its URL
 function startServer(): Promise<{ server: Server; url: string }> {
