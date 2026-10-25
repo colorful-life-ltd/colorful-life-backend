@@ -1,7 +1,16 @@
 name: backend
-on: [push, pull_request]
+# Pull requests and main only: every branch push used to run the ~25-minute suite twice.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: backend-${{ github.event_name }}-${{ github.ref }}
+  # Superseded pull-request runs are cancelled; main runs always complete (deployments require them).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   verify:
     runs-on: ubuntu-latest

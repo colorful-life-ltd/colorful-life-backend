@@ -10,6 +10,10 @@ The backend currently supports the core customer journey from product discovery 
 
 ---
 
+## CI and Sandbox deployment
+
+CI (`.github/workflows/backend.yml`) runs on pull requests and `main`. `sandbox-deploy.yml` is a **manual** Sandbox-only deployment of a CI-passed `main` commit: immutable ECR digests, a staged API then Worker restart on the shared EC2 host, automatic restore of the previous images on failure. It never runs migrations (a release with a different migration set is refused), never touches PostgreSQL and has no production target. Deploy and rollback require repository variable `SANDBOX_BACKEND_DEPLOY_ENABLED=true`; `status` is always available. Runbook: colorful-life-infra `docs/backend-sandbox-cd.md`.
+
 ## Tech Stack
 
 - **Node.js 22**
