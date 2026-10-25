@@ -88,7 +88,8 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     const result = await recoverStripePayment(f.order.id, f.user.id, stripe.client);
     assert.equal(stripe.calls(), 1); await assertConfirmed(f);
     assert.equal(result.status, "CONFIRMED"); assert.equal(result.payment?.status, "SUCCEEDED"); assert.ok(result.payment?.paidAt);
-    assert.deepEqual(Object.keys(result.payment!).sort(), ["paidAt", "status"]);
+    assert.deepEqual(Object.keys(result.payment!).sort(), ["amount", "currency", "paidAt", "status"]);
+    assert.equal(result.payment!.amount.toString(), "23.99"); assert.equal(result.payment!.currency,"GBP");
     assert.equal(result.totalAmount.toString(), "23.99"); assert.equal(result.billingLine1, "1 Test Street");
     assert.equal(JSON.stringify(result).includes("must-not-leak"), false);
     const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: "STRIPE", providerEventId: `recovery:${f.payment.id}:${f.payment.providerReference}:succeeded` } } });
@@ -237,7 +238,8 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     const response = await post(f.order.id, token(f), { paymentIntentId: "pi_browser_chosen", status: "succeeded", amount: 1 });
     assert.equal(response.status, 200); const body = await response.json();
     assert.equal(body.status, "CONFIRMED"); assert.equal(body.payment.status, "SUCCEEDED");
-    assert.deepEqual(Object.keys(body.payment).sort(), ["paidAt", "status"]); assert.equal(body.reservationExpiresAt, null);
+    assert.deepEqual(Object.keys(body.payment).sort(), ["amount", "currency", "paidAt", "status"]); assert.equal(body.reservationExpiresAt, null);
+    assert.equal(body.payment.amount,"23.99"); assert.equal(body.payment.currency,"GBP");
     assert.equal(body.payments, undefined); assert.deepEqual(body.refunds, []); assert.equal(body.clientSecret, undefined); // Refunds: additive minimal customer summary; never raw refund rows.
     assert.equal(JSON.stringify(body).includes(f.payment.providerReference), false);
     const read = await fetch(`${url}/orders/${f.order.id}`, { headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token(f)}` } });

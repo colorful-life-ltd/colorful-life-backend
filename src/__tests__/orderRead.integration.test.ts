@@ -118,16 +118,16 @@ describe("customer order reads", () => {
     assert.strictEqual(body.returns, undefined);
   });
 
-  it("exposes only authoritative payment status and paidAt to the owner", async () => {
+  it("exposes only authoritative payment amount, currency, status and paidAt to the owner", async () => {
     const owner = await makeUser(); const other = await makeUser(); const listing = await makeListing();
     const order = await makeOrder(owner.id, listing.id);
     await prisma.payment.create({ data: { orderId: order.id, amount: order.totalAmount, provider: "STRIPE", providerReference: "pi_private", status: "PROCESSING", idempotencyKey: randomUUID() } });
     const pending = await (await get(owner.token, `/orders/${order.id}`)).json();
-    assert.deepEqual(pending.payment, { status: "PROCESSING", paidAt: null });
+    assert.deepEqual(pending.payment, { status: "PROCESSING", paidAt: null, amount:order.totalAmount.toString(), currency:"GBP" });
     const paidAt = new Date("2026-10-01T12:00:00Z");
     await prisma.payment.update({ where: { orderId: order.id }, data: { status: "SUCCEEDED", paidAt } });
     const paid = await (await get(owner.token, `/orders/${order.id}`)).json();
-    assert.deepEqual(paid.payment, { status: "SUCCEEDED", paidAt: paidAt.toISOString() });
+    assert.deepEqual(paid.payment, { status: "SUCCEEDED", paidAt: paidAt.toISOString(), amount:order.totalAmount.toString(), currency:"GBP" });
     assert.equal(paid.payments, undefined); assert.equal(paid.creationRequestHash, undefined);
     const forbidden = await get(other.token, `/orders/${order.id}`);
     assert.equal(forbidden.status, 404); assert.deepEqual(await forbidden.json(), { error: "Order not found" });

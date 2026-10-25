@@ -74,7 +74,7 @@ export async function getCustomerOrder(userId: number, orderId: number) {
         deliveryRecipientName: true, deliveryLine1: true, deliveryLine2: true,
         deliveryCity: true, deliveryCounty: true, deliveryPostcode: true,
         deliveryCountryCode: true, deliveryPhone: true,
-        payments: { select: { status: true, paidAt: true } },
+        payments: { orderBy: { id: "desc" }, select: { status: true, paidAt: true, amount:true, currency:true } },
       },
     });
     if (!order) return null;
@@ -82,7 +82,7 @@ export async function getCustomerOrder(userId: number, orderId: number) {
     return { ...withFulfilment(safeOrder), cancellation: {
       state: order.status === 'CANCELLED' ? 'CANCELLED' : await activePaidCancellation(tx,order.id) ? 'REQUESTED' : 'NONE',
       cancelledAt: order.cancelledAt,
-    }, payment: payments[0] ?? null, paymentWindow: await readCustomerPaymentWindow(tx, userId, order.id) };
+    }, payment: payments.find(p=>p.status === "SUCCEEDED") ?? payments[0] ?? null, paymentWindow: await readCustomerPaymentWindow(tx, userId, order.id) };
   }, { isolationLevel: "RepeatableRead" });
 }
 

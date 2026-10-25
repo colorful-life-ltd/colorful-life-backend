@@ -186,7 +186,7 @@ describe("durable order creation idempotency", () => {
     const first = await (await keyedCreate(customer, payload, key)).json(); orderIds.push(first.id);
     for (const changed of [
       { shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 2 }] },
-      { ...payload, deliveryAddress: { recipientName: "Other", line1: "2 Street", city: "London", postcode: "T2", countryCode: "GB" } },
+      { ...payload, deliveryAddress: { recipientName: "Other", line1: "2 Street", city: "London", postcode: "SW1A 2AA", countryCode: "GB" } },
     ]) {
       const response = await keyedCreate(customer, changed, key);
       assert.equal(response.status, 409);
@@ -201,10 +201,10 @@ describe("durable order creation idempotency", () => {
 
   it("canonicalizes item ordering and validated address field ordering", async () => {
     const customer = await makeCustomer(); const a = await makeListing(); const b = await makeListing(); const key = randomUUID();
-    const address = { recipientName: "Customer", line1: "3 Street", city: "London", postcode: "T3", countryCode: "GB" };
+    const address = { recipientName: "Customer", line1: "3 Street", city: "London", postcode: "SW1A 3AA", countryCode: "GB" };
     const items = [{ productListingId: a.id, quantity: 1 }, { productListingId: b.id, quantity: 1 }];
     const first = await (await keyedCreate(customer, { shippingMethod: "STANDARD", items, deliveryAddress: address }, key)).json(); orderIds.push(first.id);
-    const second = await keyedCreate(customer, { shippingMethod: "STANDARD" as const, items: [...items].reverse(), deliveryAddress: { countryCode: "GB", postcode: "T3", city: "London", line1: "3 Street", recipientName: " Customer " } }, key);
+    const second = await keyedCreate(customer, { shippingMethod: "STANDARD" as const, items: [...items].reverse(), deliveryAddress: { countryCode: "GB", postcode: "SW1A 3AA", city: "London", line1: "3 Street", recipientName: " Customer " } }, key);
     assert.equal(second.status, 201);
     assert.equal((await second.json()).id, first.id);
   });

@@ -109,15 +109,10 @@ describe("User Profile API", () => {
 
   it("PATCH /users/me rejects invalid editable values (empty firstName)", async () => {
     const { token } = await signupAndLogin(`invalid-${randomUUID()}@example.com`, "Abcdef1!");
-    const res = await fetch(`${url}/users/me`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ firstName: "  " }),
-    });
-    assert.strictEqual(res.status, 400);
+    for (const payload of [{firstName:"  "},{firstName:"x".repeat(81)},{lastName:"x".repeat(81)},{phone:"invalid"},{phone:"1".repeat(33)}]) {
+      const res = await fetch(`${url}/users/me`, {method:"PATCH",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      assert.strictEqual(res.status,400);
+    }
   });
 
   it("PATCH /users/me with empty body returns 400", async () => {
@@ -136,7 +131,7 @@ describe("User Profile API", () => {
   it("PATCHing only one editable field leaves omitted fields unchanged in DB", async () => {
     const { token } = await signupAndLogin(`partial-${randomUUID()}@example.com`, "Abcdef1!");
     // First set all fields
-    const initPayload = { firstName: "Initial", lastName: "User", phone: "111111" };
+    const initPayload = { firstName: "Initial", lastName: "User", phone: "07700900123" };
     const initRes = await fetch(`${url}/users/me`, {
       method: "PATCH",
       headers: {
