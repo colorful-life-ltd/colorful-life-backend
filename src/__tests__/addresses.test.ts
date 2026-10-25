@@ -88,6 +88,23 @@ describe("Address API", () => {
     return body.token;
   }
 
+  it("normalises UK addresses, rejects bad input and serialises duplicate creation", async () => {
+    const {body}=await signup(`rules-${randomUUID()}@example.com`,"Abcdef1!");
+    const token=body.token;
+    const input={recipientName:"Sandbox Buyer",line1:"1 Test Road",city:"London",postcode:"sw1a1aa",country:"GB",phone:"+44 7700 900123"};
+    const post=(data:object)=>fetch(`${url}/users/me/addresses`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify(data)});
+    for(const patch of [{postcode:"nonsense"},{country:"US"},{line1:"x".repeat(201)},{phone:"not-a-number"}])assert.equal((await post({...input,...patch})).status,400);
+    const results=await Promise.all([post(input),post({...input,recipientName:" sandbox   buyer ",postcode:"SW1A 1AA"})]);
+    assert.deepEqual(results.map(r=>r.status).sort(),[201,409]);
+    const created=await results.find(r=>r.status===201)!.json();assert.equal(created.postcode,"SW1A 1AA");
+    const other=await post({...input,recipientName:"Another Recipient"});assert.equal(other.status,201);
+    const otherBody=await other.json();
+    const patch=await fetch(`${url}/users/me/addresses/${otherBody.id}`,{method:"PATCH",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({recipientName:input.recipientName,isDefaultBilling:true})});
+    assert.equal(patch.status,409);
+    const rows=await prisma.address.findMany({where:{userId:created.userId??(jwt.decode(token) as {id:number}).id}});
+    assert.equal(rows.length,2);assert.equal(rows.filter(r=>r.isDefaultBilling).length,1);assert.equal(rows.find(r=>r.isDefaultBilling)!.id,created.id);
+  });
+
   it("GET empty list for new user", async () => {
     const email = `user-${randomUUID()}@example.com`;
     const password = "Abcdef1!";
@@ -113,8 +130,8 @@ describe("Address API", () => {
         recipientName: "John Doe",
         line1: "123 Main St",
         city: "Anytown",
-        postcode: "12345",
-        country: "US",
+        postcode: "SW1A 1AA",
+        country: "GB",
       }),
     });
     const res = await payload.json();
@@ -137,8 +154,8 @@ describe("Address API", () => {
         recipientName: "John Doe",
         line1: "123 Main St",
         city: "Anytown",
-        postcode: "12345",
-        country: "US",
+        postcode: "SW1A 1AA",
+        country: "GB",
       }),
     });
     // Create second address with isDefaultShipping true
@@ -149,8 +166,8 @@ describe("Address API", () => {
         recipientName: "Jane Smith",
         line1: "456 Oak Ave",
         city: "Othertown",
-        postcode: "67890",
-        country: "US",
+        postcode: "SW1A 2AA",
+        country: "GB",
         isDefaultShipping: true,
       }),
     });
@@ -181,8 +198,8 @@ describe("Address API", () => {
         recipientName: "John Doe",
         line1: "123 Main St",
         city: "Anytown",
-        postcode: "12345",
-        country: "US",
+        postcode: "SW1A 1AA",
+        country: "GB",
       }),
     });
     const created = await createRes.json();
@@ -212,8 +229,8 @@ describe("Address API", () => {
         recipientName: "First",
         line1: "A",
         city: "A",
-        postcode: "1",
-        country: "US",
+        postcode: "SW1A 1AA",
+        country: "GB",
       }),
     });
     const secondRes = await fetch(`${url}/users/me/addresses`, {
@@ -223,8 +240,8 @@ describe("Address API", () => {
         recipientName: "Second",
         line1: "B",
         city: "B",
-        postcode: "2",
-        country: "US",
+        postcode: "SW1A 2AA",
+        country: "GB",
         isDefaultShipping: true,
       }),
     });
@@ -251,8 +268,8 @@ describe("Address API", () => {
         recipientName: "First",
         line1: "A",
         city: "A",
-        postcode: "1",
-        country: "US",
+        postcode: "SW1A 1AA",
+        country: "GB",
       }),
     });
     const first = await firstRes.json();
@@ -263,8 +280,8 @@ describe("Address API", () => {
         recipientName: "Second",
         line1: "B",
         city: "B",
-        postcode: "2",
-        country: "US",
+        postcode: "SW1A 2AA",
+        country: "GB",
         isDefaultShipping: true,
       }),
     });
@@ -297,8 +314,8 @@ describe("Address API", () => {
         recipientName: "First",
         line1: "A",
         city: "A",
-        postcode: "1",
-        country: "US",
+        postcode: "SW1A 1AA",
+        country: "GB",
       }),
     });
     const first = await firstRes.json();
@@ -309,8 +326,8 @@ describe("Address API", () => {
         recipientName: "Second",
         line1: "B",
         city: "B",
-        postcode: "2",
-        country: "US",
+        postcode: "SW1A 2AA",
+        country: "GB",
         isDefaultShipping: true,
       }),
     });

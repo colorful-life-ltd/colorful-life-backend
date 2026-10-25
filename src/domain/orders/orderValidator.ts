@@ -1,3 +1,4 @@
+import {customerLimits,normalizePostcode,validPostcode,validPhone} from "../../utils/customerInput.js";
 import { z } from "zod";
 import { shippingMethodSchema } from "./shipping.js";
 import { normalizeCountryCode } from "../addresses/countryCode.js";
@@ -9,21 +10,21 @@ export const DeliveryAddressSchema = z.object({
   recipientName: z
     .string()
     .trim()
-    .min(1, { message: "recipientName cannot be empty" }),
+    .min(1, { message: "recipientName cannot be empty" }).max(customerLimits.recipientName),
   line1: z
     .string()
     .trim()
-    .min(1, { message: "line1 cannot be empty" }),
-  line2: z.string().optional(),
+    .min(1, { message: "line1 cannot be empty" }).max(customerLimits.line1),
+  line2: z.string().trim().max(customerLimits.line2).optional(),
   city: z
     .string()
     .trim()
-    .min(1, { message: "city cannot be empty" }),
-  county: z.string().optional(),
+    .min(1, { message: "city cannot be empty" }).max(customerLimits.city),
+  county: z.string().trim().max(customerLimits.county).optional(),
   postcode: z
     .string()
     .trim()
-    .min(1, { message: "postcode cannot be empty" }),
+    .min(1, { message: "postcode cannot be empty" }).max(customerLimits.postcode).refine(validPostcode).transform(normalizePostcode),
   // Snapshots must hold an ISO code: commercial invoices reject anything else.
   countryCode: z
     .string()
@@ -33,7 +34,7 @@ export const DeliveryAddressSchema = z.object({
       if (code!=="GB") { ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Delivery is supported only in GB" }); return z.NEVER; }
       return code;
     }),
-  phone: z.string().optional(),
+  phone: z.string().trim().max(customerLimits.phone).refine(validPhone).optional(),
 });
 
 // -----------------------------------------------------------------------------

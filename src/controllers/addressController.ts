@@ -1,3 +1,4 @@
+import {customerLimits,normalizePostcode,validPostcode,validPhone} from "../utils/customerInput.js";
 import {logOperationalError} from "../utils/operationalLog.js";
 import { Request, Response } from "express";
 import { prisma } from "../prisma/runtime.js";
@@ -6,7 +7,7 @@ import { z } from "zod";
 import { lookupUkAddresses, AddressLookupProviderError } from "../services/addressLookupService.js";
 import { AddressLookupQuerySchema } from "../utils/addressValidation.js";
 import { consumeAddressLookupAllowance } from "../services/addressLookupRateLimiter.js";
-import { INVALID_COUNTRY_MESSAGE, normalizeCountryCode } from "../domain/addresses/countryCode.js";
+import { normalizeCountryCode } from "../domain/addresses/countryCode.js";
 
 // ---------------------------------------------------------------------------
 // Address API shapes and helpers
@@ -61,36 +62,45 @@ async function lockAddressOwner(tx: Prisma.TransactionClient, userId: number): P
   await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
 }
 
+class DuplicateAddress extends Error {}
+function addressIdentity(a: {recipientName:string;line1:string;line2?:string|null;city:string;postcode:string;countryCode:string}) {
+ return JSON.stringify([a.recipientName,a.line1,a.line2??'',a.city,normalizePostcode(a.postcode),a.countryCode].map(v=>v.trim().replace(/\s+/g,' ').toLowerCase()));
+}
+async function rejectDuplicate(tx: Prisma.TransactionClient,userId:number,candidate: Parameters<typeof addressIdentity>[0],exceptId?:number) {
+ const addresses=await tx.address.findMany({where:{userId}});
+ if(addresses.some(a=>a.id!==exceptId&&addressIdentity(a)===addressIdentity(candidate)))throw new DuplicateAddress();
+}
+
 // ---------------------------------------------------------------------------
 // Validation schemas
 // ---------------------------------------------------------------------------
 // Stored as an ISO code: order snapshots and invoices reject display names.
 const CountrySchema = z.string().trim().min(1, { message: "country cannot be empty" }).transform((value, ctx) => {
   const code = normalizeCountryCode(value);
-  if (!code) { ctx.addIssue({ code: z.ZodIssueCode.custom, message: INVALID_COUNTRY_MESSAGE }); return z.NEVER; }
+  if (code !== "GB") { ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Only United Kingdom addresses are supported" }); return z.NEVER; }
   return code;
 });
 
 const CreateAddressSchema = z.object({
-  recipientName: z.string().trim().min(1, { message: "recipientName cannot be empty" }),
-  line1: z.string().trim().min(1, { message: "line1 cannot be empty" }),
-  city: z.string().trim().min(1, { message: "city cannot be empty" }),
-  postcode: z.string().trim().min(1, { message: "postcode cannot be empty" }),
+  recipientName: z.string().trim().min(1, { message: "recipientName cannot be empty" }).max(customerLimits.recipientName),
+  line1: z.string().trim().min(1, { message: "line1 cannot be empty" }).max(customerLimits.line1),
+  city: z.string().trim().min(1, { message: "city cannot be empty" }).max(customerLimits.city),
+  postcode: z.string().trim().min(1, { message: "postcode cannot be empty" }).max(customerLimits.postcode).refine(validPostcode, "Enter a valid UK postcode").transform(normalizePostcode),
   country: CountrySchema,
-  line2: z.string().trim().nullable().optional(),
-  phone: z.string().trim().nullable().optional(),
+  line2: z.string().trim().max(customerLimits.line2).nullable().optional(),
+  phone: z.string().trim().max(customerLimits.phone).refine(validPhone, "Enter a valid UK phone number").nullable().optional(),
   isDefaultShipping: z.boolean().optional(),
   isDefaultBilling: z.boolean().optional(),
 });
 
 const PatchAddressSchema = z.object({
-  recipientName: z.string().trim().min(1).optional(),
-  line1: z.string().trim().min(1).optional(),
-  city: z.string().trim().min(1).optional(),
-  postcode: z.string().trim().min(1).optional(),
+  recipientName: z.string().trim().min(1).max(customerLimits.recipientName).optional(),
+  line1: z.string().trim().min(1).max(customerLimits.line1).optional(),
+  city: z.string().trim().min(1).max(customerLimits.city).optional(),
+  postcode: z.string().trim().min(1).max(customerLimits.postcode).refine(validPostcode, "Enter a valid UK postcode").transform(normalizePostcode).optional(),
   country: CountrySchema.optional(),
-  line2: z.string().trim().nullable().optional(),
-  phone: z.string().trim().nullable().optional(),
+  line2: z.string().trim().max(customerLimits.line2).nullable().optional(),
+  phone: z.string().trim().max(customerLimits.phone).refine(validPhone, "Enter a valid UK phone number").nullable().optional(),
   isDefaultShipping: z.boolean().optional(),
   isDefaultBilling: z.boolean().optional(),
 }).refine((data) => Object.keys(data).length > 0, {
@@ -168,6 +178,7 @@ export const createAddress = async (req: Request, res: Response) => {
   try {
     const created = await prisma.$transaction(async (tx) => {
       await lockAddressOwner(tx, userId);
+      await rejectDuplicate(tx,userId,{...data,countryCode:data.country});
       const addressCount = await tx.address.count({ where: { userId } });
       const isFirst = addressCount === 0;
       let isDefaultShipping = data.isDefaultShipping ?? false;
@@ -199,6 +210,7 @@ export const createAddress = async (req: Request, res: Response) => {
     });
     return res.status(201).json(mapAddressToApi(created));
   } catch (err) {
+    if(err instanceof DuplicateAddress)return res.status(409).json({error:"This recipient and address are already saved."});
     logOperationalError("Create address error", err);
     return res.status(500).json({ error: "Internal server error" });
   }
@@ -226,11 +238,12 @@ export const updateAddress = async (req: Request, res: Response) => {
       await lockAddressOwner(tx, userId);
       const address = await tx.address.findFirst({
         where: { id: addressId, userId },
-        select: { id: true, userId: true, isDefault: true, isDefaultBilling: true },
+        select: { id: true, userId: true, isDefault: true, isDefaultBilling: true, recipientName:true,line1:true,line2:true,city:true,postcode:true,countryCode:true },
       });
       if (!address) {
         return null;
       }
+      await rejectDuplicate(tx,userId,{...address,...data,countryCode:data.country??address.countryCode},addressId);
       // Reject the complete request before clearing either role. Returning a
       // rejection from a transaction callback commits any preceding writes.
       if (data.isDefaultShipping === false && address.isDefault) {
@@ -273,6 +286,7 @@ export const updateAddress = async (req: Request, res: Response) => {
     }
     return res.json(mapAddressToApi(result));
   } catch (err) {
+    if(err instanceof DuplicateAddress)return res.status(409).json({error:"This recipient and address are already saved."});
     logOperationalError("Update address error", err);
     return res.status(500).json({ error: "Internal server error" });
   }

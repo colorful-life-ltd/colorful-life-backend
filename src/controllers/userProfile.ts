@@ -1,3 +1,4 @@
+import {customerLimits,validPhone} from "../utils/customerInput.js";
 import {logOperationalError} from "../utils/operationalLog.js";
 import { ReauthenticationRequired } from "../domain/auth/reauthentication.js";
 import { Request, Response } from "express";
@@ -12,9 +13,9 @@ import { sendVerificationEmail } from "../services/emailService.js";
 
 // ----- Zod validation for PATCH /users/me -----
 const UpdateProfileSchema = z.object({
-  firstName: z.string().trim().min(1, { message: "firstName cannot be empty" }).optional(),
-  lastName: z.string().trim().min(1, { message: "lastName cannot be empty" }).optional(),
-  phone: z.string().trim().optional(),
+  firstName: z.string().trim().min(1, { message: "firstName cannot be empty" }).max(customerLimits.firstName).optional(),
+  lastName: z.string().trim().min(1, { message: "lastName cannot be empty" }).max(customerLimits.lastName).optional(),
+  phone: z.string().trim().max(customerLimits.phone).refine(validPhone, "Enter a valid UK phone number").optional(),
 }).refine((data) => Object.keys(data).length > 0, {
   message: "No fields provided for update",
 });
