@@ -818,6 +818,18 @@ Security-related behaviour includes:
 
 Sensitive credentials are supplied through environment variables and must never be committed to the repository.
 
+### Registration switch
+
+Public self-registration is controlled by `REGISTRATION_ENABLED` (`true` or `false`, default `false`).
+While closed, `POST /auth/signup` returns HTTP 403 with
+`{ "error": { "code": "REGISTRATION_DISABLED", "message": "Account registration is not open yet." } }`.
+The check runs before validation and abuse protection, so a closed signup writes nothing: no account,
+verification token or rate-limit row.
+
+Existing accounts can still sign in, refresh sessions and recover passwords. Keep it closed in every
+pre-launch environment so test accounts cannot accumulate, and set it to `true` only when registration
+should open. Tests that exercise signup enable it explicitly.
+
 ### Renewable login sessions
 
 `POST /auth/login` returns the existing access `token` plus `accessTokenExpiresAt`, an opaque `refreshToken`, and `refreshExpiresAt`. Access tokens continue to use `JWT_EXPIRES_IN` (default `1h`). Renewable sessions have a fixed absolute lifetime configured by `REFRESH_SESSION_TTL_DAYS` (default `30`, allowed range `1`–`365` days); refresh does not extend that deadline.

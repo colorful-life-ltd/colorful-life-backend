@@ -27,12 +27,12 @@
     "file-type": "^22.1.0",
     "fontkit": "^2.0.4",
     "jsonwebtoken": "^9.0.0",
-    "multer": "2.4.0",
+    "multer": "2.5.0",
     "nodemailer": "^10.1.2",
     "pdfkit": "^0.20.2",
     "stripe": "^22.6.1",
     "unpdf": "^1.8.1",
-    "zod": "^3.23.2"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

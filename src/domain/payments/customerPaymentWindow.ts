@@ -1,9 +1,11 @@
 import { Prisma as PrismaSql } from "../../generated/prisma-client/client.js";
 import type { Order, Payment, PaymentAttempt, PaymentOperation, PaymentResolution, Prisma } from "../../generated/prisma-client/client.js";
+import { paypalSandboxAvailable } from "./paypalSandbox.js";
 import { config } from "../../config/index.js";
 
 export type CustomerPaymentWindow = {
   version: 1;
+  provider: "STRIPE" | "PAYPAL" | "MANUAL";
   evaluatedAt: string;
   mode: "LEGACY" | "MANAGED" | "UNAVAILABLE";
   state: "INITIAL_PAYMENT" | "CHECKOUT_RESUMABLE" | "PROCESSING" | "OUTCOME_UNRESOLVED" | "RETRY_AVAILABLE" | "RETRY_REQUIRES_PROVIDER_CHECK" | "PAID" | "NOT_PAYABLE";
@@ -12,7 +14,7 @@ export type CustomerPaymentWindow = {
   retryDeadline: string | null;
   resumeEligibility: "ELIGIBLE" | "INELIGIBLE" | "REQUIRES_PROVIDER_CHECK";
   initiationEligibility: "ELIGIBLE" | "INELIGIBLE" | "REQUIRES_PROVIDER_CHECK";
-  reason: "EXISTING_CHECKOUT_OPEN" | "INITIAL_WINDOW_OPEN" | "AWAITING_PAYMENT_OUTCOME" | "PAYMENT_OUTCOME_UNRESOLVED" | "PROVIDER_CHECK_REQUIRED" | "VERIFIED_UNPAID_RETRY" | "PAYMENT_SUCCEEDED" | "ORDER_NOT_PENDING" | "WINDOW_CLOSED" | "ADMISSION_UNAVAILABLE" | "STRIPE_UNAVAILABLE" | "INVALID_AMOUNT" | "OTHER_PROVIDER";
+  reason: "EXISTING_CHECKOUT_OPEN" | "INITIAL_WINDOW_OPEN" | "AWAITING_PAYMENT_OUTCOME" | "PAYMENT_OUTCOME_UNRESOLVED" | "PROVIDER_CHECK_REQUIRED" | "VERIFIED_UNPAID_RETRY" | "PAYMENT_SUCCEEDED" | "ORDER_NOT_PENDING" | "WINDOW_CLOSED" | "ADMISSION_UNAVAILABLE" | "STRIPE_UNAVAILABLE" | "PAYPAL_UNAVAILABLE" | "INVALID_AMOUNT" | "OTHER_PROVIDER";
 };
 
 type Attempt = Pick<PaymentAttempt, "paymentId" | "providerReference" | "historical" | "finalityEvidenceId" | "successEvidenceId"> & {
@@ -29,6 +31,8 @@ export type PaymentWindowInput = {
   admission: "OPEN" | "CLOSED" | "UNAVAILABLE";
   managedEnabled: boolean;
   stripeConfigured: boolean;
+  paypalConfigured?: boolean;
+  preferredProvider?: "STRIPE" | "PAYPAL";
   newInitiationEnabled?: boolean;
   now: Date;
 };
@@ -36,6 +40,9 @@ export type PaymentWindowInput = {
 /** Read model only. Local PROCESSING means awaiting evidence, not a verified Stripe status. */
 export function presentCustomerPaymentWindow(input: PaymentWindowInput): CustomerPaymentWindow {
   const { order, payment, resolution: r, attempts, now } = input;
+  const provider = payment?.provider ?? input.preferredProvider ?? "STRIPE";
+  const configured = provider === "PAYPAL" ? !!input.paypalConfigured : input.stripeConfigured;
+  const unavailableReason = provider === "PAYPAL" ? "PAYPAL_UNAVAILABLE" : "STRIPE_UNAVAILABLE";
   const managed = !!r && !r.historical && !r.quarantineReason;
   const unavailable = !managed && (input.managedEnabled || !!r);
   const deadline = managed ? r.retryDeadline ?? r.initialPaymentDeadline : unavailable ? null : order.reservationExpiresAt;
@@ -48,7 +55,7 @@ export function presentCustomerPaymentWindow(input: PaymentWindowInput): Custome
   const paymentOutcome: CustomerPaymentWindow["paymentOutcome"] = success ? "SUCCEEDED" : uncertain ? "UNRESOLVED"
     : !payment ? "NOT_STARTED" : finalUnpaid ? "UNPAID" : managed && r.firstFailureVerifiedAt ? "UNRESOLVED" : payment.status === "PROCESSING" || payment.status === "PENDING" ? "PENDING" : "UNRESOLVED";
   const result: CustomerPaymentWindow = {
-    version: 1, evaluatedAt: now.toISOString(), mode: managed ? "MANAGED" : unavailable ? "UNAVAILABLE" : "LEGACY",
+    version: 1, provider, evaluatedAt: now.toISOString(), mode: managed ? "MANAGED" : unavailable ? "UNAVAILABLE" : "LEGACY",
     state: "OUTCOME_UNRESOLVED", paymentOutcome, paymentDeadline: deadline?.toISOString() ?? null,
     retryDeadline: managed ? r.retryDeadline?.toISOString() ?? null : null,
     resumeEligibility: "INELIGIBLE", initiationEligibility: "INELIGIBLE", reason: "PAYMENT_OUTCOME_UNRESOLVED",
@@ -63,14 +70,23 @@ export function presentCustomerPaymentWindow(input: PaymentWindowInput): Custome
   const pending = !!payment && !finalUnpaid && (payment.status === "PROCESSING" || payment.status === "PENDING");
   if (closed && pending && !r?.firstFailureVerifiedAt) return finish("PROCESSING", "AWAITING_PAYMENT_OUTCOME");
   if (closed) return finish(payment && !finalUnpaid ? "OUTCOME_UNRESOLVED" : "NOT_PAYABLE", "WINDOW_CLOSED");
-  if (!input.stripeConfigured) return finish(payment && !finalUnpaid ? "OUTCOME_UNRESOLVED" : "NOT_PAYABLE", "STRIPE_UNAVAILABLE");
+  if (!configured) return finish(payment && !finalUnpaid ? "OUTCOME_UNRESOLVED" : "NOT_PAYABLE", unavailableReason);
   const minor = order.totalAmount.mul(100);
   if (!minor.isInteger() || minor.lte(0) || !minor.lte(Number.MAX_SAFE_INTEGER)) return finish(payment && !finalUnpaid ? "OUTCOME_UNRESOLVED" : "NOT_PAYABLE", "INVALID_AMOUNT");
   // Database operation-admission guards require these states for CREATE/CONFIRM.
   if (managed && (!payment || (finalUnpaid && payment.status === "CANCELED"))
     && r.state !== "INITIAL_OPEN" && r.state !== "RETRY_OPEN") return finish("OUTCOME_UNRESOLVED", "ADMISSION_UNAVAILABLE");
-  if ((!payment || (managed && finalUnpaid && payment.status === "CANCELED")) && input.newInitiationEnabled === false) return finish("NOT_PAYABLE", "STRIPE_UNAVAILABLE");
+  if ((!payment || (managed && finalUnpaid && payment.status === "CANCELED")) && input.newInitiationEnabled === false) return finish("NOT_PAYABLE", unavailableReason);
   if (!payment) return finish("INITIAL_PAYMENT", "INITIAL_WINDOW_OPEN", "ELIGIBLE");
+  if (payment.provider === "PAYPAL") {
+    if (managed && r.retryDeadline && finalUnpaid && payment.status === "CANCELED") return finish("RETRY_AVAILABLE", "VERIFIED_UNPAID_RETRY", "ELIGIBLE");
+    if (pending && !finalUnpaid) {
+      const capture = current?.operations.some(o => o.type === "CAPTURE");
+      if (capture || payment.status === "PROCESSING" || r?.firstFailureVerifiedAt) return finish("PROCESSING", "AWAITING_PAYMENT_OUTCOME");
+      if (input.newInitiationEnabled !== false && managed && current && current.operations.some(o => o.type === "CREATE") && current.operations.every(o => o.type === "RETRIEVE" || (o.type === "CREATE" && (o.state === "RESULT_RECORDED" || o.state === "POTENTIALLY_DISPATCHED")))) return { ...finish("CHECKOUT_RESUMABLE", "EXISTING_CHECKOUT_OPEN"), resumeEligibility: "ELIGIBLE" };
+    }
+    return finish("OUTCOME_UNRESOLVED", "PAYMENT_OUTCOME_UNRESOLVED");
+  }
   if (payment.provider !== "STRIPE") return finish("OUTCOME_UNRESOLVED", "OTHER_PROVIDER");
   if (managed && r.retryDeadline && finalUnpaid && payment.status === "CANCELED") return finish("RETRY_AVAILABLE", "VERIFIED_UNPAID_RETRY", "ELIGIBLE");
   // A failure receipt opens a window but does not persist the current provider status.
@@ -100,10 +116,12 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
   const windows = new Map<number, CustomerPaymentWindow>();
   if (!orderIds.length) return windows;
   // Fetch policy with the existing clock read, preserving fixed queries per batch.
-  const [clock] = await tx.$queryRaw<Array<{ now: Date; enabled: boolean }>>`SELECT clock_timestamp() AS now,
-    COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='STRIPE'), false) AS enabled`;
+  const [clock] = await tx.$queryRaw<Array<{ now: Date; enabled: boolean; paypalEnabled: boolean }>>`SELECT clock_timestamp() AS now,
+    COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='STRIPE'), false) AS enabled,
+    COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='PAYPAL'), false) AS "paypalEnabled"`;
   const now = clock.now;
-  const newInitiationEnabled = config.PAYMENT_STRIPE_INITIATION_ENABLED && clock.enabled;
+  const paypalConfigured = paypalSandboxAvailable();
+  const preferredProvider = paypalConfigured && config.PAYMENT_PAYPAL_INITIATION_ENABLED && clock.paypalEnabled && !config.PAYMENT_STRIPE_INITIATION_ENABLED ? "PAYPAL" : "STRIPE";
   for (let offset = 0; offset < orderIds.length; offset += PAYMENT_WINDOW_BATCH_SIZE) {
     const orders = await tx.order.findMany({ where: { userId, id: { in: orderIds.slice(offset, offset + PAYMENT_WINDOW_BATCH_SIZE) } }, select: paymentWindowSelect });
     if (!orders.length) continue;
@@ -138,7 +156,8 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
       windows.set(order.id, presentCustomerPaymentWindow({ order, payment: order.payments[0] ?? null, resolution: r,
         attempts: order.paymentAttempts, hasUnresolvedInbox: unresolved.has(order.id),
         hasSuccessEvidence: order.financialEvidence.some(e => e.kind === "SUCCESS"), hasFinancialEvidence: order.financialEvidence.length > 0,
-        admission, managedEnabled: config.PAYMENT_RESOLUTION_ENABLED, stripeConfigured: !!config.STRIPE_SECRET_KEY, newInitiationEnabled, now }));
+        admission, managedEnabled: config.PAYMENT_RESOLUTION_ENABLED, stripeConfigured: !!config.STRIPE_SECRET_KEY, paypalConfigured, preferredProvider,
+        newInitiationEnabled: (order.payments[0]?.provider ?? preferredProvider) === "PAYPAL" ? config.PAYMENT_PAYPAL_INITIATION_ENABLED && clock.paypalEnabled : config.PAYMENT_STRIPE_INITIATION_ENABLED && clock.enabled, now }));
     }
   }
   return windows;

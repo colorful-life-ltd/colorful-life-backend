@@ -5,10 +5,13 @@ import bcrypt from "bcrypt";
 import type { Server } from "node:http";
 import app from "../app.js";
 import { prisma } from "../prisma/runtime.js";
+import { config } from "../config/index.js";
 import { createOrReplacePasswordResetToken, resetPassword } from "../domain/auth/passwordResetService.js";
 import { buildPasswordResetEmailCommand, setPasswordResetEmailSenderForTests, setVerificationEmailSenderForTests } from "../services/emailService.js";
 import { consumeRecoveryLimit, passwordRecoveryLimit, pruneExpiredRecoveryLimits } from "../middleware/passwordRecoveryLimit.js";
 import express from "express";
+// Public registration is closed by default; these tests exercise the signup flow explicitly.
+before(() => { config.REGISTRATION_ENABLED = true; });
 
 let server: Server;
 let base: string;

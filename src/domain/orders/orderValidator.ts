@@ -57,6 +57,7 @@ export const CreateOrderSchema = z.object({
   shippingMethod: shippingMethodSchema,
   items: z
     .array(OrderItemSchema)
+    .max(500, { message: "at most 500 order items are supported" })
     .min(1, { message: "at least one order item is required" }),
   deliveryAddress: DeliveryAddressSchema.optional(),
 }).strict();

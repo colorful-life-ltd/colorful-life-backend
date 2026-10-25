@@ -135,7 +135,23 @@ describe("customer payment window projection", () => {
     assert.equal(presentCustomerPaymentWindow(i).reason, "STRIPE_UNAVAILABLE");
     i.stripeConfigured = true; i.order.totalAmount = new Decimal(0);
     assert.equal(presentCustomerPaymentWindow(i).reason, "INVALID_AMOUNT");
-    payment(i, "FAILED"); i.order.totalAmount = new Decimal(20); i.payment!.provider = "PAYPAL";
+    payment(i, "FAILED"); i.order.totalAmount = new Decimal(20); i.payment!.provider = "MANUAL";
     assert.equal(presentCustomerPaymentWindow(i).reason, "OTHER_PROVIDER");
   });
+});
+
+describe('PayPal provider-aware windows',()=>{
+ it('offers Sandbox initial payment and preserves provider identity',()=>{
+  const i=input(true);i.stripeConfigured=false;i.paypalConfigured=true;i.preferredProvider='PAYPAL';i.newInitiationEnabled=true;
+  const w=presentCustomerPaymentWindow(i);assert.equal(w.provider,'PAYPAL');assert.equal(w.state,'INITIAL_PAYMENT');
+  i.newInitiationEnabled=false;assert.equal(presentCustomerPaymentWindow(i).state,'NOT_PAYABLE');
+ });
+ it('approval resumes only a known completed CREATE; capture is processing and uncertainty is held',()=>{
+  const i=input(true);i.paypalConfigured=true;i.payment={id:1,provider:'PAYPAL',providerReference:'PP-fixture',status:'PENDING',paidAt:null};
+  i.attempts=[{paymentId:1,providerReference:'PP-fixture',historical:false,successEvidenceId:null,finalityEvidenceId:null,operations:[{type:'CREATE',state:'POTENTIALLY_DISPATCHED'}]}];
+  assert.equal(presentCustomerPaymentWindow(i).state,'CHECKOUT_RESUMABLE');
+  i.attempts[0].operations.push({type:'CAPTURE',state:'POTENTIALLY_DISPATCHED'});assert.equal(presentCustomerPaymentWindow(i).state,'PROCESSING');
+  i.attempts[0].operations[1].state='UNKNOWN';assert.equal(presentCustomerPaymentWindow(i).state,'OUTCOME_UNRESOLVED');
+  i.attempts[0].successEvidenceId=1;assert.equal(presentCustomerPaymentWindow(i).state,'PAID');
+ });
 });

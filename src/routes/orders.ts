@@ -91,7 +91,7 @@ router.post(
 router.post("/:orderId/payments", authMiddleware, createPaymentHandler);
 router.post("/:orderId/payments/stripe", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), createStripePaymentIntentHandler);
 router.post("/:orderId/payments/stripe/reconcile", authMiddleware, requireVerifiedEmail, checkoutProtection("recovery"), recoverStripePaymentHandler);
-router.post("/:orderId/payments/paypal", authMiddleware, requireVerifiedEmail, createPayPalOrderHandler);
+router.post("/:orderId/payments/paypal", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), createPayPalOrderHandler);
 router.post("/:orderId/payments/paypal/capture", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), capturePayPalOrderHandler);
 router.get("/:orderId/payments", authMiddleware, listPaymentsHandler);
 router.post("/:orderId/refunds", authMiddleware, createRefundHandler);

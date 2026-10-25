@@ -1,5 +1,5 @@
 import {logOperationalError} from "../../utils/operationalLog.js";
-import { admitFinancialOperation } from "../security/paymentAbuse.js";
+import { admitFinancialOperation, policy } from "../security/paymentAbuse.js";
 import { randomUUID } from "node:crypto";
 import { checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, PaymentResolutionUnavailableError } from "./paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
@@ -53,6 +53,7 @@ export async function createOrReusePayPalOrder(orderId: number, userId: number, 
     const order = locked[0];
     if (!order) throw new PayPalOrderNotFoundError();
     if (order.userId !== userId) throw new PayPalOrderOwnershipError();
+    await policy(tx, "PAYPAL");
     const managed = await checkPaymentAdmission(tx, orderId);
     if (order.status === OrderStatus.EXPIRED || (!managed && order.reservationExpiresAt && order.reservationExpiresAt <= new Date())) throw new PayPalOrderExpiredError();
     if (order.status === OrderStatus.CANCELLED) throw new PayPalOrderAlreadyCompletedError();

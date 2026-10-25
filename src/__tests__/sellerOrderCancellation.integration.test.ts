@@ -9,6 +9,8 @@ import app from "../app.js";
 import jwt from "jsonwebtoken";
 import { config } from "../config/index.js";
 import { randomUUID } from "node:crypto";
+// Public registration is closed by default; these tests exercise the signup flow explicitly.
+before(() => { config.REGISTRATION_ENABLED = true; });
 
 /** Helper to start the Express app on an OS‑assigned port. */
 async function startServer(): Promise<{ server: Server; url: string }> {
