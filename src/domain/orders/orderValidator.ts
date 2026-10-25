@@ -21,10 +21,8 @@ export const DeliveryAddressSchema = z.object({
     .trim()
     .min(1, { message: "city cannot be empty" }).max(customerLimits.city),
   county: z.string().trim().max(customerLimits.county).optional(),
-  postcode: z
-    .string()
-    .trim()
-    .min(1, { message: "postcode cannot be empty" }).max(customerLimits.postcode).refine(validPostcode).transform(normalizePostcode),
+  postcode: z.string().transform(normalizePostcode).pipe(
+    z.string().min(1, { message: "postcode cannot be empty" }).max(customerLimits.postcode).refine(validPostcode)),
   // Snapshots must hold an ISO code: commercial invoices reject anything else.
   countryCode: z
     .string()

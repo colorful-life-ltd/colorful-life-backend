@@ -91,12 +91,14 @@ describe("Address API", () => {
   it("normalises UK addresses, rejects bad input and serialises duplicate creation", async () => {
     const {body}=await signup(`rules-${randomUUID()}@example.com`,"Abcdef1!");
     const token=body.token;
-    const input={recipientName:"Sandbox Buyer",line1:"1 Test Road",city:"London",postcode:"sw1a1aa",country:"GB",phone:"+44 7700 900123"};
+    const input={recipientName:"Sandbox Buyer",line1:"1 Test Road",city:"London",postcode:"  sw1a   1aa  ",country:"GB",phone:"+44 7700 900123"};
     const post=(data:object)=>fetch(`${url}/users/me/addresses`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify(data)});
     for(const patch of [{postcode:"nonsense"},{country:"US"},{line1:"x".repeat(201)},{phone:"not-a-number"}])assert.equal((await post({...input,...patch})).status,400);
     const results=await Promise.all([post(input),post({...input,recipientName:" sandbox   buyer ",postcode:"SW1A 1AA"})]);
     assert.deepEqual(results.map(r=>r.status).sort(),[201,409]);
     const created=await results.find(r=>r.status===201)!.json();assert.equal(created.postcode,"SW1A 1AA");
+    const patchPostcode=await fetch(`${url}/users/me/addresses/${created.id}`,{method:"PATCH",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({postcode:"  sw1a   1aa  "})});
+    assert.equal(patchPostcode.status,200);assert.equal((await patchPostcode.json()).postcode,"SW1A 1AA");
     const other=await post({...input,recipientName:"Another Recipient"});assert.equal(other.status,201);
     const otherBody=await other.json();
     const patch=await fetch(`${url}/users/me/addresses/${otherBody.id}`,{method:"PATCH",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({recipientName:input.recipientName,isDefaultBilling:true})});
