@@ -58,6 +58,12 @@ jobs:
             [ "$conclusion" = success ] || { echo "backend workflow job '$check' has not passed for $sha ($conclusion)"; exit 1; }
           done
           echo "DEPLOY_SHA=$sha" >> "$GITHUB_ENV"
+      - name: Check out the exact approved deployment source
+        if: inputs.action == 'deploy'
+        run: |
+          git checkout --detach "$DEPLOY_SHA"
+          test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
+          test -z "$(git status --porcelain)"
       - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: arn:aws:iam::919693204623:role/ColorfulLife-SandboxBackendDeploy
@@ -119,7 +125,7 @@ jobs:
               existing=$(digest "$repo")
               [[ "$existing" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "could not read the pushed digest for $repo"; exit 1; }
             fi
-            echo "$(tr a-z A-Z <<< "$kind")_IMAGE=$REGISTRY/$repo@$existing" >> "$GITHUB_ENV"
+            echo "$(tr '[:lower:]' '[:upper:]' <<< "$kind")_IMAGE=$REGISTRY/$repo@$existing" >> "$GITHUB_ENV"
           done
           docker logout "$REGISTRY" >/dev/null
       - name: Trivy reports for newly built images (informational, never a gate)
@@ -150,7 +156,7 @@ jobs:
           out=$("$RUNNER_TEMP/host.sh" deploy "$API_IMAGE" "$MIGRATION_IMAGE" "$DEPLOY_SHA") && rc=0 || rc=$?
           echo "$out"
           { echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          exit $rc
+          exit "$rc"
       - name: Roll back to the previous application images (database unchanged)
         if: inputs.action == 'rollback'
         run: |
@@ -158,7 +164,7 @@ jobs:
           out=$("$RUNNER_TEMP/host.sh" rollback "" "" "$ROLLBACK_TO") && rc=0 || rc=$?
           echo "$out"
           { echo '### Rollback (application images only; migrations are never reversed)'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          exit $rc
+          exit "$rc"
       - name: Read the Sandbox release after the change
         if: always() && inputs.action != 'status'
         run: |
