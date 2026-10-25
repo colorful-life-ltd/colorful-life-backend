@@ -1,0 +1,166 @@
+name: Sandbox backend deploy
+# Manual only. Deploys a commit on main that passed the backend workflow to the Sandbox API/Worker on
+# the shared EC2 host through the ColorfulLife-DeployBackend SSM document (colorful-life-infra
+# docs/backend-sandbox-cd.md). Never migrates, never touches PostgreSQL, never targets production.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: status (read-only), deploy or rollback
+        type: choice
+        options: [status, deploy, rollback]
+        default: status
+      sha:
+        description: Commit on main to deploy (default is the current main)
+        required: false
+        default: ''
+      rollback_to:
+        description: Optional recorded 40-hex commit for rollback (default is the previous release)
+        required: false
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: sandbox-backend
+  cancel-in-progress: false
+jobs:
+  sandbox:
+    # Deploy and rollback stay inert until the owner sets SANDBOX_BACKEND_DEPLOY_ENABLED=true.
+    if: github.ref == 'refs/heads/main' && (inputs.action == 'status' || vars.SANDBOX_BACKEND_DEPLOY_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      checks: read
+      id-token: write
+    env:
+      ACTION: ${{ inputs.action }}
+      INPUT_SHA: ${{ inputs.sha }}
+      ROLLBACK_TO: ${{ inputs.rollback_to }}
+      AWS_REGION: eu-west-2
+      REGISTRY: 919693204623.dkr.ecr.eu-west-2.amazonaws.com
+      INSTANCE_ID: i-02b28336518077a8f
+      DEPLOY_DOCUMENT: ColorfulLife-DeployBackend
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve the commit and require a passed backend workflow
+        if: inputs.action == 'deploy'
+        run: |
+          sha="${INPUT_SHA:-$GITHUB_SHA}"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "sha must be a full 40-hex commit"; exit 1; }
+          git merge-base --is-ancestor "$sha" origin/main || { echo "$sha is not on main"; exit 1; }
+          for check in verify packaging deployment-rehearsal; do
+            conclusion=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs?check_name=$check" --jq '[.check_runs[].conclusion] | if index("success") then "success" else (.[0] // "missing") end')
+            [ "$conclusion" = success ] || { echo "backend workflow job '$check' has not passed for $sha ($conclusion)"; exit 1; }
+          done
+          echo "DEPLOY_SHA=$sha" >> "$GITHUB_ENV"
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          role-to-assume: arn:aws:iam::919693204623:role/ColorfulLife-SandboxBackendDeploy
+          role-session-name: backend-${{ github.run_id }}
+          aws-region: eu-west-2
+      - name: Confirm the Colorful Life AWS account
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = 919693204623
+      - name: Define the host command helper
+        run: |
+          cat > "$RUNNER_TEMP/host.sh" <<'SH'
+          # usage: host.sh ACTION [API_IMAGE] [MIGRATION_IMAGE] [SHA]; prints host output, fails if the host failed
+          set -euo pipefail
+          commit="${4:-}"
+          params=$(jq -nc --arg a "$1" --arg api "${2:-}" --arg mig "${3:-}" --arg s "${4:-}" '{Action:[$a],ApiImage:[$api],MigrationImage:[$mig],Sha:[$s]}')
+          id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name "$DEPLOY_DOCUMENT" --timeout-seconds 600 \
+            --comment "backend $1 ${commit:0:12} run $GITHUB_RUN_ID" --parameters "$params" --query Command.CommandId --output text)
+          status=Pending
+          for _ in $(seq 1 600); do
+            sleep 4
+            status=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in Pending|InProgress|Delayed) continue ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" --query StandardOutputContent --output text 2>/dev/null || true
+          echo "SSM command $id: $status" >&2
+          test "$status" = Success
+          SH
+          chmod +x "$RUNNER_TEMP/host.sh"
+      - name: Read the running Sandbox release
+        run: |
+          out=$("$RUNNER_TEMP/host.sh" status)
+          echo "$out"
+          status=$(grep '^STATUS ' <<< "$out" | head -1 | cut -c8-)
+          echo "CURRENT_SHA=$(jq -r '.revision // empty' <<< "$status")" >> "$GITHUB_ENV"
+          { echo "### Sandbox backend before ${ACTION}"; echo '```json'; jq . <<< "$status"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Refuse to replace the running release with an older or unrelated commit
+        if: inputs.action == 'deploy'
+        run: |
+          [ -n "$CURRENT_SHA" ] || { echo "running release has no revision label"; exit 1; }
+          git cat-file -e "$CURRENT_SHA^{commit}" 2>/dev/null || { echo "running commit $CURRENT_SHA is not in this repository's history (unmerged branch?); merge it to main first"; exit 1; }
+          git merge-base --is-ancestor "$CURRENT_SHA" "$DEPLOY_SHA" || { echo "$DEPLOY_SHA does not contain the running $CURRENT_SHA; deploying it would downgrade the Sandbox"; exit 1; }
+      - name: Publish immutable images (reuse existing sandbox tags)
+        if: inputs.action == 'deploy'
+        run: |
+          tag="sandbox-$DEPLOY_SHA"
+          digest() { aws ecr describe-images --repository-name "$1" --image-ids imageTag="$tag" --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true; }
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY" >/dev/null
+          for kind in api migration; do
+            repo="colorful-life-production-$kind"
+            existing=$(digest "$repo")
+            if [[ "$existing" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "$repo:$tag already published as $existing"
+            else
+              file=Dockerfile; [ "$kind" = migration ] && file=Dockerfile.migrations
+              docker build --platform linux/amd64 --file "$file" \
+                --label "org.opencontainers.image.revision=$DEPLOY_SHA" \
+                --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+                --tag "$REGISTRY/$repo:$tag" .
+              docker push --quiet "$REGISTRY/$repo:$tag"
+              existing=$(digest "$repo")
+              [[ "$existing" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "could not read the pushed digest for $repo"; exit 1; }
+            fi
+            echo "$(tr a-z A-Z <<< "$kind")_IMAGE=$REGISTRY/$repo@$existing" >> "$GITHUB_ENV"
+          done
+          docker logout "$REGISTRY" >/dev/null
+      - name: Trivy reports for newly built images (informational, never a gate)
+        if: inputs.action == 'deploy'
+        continue-on-error: true
+        run: |
+          mkdir -p trivy
+          for kind in api migration; do
+            local_ref="$REGISTRY/colorful-life-production-$kind:sandbox-$DEPLOY_SHA"
+            if ! docker image inspect "$local_ref" >/dev/null 2>&1; then
+              echo "Trivy $kind: reused an already published image; its report was produced when it was first published" >> "$GITHUB_STEP_SUMMARY"; continue
+            fi
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.1 image --quiet --scanners vuln \
+              --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --format json --exit-code 0 "$local_ref" > "trivy/$kind.json"
+            jq -r --arg k "$kind" '"Trivy \($k): " + ([.Results[]?.Vulnerabilities[]?.Severity] | group_by(.) | map("\(.[0])=\(length)") | join(" ")) + " (all severities kept; not a gate)"' "trivy/$kind.json" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: inputs.action == 'deploy'
+        continue-on-error: true
+        with:
+          name: trivy-${{ github.run_id }}
+          path: trivy/
+          if-no-files-found: ignore
+      - name: Deploy API then Worker on the host (staged, automatic restore on failure)
+        if: inputs.action == 'deploy'
+        run: |
+          { echo "### Deploying \`$DEPLOY_SHA\`"; echo "- API/Worker: \`$API_IMAGE\`"; echo "- Migration: \`$MIGRATION_IMAGE\`"; } >> "$GITHUB_STEP_SUMMARY"
+          out=$("$RUNNER_TEMP/host.sh" deploy "$API_IMAGE" "$MIGRATION_IMAGE" "$DEPLOY_SHA") && rc=0 || rc=$?
+          echo "$out"
+          { echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - name: Roll back to the previous application images (database unchanged)
+        if: inputs.action == 'rollback'
+        run: |
+          if [ -n "$ROLLBACK_TO" ]; then [[ "$ROLLBACK_TO" =~ ^[0-9a-f]{40}$ ]] || { echo "rollback_to must be 40-hex"; exit 1; }; fi
+          out=$("$RUNNER_TEMP/host.sh" rollback "" "" "$ROLLBACK_TO") && rc=0 || rc=$?
+          echo "$out"
+          { echo '### Rollback (application images only; migrations are never reversed)'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - name: Read the Sandbox release after the change
+        if: always() && inputs.action != 'status'
+        run: |
+          out=$("$RUNNER_TEMP/host.sh" status) || true
+          { echo "### Sandbox backend after ${ACTION}"; echo '```json'; grep '^STATUS ' <<< "$out" | cut -c8- | jq . || echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
