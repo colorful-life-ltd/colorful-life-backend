@@ -99,6 +99,45 @@ export async function retainUnresolved(refundId:number,code:string,review=false,
     return tx.refund.update({where:{id:refundId},data:{resolutionCode:code,...(review?{reviewRequired:true}:{}),...(evidence?{reviewEvidence:evidence}:review?{reviewEvidence:{issue:code}}:{})}});
   });
 }
+export const STRIPE_FAILED_AFTER_SUCCESS_AUDIT="REFUND_FAILED_AFTER_SUCCESS";
+export const stripeFailedAfterSuccessKey=(refundId:number)=>`refund-failed-after-success:${refundId}`;
+const jsonObject=(value:Prisma.JsonValue|null)=>value&&typeof value==="object"&&!Array.isArray(value)?value:{};
+/**
+ * Stripe documents refunds that report `succeeded` and later fail. Stage 1 (signed `refund.failed` webhook)
+ * only records TERMINAL_EVIDENCE_CONFLICT. Stage 2 (this, from an explicit provider GET that already passed
+ * identity, amount, currency and parent validation) corrects the accounting exactly once: the unique audit
+ * key and the Order -> Payment -> Refund locks make duplicates and concurrent reconciliations no-ops.
+ * Review stays required, so dispatch and new refunds remain blocked until an operator resolves it, and the
+ * order's status, cancellation and stock are never changed.
+ */
+async function applyStripeFailureAfterSuccess(tx:Prisma.TransactionClient,refund:Refund,payment:{id:number;refundedAmount:Decimal},evidence:RefundObservation){
+  const stage1=jsonObject(refund.reviewEvidence);
+  if(!refund.reviewRequired||refund.resolutionCode!=="TERMINAL_EVIDENCE_CONFLICT"||stage1.source!=="WEBHOOK"||stage1.status!=="FAILED"
+    ||stage1.reference!==refund.providerReference) // No verified stage-1 webhook conflict: flag exactly as before, move no money.
+    return tx.refund.update({where:{id:refund.id},data:{reviewRequired:true,resolutionCode:"TERMINAL_EVIDENCE_CONFLICT",reviewEvidence:{...evidence}}});
+  if(new Decimal(payment.refundedAmount).lt(refund.amount))
+    return tx.refund.update({where:{id:refund.id},data:{reviewRequired:true,resolutionCode:"REFUND_ADJUSTMENT_INVARIANT",reviewEvidence:{issue:"REFUND_ADJUSTMENT_INVARIANT",observed:{...evidence}}}});
+  const order=await tx.order.findUniqueOrThrow({where:{id:refund.orderId},select:{status:true,dispatchedAt:true,cancelledAt:true}});
+  const cancellation=await tx.$queryRaw<Array<{id:bigint}>>`SELECT id FROM "OperationalAudit" WHERE "orderId"=${refund.orderId} AND kind='PAID_ORDER_CANCELLED' LIMIT 1`;
+  const restocks=await tx.inventoryMovement.findMany({where:{type:"ORDER_CANCELLATION_RETURN",note:{startsWith:`Fully refunded order ${refund.orderId}:`}},select:{id:true,listingId:true,quantityChange:true}});
+  const closed=cancellation.length>0||restocks.length>0||order.status==="CANCELLED"||order.status==="RETURNED";
+  const code=closed?"REFUND_FAILED_AFTER_CANCELLATION":"REFUND_FAILED_AFTER_SUCCESS";
+  const revision=refund.reviewRevision+1; // refund_review_revision bumps it when the review evidence changes below
+  const inserted=await tx.$queryRaw<Array<{id:bigint}>>`INSERT INTO "OperationalAudit" (kind,"orderId","refundId",revision,"requestKey",details)
+    VALUES (${STRIPE_FAILED_AFTER_SUCCESS_AUDIT},${refund.orderId},${refund.id},${revision},${stripeFailedAfterSuccessKey(refund.id)},${JSON.stringify({
+      amount:refund.amount.toFixed(2),currency:refund.currency,priorOutcome:refund.providerOutcome,stage1,observed:evidence,
+      order:{status:order.status,dispatched:!!order.dispatchedAt,cancelled:!!order.cancelledAt},paidOrderCancelled:cancellation.length>0,
+      cancellationRestocks:restocks.map(m=>({id:m.id,listingId:m.listingId,quantityChange:m.quantityChange}))})}::jsonb)
+    ON CONFLICT ("requestKey") DO NOTHING RETURNING id`;
+  if(!inserted.length)return refund; // Already adjusted.
+  const adjusted=await tx.payment.updateMany({where:{id:payment.id,refundedAmount:{gte:refund.amount}},data:{refundedAmount:{decrement:refund.amount}}});
+  if(adjusted.count!==1)throw new Error("Refund adjustment invariant changed under lock");
+  // providerOutcome keeps the first terminal observation (immutable); the confirmed failure lives in the audit.
+  const updated=await tx.refund.update({where:{id:refund.id},data:{status:"FAILED",reviewRequired:true,resolutionCode:code,
+    reviewEvidence:{issue:code,status:"FAILED",reference:refund.providerReference,source:"GET"}}});
+  if(updated.reviewRevision!==revision)throw new Error("Refund review revision changed under lock");
+  return updated;
+}
 /** All synchronous, webhook and GET observations use the same Order -> Payment -> Refund lock boundary. */
 export async function applyRefundObservationInTransaction(tx:Prisma.TransactionClient,refundId:number,observation:RefundObservation){
   const {refund,payment}=await lockRefund(tx,refundId);
@@ -114,8 +153,12 @@ export async function applyRefundObservationInTransaction(tx:Prisma.TransactionC
         && (refund.providerReference.startsWith("pending:") || refund.providerReference===observation.reference));
   if(!valid)return tx.refund.update({where:{id:refund.id},data:{reviewRequired:true,resolutionCode:"PROVIDER_EVIDENCE_MISMATCH",reviewEvidence:evidence}});
   if(refund.status!=="PROCESSING"){
-    if(observation.status!=="PENDING" && observation.status!=="UNKNOWN" && observation.status!==refund.status)
+    if(observation.status!=="PENDING" && observation.status!=="UNKNOWN" && observation.status!==refund.status){
+      // Stage 2 of a Stripe refund failing after success: only an explicit provider read moves money.
+      if(refund.provider==="STRIPE" && refund.status==="SUCCEEDED" && observation.status==="FAILED" && observation.source==="GET")
+        return applyStripeFailureAfterSuccess(tx,refund,payment,evidence);
       return tx.refund.update({where:{id:refund.id},data:{reviewRequired:true,resolutionCode:"TERMINAL_EVIDENCE_CONFLICT",reviewEvidence:evidence}});
+    }
     return refund;
   }
   const reference=observation.reference ?? refund.providerReference;
