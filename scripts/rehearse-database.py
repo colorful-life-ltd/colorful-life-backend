@@ -41,11 +41,14 @@ try:
  if args.fba_upgrade:
   # Exercise the complete prior history in an owned directory; never hide/move source migrations.
   migrations=sorted((root/'prisma/migrations').glob('*/migration.sql'))
-  if len(migrations)!=73 or migrations[-1].parent.name!='20261027120000_fba_shipment_builder':
+  names=[m.parent.name for m in migrations];fba='20261027120000_fba_shipment_builder'
+  # Baseline = history before the FBA migration; the upgrade = FBA plus these reviewed later migrations.
+  reviewed_after_fba=['20261028120000_stripe_refund_failure_after_success']
+  if len(migrations)!=74 or fba not in names or names[names.index(fba)+1:]!=reviewed_after_fba:
    raise RuntimeError('Review the baseline upgrade rehearsal when migration history changes')
   baseline=owned/'baseline-migrations';baseline.mkdir()
   shutil.copy2(root/'prisma/migrations/migration_lock.toml',baseline/'migration_lock.toml')
-  for migration in migrations[:-1]:
+  for migration in migrations[:names.index(fba)]:
    target=baseline/migration.parent.name;target.mkdir();shutil.copy2(migration,target/'migration.sql')
   config=owned/'baseline.config.ts'
   config.write_text('export default '+json.dumps({'schema':str(root/'prisma/schema.prisma'),'migrations':{'path':str(baseline)}})[:-1]+', datasource: {url: process.env.DATABASE_URL}};\n')
