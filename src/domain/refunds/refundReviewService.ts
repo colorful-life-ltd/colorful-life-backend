@@ -1,7 +1,7 @@
 import { Decimal } from "@prisma/client/runtime/client";
 import { createHash } from 'node:crypto';
 import { prisma } from '../../prisma/runtime.js';
-import { lockRefund, RefundIntentError, validClientRequestKey } from './refundLifecycleService.js';
+import { lockRefund, RefundIntentError, STRIPE_FAILED_AFTER_SUCCESS_AUDIT, stripeFailedAfterSuccessKey, validClientRequestKey } from './refundLifecycleService.js';
 export async function resolveRefundReview(actorId: number, orderId: number, refundId: number, input: {
     expectedRevision: number;
     reason: string;
@@ -36,6 +36,20 @@ export async function resolveRefundReview(actorId: number, orderId: number, refu
             throw new RefundIntentError('REVIEW_VERSION_CONFLICT');
         if (!refund.reviewRequired)
             throw new RefundIntentError('REFUND_REVIEW_NOT_OPEN');
+        if (refund.provider === 'STRIPE' && refund.status === 'FAILED'
+            && (refund.resolutionCode === 'REFUND_FAILED_AFTER_SUCCESS' || refund.resolutionCode === 'REFUND_FAILED_AFTER_CANCELLATION')) {
+            // The audited Stripe failure-after-success adjustment is the corroborated outcome that explains the
+            // earlier SUCCEEDED evidence. Accept it only at the adjustment's own review revision; any later
+            // evidence reopens review under a new revision. Resolution never changes the order or stock.
+            const [adjustment] = await tx.$queryRaw<Array<{ id: bigint; revision: number | null }>> `SELECT id,revision FROM "OperationalAudit"
+      WHERE "requestKey"=${stripeFailedAfterSuccessKey(refundId)} AND "refundId"=${refundId} AND kind=${STRIPE_FAILED_AFTER_SUCCESS_AUDIT}`;
+            if (!adjustment || adjustment.revision !== state.reviewRevision)
+                throw new RefundIntentError('REFUND_FINANCIAL_RECONCILIATION_REQUIRED');
+            const [audit] = await tx.$queryRaw<Array<{ id: bigint }>> `INSERT INTO "OperationalAudit" (kind,"actorId","orderId","refundId",revision,"requestKey","requestHash",details)
+      VALUES ('REFUND_REVIEW_RESOLVED',${actorId},${orderId},${refundId},${state.reviewRevision},${requestKey},${hash},${JSON.stringify({ ...input, priorReviewEvidence: refund.reviewEvidence, providerOutcome: refund.providerOutcome, adjustmentId: String(adjustment.id) })}::jsonb) RETURNING id`;
+            await tx.refund.update({ where: { id: refundId }, data: { reviewRequired: false } });
+            return { auditId: String(audit.id), replayed: false };
+        }
         // Financial discrepancies cannot be acknowledged away. Only a terminal,
         // corroborated outcome with no opposite valid terminal proof may be explained.
         if (refund.status === 'PROCESSING' || !refund.providerOutcome)
