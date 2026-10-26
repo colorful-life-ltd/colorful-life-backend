@@ -59,6 +59,25 @@ it('first-admin bootstrap serializes contenders, requires verification and revok
         assert.ok(admin.credentialVersion);
         assert.equal(await db.refreshSession.count({ where: { userId: admin.id, revokedAt: null } }), 0);
         assert.equal(await db.operationalAudit.count({ where: { kind: 'FIRST_ADMIN_BOOTSTRAP' } }), 1);
+        const { demoteAdmin } = await import('../domain/auth/adminBootstrap.js');
+        // Temporary access ends with rotated credentials, revoked sessions and an immutable audit record.
+        const promotedVersion = admin.credentialVersion;
+        await db.refreshSession.create({ data: { userId: admin.id, refreshTokenHash: randomUUID(), expiresAt: new Date(Date.now() + 3600000) } });
+        await assert.rejects(demoteAdmin(admin.id, 'short', 'synthetic-operator', db));
+        await assert.rejects(demoteAdmin(admin.id, 'Sandbox refund testing complete', 'op', db));
+        const demotions = await Promise.allSettled([demoteAdmin(admin.id, 'Sandbox refund testing complete', 'synthetic-operator', db), demoteAdmin(admin.id, 'Sandbox refund testing complete', 'synthetic-operator', db)]);
+        assert.equal(demotions.filter(v => v.status === 'fulfilled').length, 1);
+        const demoted = await db.user.findUniqueOrThrow({ where: { id: admin.id } });
+        assert.equal(demoted.role, 'CUSTOMER');
+        assert.ok(demoted.credentialVersion && demoted.credentialVersion !== promotedVersion);
+        assert.equal(await db.refreshSession.count({ where: { userId: admin.id, revokedAt: null } }), 0);
+        assert.equal(await db.operationalAudit.count({ where: { kind: 'ADMIN_DEMOTED', actorId: admin.id } }), 1);
+        const other = results[0].status === 'fulfilled' ? b : a;
+        await assert.rejects(demoteAdmin(other.id, 'Sandbox refund testing complete', 'synthetic-operator', db));
+        await assert.rejects(db.$executeRaw`DELETE FROM "OperationalAudit" WHERE kind='ADMIN_DEMOTED'`);
+        // With no active administrator left, a later approved bootstrap is possible again.
+        await bootstrapFirstAdmin(admin.id, 'Approved first administrator', 'synthetic-operator', db);
+        assert.equal((await db.user.findUniqueOrThrow({ where: { id: admin.id } })).role, 'ADMIN');
     }
     finally {
         await db?.$disconnect();

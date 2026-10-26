@@ -1,4 +1,5 @@
 import {providerFinancialHold} from "../payments/providerFinancialGuard.js";
+import { hasFormalStripeDispute } from "../payments/stripeDisputeService.js";
 import { journalRefundEvidence } from "./refundEvidenceService.js";
 import { randomUUID } from "node:crypto";
 import { Decimal } from "@prisma/client/runtime/client";
@@ -64,6 +65,8 @@ export async function prepareExternalRefund(input:{orderId:number;paymentId:numb
     if(payment.status!=="SUCCEEDED")throw new RefundPaymentNotRefundableError(payment.id);
     const parent=input.provider==="STRIPE"?payment.providerReference:payment.providerCaptureReference;
     if(payment.provider!==input.provider || !parent || parent.startsWith("pending:"))throw new RefundIntentError("PROVIDER_PAYMENT_UNAVAILABLE");
+    // Stripe would refuse; refuse first so no capacity is reserved for a refund that cannot execute.
+    if(input.provider==="STRIPE" && await hasFormalStripeDispute(tx,parent))throw new RefundIntentError("PAYMENT_DISPUTED");
     await assertNoUnresolvedRefund(tx,payment.id);
     await reserveRefundCapacity(payment.id,amount,tx);
     const key=randomUUID(); // Also fits PayPal's conservative UUID request-id guidance.

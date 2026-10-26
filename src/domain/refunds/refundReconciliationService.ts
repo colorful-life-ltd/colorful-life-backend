@@ -2,8 +2,9 @@ import {refundConflictEvidence} from "./refundEvidenceService.js";
 import { Decimal } from "@prisma/client/runtime/client";
 import { config } from "../../config/index.js";
 import { prisma } from "../../prisma/runtime.js";
-import { applyRefundObservationInTransaction, type RefundObservation, lockRefund, RefundIntentError, refundWithContext, retainUnresolved } from "./refundLifecycleService.js";
-import { stripeRefundClient, stripeRefundObservation, stripeRefundMetadataMatches } from "./stripeRefundService.js";
+import type { Refund } from "../../generated/prisma-client/client.js";
+import { applyRefundObservation, applyRefundObservationInTransaction, type RefundObservation, lockRefund, RefundIntentError, refundWithContext, retainUnresolved } from "./refundLifecycleService.js";
+import { STRIPE_REFUND_REJECTIONS, stripeLookupMatchValid, stripeRefundClient, stripeRefundObservation, stripeRefundMetadataMatches, stripeRefundsForLocalRefund } from "./stripeRefundService.js";
 import { paypalRefundClient, paypalRefundObservation, paypalRefundParent } from "./paypalRefundService.js";
 
 async function boundedRead<T>(work:()=>Promise<T>):Promise<T>{
@@ -17,15 +18,22 @@ export async function reconcileExternalRefund(orderId:number,refundId:number){
   const claim=await prisma.$transaction(async tx=>{
     const {refund,payment}=await lockRefund(tx,refundId);
     if(refund.orderId!==orderId)throw new RefundIntentError("REFUND_NOT_FOUND",404);
-    if(refund.provider==="MANUAL"||(refund.status!=="PROCESSING"&&!refund.reviewRequired))return {refund,reference:null,payment};
+    if(refund.provider==="MANUAL"||(refund.status!=="PROCESSING"&&!refund.reviewRequired))return {refund,reference:null,lookup:false,payment};
     const candidate=refund.reviewEvidence&&typeof refund.reviewEvidence==="object"&&!Array.isArray(refund.reviewEvidence)?refund.reviewEvidence.reference:undefined;
     const reference=!refund.providerReference.startsWith("pending:")?refund.providerReference:typeof candidate==="string"?candidate:undefined;
-    if(!reference||!reference.length||reference.length>256||refund.reconciliationAttempts>=8){
+    // A Stripe intent whose provider id was never observed is located by its own metadata instead.
+    const lookup=!reference&&refund.provider==="STRIPE"&&refund.status==="PROCESSING"&&!refund.reviewRequired
+      &&refund.providerReference.startsWith("pending:")&&!!refund.providerPaymentReference;
+    if(!lookup&&(!reference||!reference.length||reference.length>256)||refund.reconciliationAttempts>=8){
       const updated=await tx.refund.update({where:{id:refundId},data:{reviewRequired:true,resolutionCode:refund.reconciliationAttempts>=8?"RECONCILIATION_EXHAUSTED":"MANUAL_REVIEW_REQUIRED"}});
-      return {refund:updated,reference:null,payment};
+      return {refund:updated,reference:null,lookup:false,payment};
     }
     const updated=await tx.refund.update({where:{id:refundId},data:{reconciliationAttempts:{increment:1}}});
-    return {refund:updated,reference,payment};
+    return {refund:updated,reference:reference??null,lookup,payment};
+  });
+  if(claim.lookup)return refundWithContext(refundId,async()=>{
+    try{return await boundedRead(()=>reconcileStripeByLookup(claim.refund));}
+    catch{return retainUnresolved(refundId,'RECONCILIATION_UNAVAILABLE');}
   });
   if(!claim.reference)return claim.refund;
   return refundWithContext(refundId,async()=>{
@@ -51,6 +59,20 @@ export async function reconcileExternalRefund(orderId:number,refundId:number){
       });
     }catch{return retainUnresolved(refundId,'RECONCILIATION_UNAVAILABLE');}
   });
+}
+
+/** Never fails an intent on absence alone: only a recorded definitive refusal plus a complete, empty lookup does. */
+async function reconcileStripeByLookup(refund:Refund){
+  const parent=refund.providerPaymentReference!;
+  const lookup=await stripeRefundsForLocalRefund(stripeRefundClient(),parent,refund.id);
+  if(!lookup.complete)return retainUnresolved(refund.id,'RECONCILIATION_UNAVAILABLE');
+  if(lookup.matches.length>1||lookup.matches.length===1&&!stripeLookupMatchValid(lookup.matches[0],refund.id,refund.orderId,parent))
+    return retainUnresolved(refund.id,'PROVIDER_EVIDENCE_MISMATCH',true,refundConflictEvidence('PROVIDER_EVIDENCE_MISMATCH','GET',{observedMatches:lookup.matches.length}));
+  if(lookup.matches.length===1)return corroborate(refund.id,{...stripeRefundObservation(lookup.matches[0]),source:"GET"},refund.reviewRevision);
+  const recorded=refund.reviewEvidence&&typeof refund.reviewEvidence==="object"&&!Array.isArray(refund.reviewEvidence)?refund.reviewEvidence:{};
+  if(recorded.issue==="PROVIDER_REJECTION_UNCORROBORATED"&&typeof recorded.rejectionCode==="string"&&STRIPE_REFUND_REJECTIONS.includes(recorded.rejectionCode))
+    return applyRefundObservation(refund.id,{provider:"STRIPE",parentReference:parent,amount:refund.amount.toString(),currency:refund.currency,status:"FAILED",rejectionCode:recorded.rejectionCode,source:"GET"});
+  return retainUnresolved(refund.id,'PROVIDER_REFUND_NOT_FOUND');
 }
 
 async function corroborate(refundId:number, observation:RefundObservation, claimedRevision:number){
