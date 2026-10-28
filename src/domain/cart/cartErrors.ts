@@ -1,3 +1,7 @@
+export class CartAccountUnavailableError extends Error {
+  constructor() { super("Account unavailable"); this.name = "CartAccountUnavailableError"; }
+}
+
 export class CartItemNotFoundError extends Error {
   constructor() { super("Cart item not found"); this.name = "CartItemNotFoundError"; }
 }
