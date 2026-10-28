@@ -5,7 +5,7 @@ const mode=process.argv[2];
 if(!['initialize','grant'].includes(mode))throw Error('Explicit identity operation required');
 const client=new pg.Client(databasePoolOptions(databaseUrl(process.env),process.env));
 const appendOnly=new Set(['OperationalAudit','FbaOutbound','FbaShipment','InventoryMovement','InventoryAudit','FinancialEvidence','ReservationReleaseProof','OrderFulfilmentEvent','ShipmentTrackingEvent','ShipmentTrackingConflict','ShipmentCarrierEvidence','CommercialInvoice']);
-const deleteAllowed=new Set(['Address','CartItem','EmailVerificationToken','PasswordResetToken','PasswordRecoveryLimit','ProductImage','AbuseBucket','PaymentChallengeUse']);
+const deleteAllowed=new Set(['Address','CartItem','RefreshSession','EmailVerificationToken','PasswordResetToken','PasswordRecoveryLimit','ProductImage','AbuseBucket','PaymentChallengeUse']);
 try {
  await client.connect();await client.query('BEGIN');
  await client.query("SET LOCAL lock_timeout='5s'");await client.query("SET LOCAL statement_timeout='60s'");

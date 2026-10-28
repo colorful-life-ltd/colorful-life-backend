@@ -1,6 +1,7 @@
 import { prisma } from '../../prisma/runtime.js';
 import type { Prisma } from '../../generated/prisma-client/client.js';
 import type { Provider } from './paymentAbuse.js';
+import { pruneExpiredAuthentication } from '../auth/authenticationMaintenance.js';
 
 /** Definitive refusals. Nothing was written, so callers may map these to 4xx. */
 export class PaymentSecurityOperationError extends Error {
@@ -47,6 +48,7 @@ export async function pruneSecurityState() {
       (SELECT "key" FROM "AbuseBucket" WHERE "expiresAt" < clock_timestamp() ORDER BY "expiresAt" LIMIT 1000 FOR UPDATE SKIP LOCKED)`;
     const challenges = await tx.$executeRaw`DELETE FROM "PaymentChallengeUse" WHERE "digest" IN
       (SELECT "digest" FROM "PaymentChallengeUse" WHERE "expiresAt" < clock_timestamp() ORDER BY "expiresAt" LIMIT 1000 FOR UPDATE SKIP LOCKED)`;
-    return { buckets, challenges };
+    const authentication = await pruneExpiredAuthentication(tx);
+    return { buckets, challenges, ...authentication };
   });
 }
