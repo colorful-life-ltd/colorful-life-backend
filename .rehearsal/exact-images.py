@@ -8,7 +8,8 @@ ROOT=Path(os.environ['GITHUB_WORKSPACE']); WORK=Path(os.environ['RUNNER_TEMP'])/
 OUT=ROOT/'evidence';OUT.mkdir(exist_ok=True)
 CANDIDATE='dfebb5f0cb2fc128d68c2abb1d5ae040b43640e6';OLD='7363c1638ead2a10125065b71f98ef9be717385a';INFRA='b8e27080f3725d43d0d194f0e499f3ee5e829832'
 BLOBS=json.loads(gzip.decompress(base64.b64decode(os.environ.pop('RETURN_REHEARSAL_BLOB_LINKS'))));REG='localhost:5000';PROJECT='returns-exact-fixture';NET='returns-exact-isolated'
-# All subprocesses receive no AWS credentials or object URLs.
+INFRA_BLOB=os.environ.pop('RETURN_REHEARSAL_INFRA_SOURCE')
+# All subprocesses receive no AWS credentials, object URLs or private source payload.
 for key in list(os.environ):
  if key.startswith('AWS_') and key!='AWS_EC2_METADATA_DISABLED':os.environ.pop(key)
 os.environ['AWS_EC2_METADATA_DISABLED']='true'
@@ -69,8 +70,8 @@ old_api,old_migration=old_refs;del raw_blobs;del BLOBS
 old_info=image_meta(old_api,OLD);old_migration_info=image_meta(old_migration,OLD)
 assert old_info['contentDigest']=='sha256:58545e4fbd43f0d804c13a7532b2aa5fe1d23949a712684033d2518614a4d973'
 phase('Build exact reviewed candidate; no registry credentials, no deployment')
-assert run(['git','-C',str(ROOT/'candidate'),'rev-parse','HEAD'])==CANDIDATE
-infra_source=gzip.decompress(base64.b64decode(os.environ.pop('RETURN_REHEARSAL_INFRA_SOURCE')))
+assert run(['git','-c','safe.directory='+str(ROOT/'candidate'),'-C',str(ROOT/'candidate'),'rev-parse','HEAD'])==CANDIDATE
+infra_source=gzip.decompress(base64.b64decode(INFRA_BLOB))
 assert hashlib.sha256(infra_source).hexdigest()=='a2f208b65e59d657eb386b840a4101ec0c80c41b9bc2f60595026c269ac0d487'
 infra_path=WORK/'reviewed-deployer.py';infra_path.write_bytes(infra_source);infra_path.chmod(0o600)
 new_refs=[]
