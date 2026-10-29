@@ -11,7 +11,7 @@ This branch is not a release authorisation. No serving database, payment provide
 
 One `ReturnCase` with a UNIQUE `orderId` owns the permanent `BB-R-{orderId}` reference. Each `ReturnSubmission` has its own immutable idempotency key/hash and request date. Existing `OrderReturn` rows remain the individual lines, with independent reasons, quantities and lifecycle timestamps. Customer submission does not choose or assign a postage payer; it remains null until an administrator decides.
 
-The existing Order → OrderItem → OrderReturn lock order, exact inventory-deduction evidence, reservation counters, conditional transitions, inspection restrictions and completion/restocking ledger are reused. A multi-line submission is atomic. Concurrent requests cannot reserve more than the purchased quantity less completed/outstanding returns. Reusing a submission key with different content fails. Identical action retries are safe; completion restocks once. Legacy admin action URLs retain their existing line response and duplicate-transition contracts while using the audited workflow.
+The existing Order → OrderItem → OrderReturn lock order, exact inventory-deduction evidence, reservation counters, conditional transitions, inspection restrictions and completion/restocking ledger are reused. A multi-line submission is atomic. Concurrent requests cannot reserve more than the purchased quantity less completed/outstanding returns. Reusing a submission key with different content fails. Identical action retries are safe; completion restocks once. Legacy admin action URLs retain their existing line response and duplicate-transition semantics, but authorisation, receipt and cancellation now require the validated instruction/receipt/note payloads documented below. The old empty request bodies are not compatible. Admin retires the manual-ID return controls and uses the dedicated workspace.
 
 Only REQUESTED lines can be rejected. REQUESTED or AUTHORIZED lines may be withdrawn before physical receipt; the UI warns customers not to withdraw posted goods. Cancellation/rejection releases the reserved quantity once. RECEIVED/INSPECTED/COMPLETED lines cannot be cancelled. Receipt records its actual date, authenticated operator and note, without changing stock, inspecting goods, completing a return or calling Stripe/PayPal. Existing inspection and completion are separate.
 
@@ -43,6 +43,33 @@ Authorisation and the unique `return:{lineId}` RETURN_AUTHORIZATION outbox job c
 ## Migration and controlled release prerequisites
 
 `20261029150000_return_management_v1` adds two tables, nullable metadata/link columns on OrderReturn, indexes/FKs and immutable case/submission identity guards. It groups every historical return under its original order; each historical line becomes a separate submission because original multi-line submission boundaries are unknown. It preserves all old states, dates, reasons, quantities and inventory counters. Existing authorised legacy lines do not acquire invented historical instructions or automatic emails. It extends the existing outbox event-identity constraint for return authorisations. No refund/payment table or existing migration is modified.
+
+**Mandatory pre-release historical-data gate:** run the following read-only count through the existing secured private database connection before migration/image replacement. It must be **zero**. Non-terminal historical lines that fail the new paid/dispatch rule cannot be silently admitted, inspected, completed or have their counters cleared under V1. If the count is nonzero, **STOP the release and preserve the existing backend**; obtain a separately reviewed historical-case resolution from the owner. Do not deploy first and strand a RECEIVED/INSPECTED line, delete it, clear its reservation, or bypass the approved admission policy.
+
+```sql
+SELECT count(*) AS blocked_legacy_lines
+FROM "OrderReturn" r
+JOIN "OrderItem" i ON i.id = r."orderItemId"
+JOIN "Order" o ON o.id = i."orderId"
+WHERE r.status IN ('REQUESTED','AUTHORIZED','RECEIVED','INSPECTED')
+AND NOT (
+  o.status IN ('DISPATCHED','COMPLETED','RETURNED')
+  AND o."dispatchedAt" IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM "Payment" p
+    WHERE p."orderId" = o.id AND p.status = 'SUCCEEDED'
+      AND p."paidAt" IS NOT NULL AND p.currency = 'GBP'
+      AND p.amount = o."totalAmount"
+      AND (p.provider <> 'PAYPAL' OR (
+        NULLIF(btrim(p."providerCaptureReference"),'') IS NOT NULL
+        AND p."providerReference" IS NOT NULL AND p."providerReference" <> ''
+        AND p."providerReference" NOT LIKE 'pending:%'
+      ))
+  )
+);
+```
+
+This count has **not** been run against the serving database during implementation. The populated-upgrade fixture intentionally includes historical invalid admission evidence to prove migration preservation, not to authorise releasing those cases. Its existence is a reason to enforce this pre-release gate, not to weaken admission or invent a remediation policy.
 
 Before a separately authorised release: inspect historical counts and orphan/mismatched links, rehearse the populated upgrade, apply the migration through the existing migration procedure, apply the reviewed grant contract and run runtime probes. ReturnCase/ReturnSubmission allow only runtime SELECT/INSERT; runtime cannot delete the original Order. Their identity remains permanent for that order. Parent-order cascades exist for privileged database lifecycle/disposable-test cleanup, not customer account deletion (which preserves orders).
 
