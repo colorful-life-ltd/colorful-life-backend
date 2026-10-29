@@ -156,6 +156,11 @@ networks:
 (WORK/'compose.restricted.yml').write_text(compose)
 class FixtureHost(d.Host):
  def __init__(self):super().__init__(WORK);self.identities_path=identities;self.fail_next=False
+ def http_ok(self,path):
+  # The internal fixture network deliberately blocks published host ports.
+  # Probe real HTTP inside the isolated API container instead of relaxing egress.
+  result=subprocess.run(['docker','exec',PROJECT+'-api-1','node','--input-type=module','-e',"const r=await fetch('http://127.0.0.1:3000"+path+"');process.exit(r.ok?0:1)"],capture_output=True,text=True)
+  return result.returncode==0
  def compose_files(self):return ['compose.restricted.yml']
  def pull(self,refs):
   for ref in refs:assert ref.startswith(REG+'/');run(['docker','pull',ref])
@@ -237,6 +242,6 @@ run(['docker','rm','-f',PROJECT+'-api-1']);deploy.rollback();ready(old_api)
 after=json.loads(node(new_api,snapshot_code,role='migrator'));assert after==before
 check('manual rollback with missing API preserves DB')
 (OUT/'synthetic-integrity-after.json').write_text(json.dumps(after,indent=2))
-result={'result':'PASS','identities':identity,'checks':checks,'migrationCount':74,'runtimeDenialProbes':16,'databaseSnapshotBeforeRollbackSha256':hashlib.sha256(json.dumps(before,sort_keys=True).encode()).hexdigest(),'databaseSnapshotAfterRollbackSha256':hashlib.sha256(json.dumps(after,sort_keys=True).encode()).hexdigest(),'isolation':'GitHub hosted runner; internal Docker network; synthetic database only; no AWS credentials, serving host/database access, real emails or provider operations','testAdaptations':'Fixture project/local registry refs and CI preflight replace production host guards; API observation5s instead of300s; actual migration/history/approval/context/restore code used unchanged','releaseOwnerApproval':False}
+result={'result':'PASS','identities':identity,'checks':checks,'migrationCount':74,'runtimeDenialProbes':16,'databaseSnapshotBeforeRollbackSha256':hashlib.sha256(json.dumps(before,sort_keys=True).encode()).hexdigest(),'databaseSnapshotAfterRollbackSha256':hashlib.sha256(json.dumps(after,sort_keys=True).encode()).hexdigest(),'isolation':'GitHub hosted runner; internal Docker network; synthetic database only; no AWS credentials, serving host/database access, real emails or provider operations','testAdaptations':'Fixture project/local registry refs and CI preflight replace production host guards; HTTP probes stay inside internal network; API observation5s instead of300s; actual migration/history/approval/context/restore code used unchanged','releaseOwnerApproval':False}
 (OUT/'exact-image-rehearsal.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result),flush=True)
 phase('ALL EXACT-IMAGE CHECKS PASSED; no serving resources changed')
