@@ -75,7 +75,7 @@ export async function checkSesReadiness(fromEmail: string, injected?: SesReadine
 export const sesConfirmationTransport: ConfirmationTransport = {
   kind: 'ses',
   async send(message) {
-    if (!(config.ORDER_CONFIRMATION_EMAIL_ENABLED || config.DISPATCH_CONFIRMATION_EMAIL_ENABLED) || testEmailMode()) throw new DeliveryRejected(false, 'PROVIDER_REJECTED');
+    if (!(config.ORDER_CONFIRMATION_EMAIL_ENABLED || config.DISPATCH_CONFIRMATION_EMAIL_ENABLED || config.RETURN_AUTHORIZATION_EMAIL_ENABLED) || testEmailMode()) throw new DeliveryRejected(false, 'PROVIDER_REJECTED');
     const client = new SESClient({ region: config.AWS_REGION, maxAttempts: 1 });
     try {
       const result = await client.send(new SendRawEmailCommand({ RawMessage: { Data: message } }), { abortSignal: AbortSignal.timeout(10_000) });

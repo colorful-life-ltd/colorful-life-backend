@@ -403,6 +403,39 @@ describe("Return management V1", () => {
       "REJECTED",
     );
   });
+  it("enables only new return notifications without claiming historical confirmation or dispatch jobs", async () => {
+    const { businessFixture } = await import('./fixtures/orderConfirmation.fixture.js');
+    const o = await fixture();
+    const c = await submitReturns(o.id, customer.id, input(o.orderItems[0].id));
+    const line = c.submissions[0].lines[0];
+    await returnAction(o.id, line.id, admin.id, 'authorize', authorization);
+    const job = await prisma.orderConfirmationJob.findUniqueOrThrow({ where: { eventKey: `return:${line.id}` } });
+    const before = await prisma.orderConfirmationJob.findMany({ where: { type: { in: ['ORDER_CONFIRMATION','DISPATCH_CONFIRMATION'] } }, orderBy: { id:'asc' } });
+    assert.ok(before.length, 'fixture must include unrelated durable jobs');
+    const saved = { nodeEnv: process.env.NODE_ENV, order: config.ORDER_CONFIRMATION_EMAIL_ENABLED,
+      dispatch: config.DISPATCH_CONFIRMATION_EMAIL_ENABLED, returns: config.RETURN_AUTHORIZATION_EMAIL_ENABLED,
+      cutoff: config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM, business: config.ORDER_CONFIRMATION_BUSINESS_JSON };
+    const capture = captureConfirmationTransport();
+    try {
+      process.env.NODE_ENV = 'development';
+      config.ORDER_CONFIRMATION_EMAIL_ENABLED = false;
+      config.DISPATCH_CONFIRMATION_EMAIL_ENABLED = false;
+      config.RETURN_AUTHORIZATION_EMAIL_ENABLED = true;
+      config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM = new Date(job.createdAt.getTime()-1000).toISOString();
+      config.ORDER_CONFIRMATION_BUSINESS_JSON = JSON.stringify(businessFixture);
+      // Injected in-memory transport exercises production channel filtering; never calls SES.
+      const result = await runConfirmationBatch({ transport: { kind:'ses', send:capture.transport.send }, jobId:job.id });
+      assert.equal(result.processed,1); assert.equal(capture.messages.length,1);
+      await runConfirmationBatch({ transport: { kind:'ses', send:capture.transport.send }, jobId:job.id });
+      assert.equal(capture.messages.length,1, 'sent return job is not replayed');
+      assert.deepEqual(await prisma.orderConfirmationJob.findMany({ where: { type: { in: ['ORDER_CONFIRMATION','DISPATCH_CONFIRMATION'] } }, orderBy: { id:'asc' } }), before);
+      assert.equal((await customerReturnCase(o.id,customer.id)).submissions[0].lines[0].status,'AUTHORIZED');
+    } finally {
+      process.env.NODE_ENV=saved.nodeEnv; config.ORDER_CONFIRMATION_EMAIL_ENABLED=saved.order;
+      config.DISPATCH_CONFIRMATION_EMAIL_ENABLED=saved.dispatch; config.RETURN_AUTHORIZATION_EMAIL_ENABLED=saved.returns;
+      config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM=saved.cutoff; config.ORDER_CONFIRMATION_BUSINESS_JSON=saved.business;
+    }
+  });
   it("uses the durable outbox and identical authorised account/email instructions", async () => {
     const o = await fixture(),
       c = await submitReturns(o.id, customer.id, input(o.orderItems[0].id));
