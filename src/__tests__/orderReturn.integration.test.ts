@@ -1,3 +1,4 @@
+import { dispatchOrder } from "../domain/orders/orderDispatchService.js";
 import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import assert from "node:assert";
@@ -101,6 +102,7 @@ async function createOrderFixture(customerId: number, quantity = 3) {
   });
   await recordVerifiedPayment(order.id);
   await confirmOrder(customerId, order.id);
+  await dispatchOrder(order.id,0,"Royal Mail","AB123456789GB",customerId);
   orderIdsForCleanup.push(order.id);
   return { listing, order, orderItem: order.orderItems[0] };
 }
@@ -126,11 +128,12 @@ async function authorizeReturn(
   returnId: number | string,
   token: string | undefined,
 ) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {"Content-Type":"application/json"};
   if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(`${url}/orders/${orderId}/returns/${returnId}/authorize`, {
     method: "POST",
     headers,
+    body: JSON.stringify({shippingPayer:"SELLER",postageInstructions:"Contact support to arrange prepaid return postage.",rightsReviewed:true}),
   });
 }
 
@@ -140,11 +143,12 @@ async function receiveReturn(
   returnId: number | string,
   token: string | undefined,
 ) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {"Content-Type":"application/json"};
   if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(`${url}/orders/${orderId}/returns/${returnId}/receive`, {
     method: "POST",
     headers,
+    body: JSON.stringify({receivedAt:new Date(Date.now()-1).toISOString(),note:"Received synthetic test parcel"}),
   });
 }
 
@@ -155,15 +159,15 @@ async function inspectReturn(url: string, orderId: number | string, returnId: nu
 }
 
 async function completeReturn(url: string, orderId: number | string, returnId: number | string, token: string | undefined) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {"Content-Type":"application/json"};
   if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(`${url}/orders/${orderId}/returns/${returnId}/complete`, { method: "POST", headers });
 }
 
 async function cancelReturn(url: string, orderId: number | string, returnId: number | string, token: string | undefined) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {"Content-Type":"application/json"};
   if (token) headers.Authorization = `Bearer ${token}`;
-  return fetch(`${url}/orders/${orderId}/returns/${returnId}/cancel`, { method: "POST", headers });
+  return fetch(`${url}/orders/${orderId}/returns/${returnId}/cancel`, { method: "POST", headers, body:JSON.stringify({note:"Synthetic cancellation"}) });
 }
 
 describe("Order Return HTTP Integration", () => {

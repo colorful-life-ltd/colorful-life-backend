@@ -1,3 +1,4 @@
+import { renderReturnAuthorization, returnAuthorizationSchema } from './returnAuthorization.js';
 import { testEmailMode } from '../../config/testEmail.js';
 import { SESClient, SendRawEmailCommand, GetSendQuotaCommand, GetIdentityVerificationAttributesCommand, GetAccountSendingEnabledCommand } from '@aws-sdk/client-ses';
 import nodemailer from 'nodemailer';
@@ -27,6 +28,7 @@ export async function composeDispatch(value: Dispatch, business: Business) {
   const b = businessSchema.parse(business), rendered = renderDispatch(value, b, { siteUrl: config.FRONTEND_URL, includeImages: emailImagesAvailable() });
   return composeEmail(value.recipientEmail, b, rendered, []);
 }
+export async function composeReturnAuthorization(value: unknown, business: Business) { const b=businessSchema.parse(business);return composeEmail(returnAuthorizationSchema.parse(value).recipientEmail,b,renderReturnAuthorization(value,b),[]); }
 /** Customer-facing sender name is the brand; address and Reply-To come from the approved bundle. */
 async function composeEmail(to: string, b: Business, rendered: { subject: string; text: string; html: string }, attachments: Array<{ filename: string; content: Buffer; contentType: string }>) {
   const composer = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'windows' });

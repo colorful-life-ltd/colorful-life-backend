@@ -1,3 +1,4 @@
+import { customerReturns, adminReturns, legacyReturnActions } from './routes/returns.js';
 import {logOperationalError} from "./utils/operationalLog.js";
 import refundReviews from "./routes/refundReviews.js";
 import adminOperatorIntents from "./routes/adminOperatorIntents.js";
@@ -60,6 +61,9 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/admin/payment-security", adminPaymentSecurity);
 app.use("/admin/orders", adminOrdersRouter);
   app.use("/admin/paypal/webhook-reviews", adminPayPalWebhookReviewsRouter);
+  app.use("/orders", customerReturns);
+  app.use("/orders", legacyReturnActions);
+  app.use("/admin/returns", adminReturns);
   app.use("/orders", ordersRouter);
   app.use("/cart", cartRouter);
   app.use("/business-expenses", businessExpensesRouter);

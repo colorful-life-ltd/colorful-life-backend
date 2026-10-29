@@ -1,3 +1,4 @@
+import { dispatchOrder } from "../domain/orders/orderDispatchService.js";
 import {historicalUnpaidConfirmedFixture} from "./fixtures/historicalUnpaidOrder.js";
 import assert from "node:assert/strict";
 import { after, afterEach, before, it } from "node:test";
@@ -19,18 +20,23 @@ const resolutionEnabled=config.PAYMENT_RESOLUTION_ENABLED;
 before(async()=>{server=app.listen(0);await new Promise<void>(r=>server.once("listening",r));base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;});
 afterEach(()=>{config.PAYMENT_RESOLUTION_ENABLED=resolutionEnabled;});
 after(async()=>{await new Promise<void>(r=>server.close(()=>r()));await prisma.$disconnect();});
-async function fixture(confirmed=true,paid=false,used=false){
+async function fixture(confirmed=true,paid=true,used=false){
  const user=await prisma.user.create({data:{email:`${randomUUID()}@return-safety.test`,passwordHash:"fixture",emailVerified:true,role:"ADMIN",addresses:{create:{recipientName:"Fixture",line1:"Fixture",city:"Fixture",postcode:"T1",countryCode:"GB",isDefaultBilling:true}}}});
  const product=await prisma.legoProduct.create({data:{setNumber:randomUUID(),title:"Return safety",theme:"TEST",ageRecommendation:"8+",pieceCount:1}});
  const listing=await prisma.productListing.create({data:{legoProductId:product.id,condition:used?"USED_LIKE_NEW":"NEW",originalPrice:10,currentStock:used?1:10,...(used?{usedLifecycle:"AVAILABLE",damageDescription:"Fixture wear",usedConditionPhotos:{create:{url:"https://example.test/fixture.jpg",publicId:randomUUID(),sortOrder:0}}}:{})}});
  const order=await createOrder(user.id,{ shippingMethod: "STANDARD" as const,items:[{productListingId:listing.id,quantity:used?1:3}]});
  if(paid)await prisma.payment.create({data:{orderId:order.id,provider:"MANUAL",providerReference:randomUUID(),status:"SUCCEEDED",paidAt:new Date(),amount:order.totalAmount,currency:"GBP"}});
  if(confirmed){if(paid)await confirmOrder(user.id,order.id);else await historicalUnpaidConfirmedFixture(order.id,user.id);}
+ if(confirmed&&paid)await dispatchOrder(order.id,0,"Royal Mail","AB123456789GB",user.id);
  return {user,listing,order,item:order.orderItems[0]};
 }
 type Fixture=Awaited<ReturnType<typeof fixture>>;
 function request(f:Fixture,quantity=1){return requestOrderReturn(f.order.id,f.item.id,quantity,"OTHER",undefined,"CUSTOMER",undefined,f.user.id);}
 async function inspected(f:Fixture,quantity=1,restock=quantity){const r=await request(f,quantity);await authorizeOrderReturn(f.order.id,r.id);await receiveOrderReturn(f.order.id,r.id);await inspectOrderReturn(f.order.id,r.id,"AS_NEW",restock,undefined,f.user.id);return r;}
+// Deliberately seed pre-existing legacy reservations, rather than admitting a new
+// unpaid/pre-dispatch return under the newly approved policy.
+async function legacyRequest(f:Fixture,quantity=1){return prisma.$transaction(async tx=>{await tx.orderItem.update({where:{id:f.item.id},data:{reservedReturnQuantity:{increment:quantity}}});return tx.orderReturn.create({data:{orderItemId:f.item.id,quantity,reason:'OTHER',shippingPayer:'CUSTOMER',performedByUserId:f.user.id}});});}
+async function legacyInspected(f:Fixture){const r=await legacyRequest(f);await authorizeOrderReturn(f.order.id,r.id);await receiveOrderReturn(f.order.id,r.id);await inspectOrderReturn(f.order.id,r.id,'AS_NEW',1,undefined,f.user.id);return r;}
 async function snapshot(f:Fixture){return {listing:await prisma.productListing.findUniqueOrThrow({where:{id:f.listing.id}}),item:await prisma.orderItem.findUniqueOrThrow({where:{id:f.item.id}}),movements:await prisma.inventoryMovement.findMany({where:{listingId:f.listing.id},orderBy:{id:"asc"}}),payment:await prisma.payment.findUnique({where:{orderId:f.order.id}})};}
 async function assertNoMutation(f:Fixture,work:()=>Promise<unknown>){const before=await snapshot(f);await assert.rejects(work,OrderReturnEligibilityError);assert.deepEqual(await snapshot(f),before);}
 function token(f:Fixture,role="ADMIN"){return jwt.sign({id:f.user.id,role},config.JWT_SECRET);}
@@ -48,7 +54,7 @@ for(const status of ["CANCELLED","EXPIRED"] as const)it(`${status} rejects admis
  const f=await fixture(),r=await inspected(f);await prisma.order.update({where:{id:f.order.id},data:{status}});
  await assertNoMutation(f,()=>request(f));await assertNoMutation(f,()=>completeOrderReturn(f.order.id,r.id,f.user.id));
 });
-for(const status of ["CONFIRMED","DISPATCHED","COMPLETED","RETURNED"] as const)it(`${status} with genuine paid sale allows physical return without payment mutation`,async()=>{
+for(const status of ["DISPATCHED","COMPLETED","RETURNED"] as const)it(`${status} with genuine paid sale allows physical return without payment mutation`,async()=>{
  const f=await fixture(true,true);await prisma.order.update({where:{id:f.order.id},data:{status}});const before=await snapshot(f),r=await inspected(f);
  await completeOrderReturn(f.order.id,r.id,f.user.id);const after=await snapshot(f);assert.equal(after.listing.currentStock,8);assert.equal(after.listing.reservedStock,0);
  assert.deepEqual(after.payment,before.payment);assert.equal(after.movements.filter(m=>m.type==="WEBSITE_SALE").length,1);assert.equal(after.movements.filter(m=>m.type==="ORDER_RETURN").length,1);
@@ -74,11 +80,11 @@ it("partial returns and concurrent completion never exceed deducted stock",async
 });
 for(const seller of [false,true]){
  const cancel=(f:Fixture)=>seller?cancelOrderByAdmin(f.order.id,"OUT_OF_STOCK",f.user.id):cancelOrder(f.user.id,f.order.id,"CHANGED_MIND");
- it(`${seller?"seller":"customer"} cancellation first prevents returns and double restoration`,async()=>{const f=await fixture();await cancel(f);const after=await snapshot(f);assert.equal(after.listing.currentStock,10);assert.equal(after.movements.filter(m=>m.type==="ORDER_CANCELLATION_RETURN").length,1);await assertNoMutation(f,()=>request(f));});
- it(`${seller?"seller":"customer"} cancellation conflicts with active and completed returns`,async()=>{const f=await fixture(),r=await inspected(f);await assert.rejects(cancel(f),OrderCancellationReturnConflictError);await completeOrderReturn(f.order.id,r.id,f.user.id);const before=await snapshot(f);await assert.rejects(cancel(f),OrderCancellationReturnConflictError);assert.deepEqual(await snapshot(f),before);});
+ it(`${seller?"seller":"customer"} cancellation first prevents returns and double restoration`,async()=>{const f=await fixture(true,false);await cancel(f);const after=await snapshot(f);assert.equal(after.listing.currentStock,10);assert.equal(after.movements.filter(m=>m.type==="ORDER_CANCELLATION_RETURN").length,1);await assertNoMutation(f,()=>request(f));});
+ it(`${seller?"seller":"customer"} cancellation conflicts with active and completed returns`,async()=>{const f=await fixture(true,false),r=await legacyInspected(f);await assert.rejects(cancel(f),OrderCancellationReturnConflictError);await completeOrderReturn(f.order.id,r.id,f.user.id);const before=await snapshot(f);await assert.rejects(cancel(f),OrderCancellationReturnConflictError);assert.deepEqual(await snapshot(f),before);});
 }
 it("cancelling a REQUESTED return frees quantity exactly once and permits ordinary cancellation",async()=>{
- const f=await fixture(),r=await request(f,3);await cancelOrderReturn(f.order.id,r.id);await assert.rejects(cancelOrderReturn(f.order.id,r.id));assert.equal((await snapshot(f)).item.reservedReturnQuantity,0);
+ const f=await fixture(true,false),r=await legacyRequest(f,3);await cancelOrderReturn(f.order.id,r.id);await assert.rejects(cancelOrderReturn(f.order.id,r.id));assert.equal((await snapshot(f)).item.reservedReturnQuantity,0);
  await cancelOrder(f.user.id,f.order.id,"CHANGED_MIND");assert.equal((await snapshot(f)).listing.currentStock,10);
 });
 it("legacy expiry and lazy checkout expiry retain inventory with historical active returns",async()=>{
@@ -94,7 +100,7 @@ it("managed release is blocked by historical return activity even without return
  assert.equal(released,false);assert.deepEqual(await snapshot(f),before);assert.equal((await prisma.paymentResolution.findUniqueOrThrow({where:{orderId:f.order.id}})).reservationDisposition,"HELD");
 });
 it("Used offers retain zero-restock restriction",async()=>{
- const f=await fixture(true,false,true),r=await request(f);await authorizeOrderReturn(f.order.id,r.id);await receiveOrderReturn(f.order.id,r.id);
+ const f=await fixture(true,true,true),r=await request(f);await authorizeOrderReturn(f.order.id,r.id);await receiveOrderReturn(f.order.id,r.id);
  await assert.rejects(inspectOrderReturn(f.order.id,r.id,"AS_NEW",1,undefined,f.user.id));await inspectOrderReturn(f.order.id,r.id,"AS_NEW",0,undefined,f.user.id);await completeOrderReturn(f.order.id,r.id,f.user.id);
  const after=await snapshot(f);assert.equal(after.listing.currentStock,0);assert.equal(after.listing.usedLifecycle,"SOLD");assert.equal(after.movements.filter(m=>m.type==="ORDER_RETURN").length,0);
 });
@@ -104,7 +110,7 @@ it("HTTP admission and completion enforce ADMIN and report eligibility conflicts
  const response=await http(f,"returns",requestBody(f));assert.equal(response.status,409);assert.equal((await response.json()).error.code,"ORDER_RETURN_INELIGIBLE");
  const g=await fixture(),r=await inspected(g);assert.equal((await http(g,`returns/${r.id}/complete`,{},customerToken)).status,403);
  await prisma.order.update({where:{id:g.order.id},data:{status:"CANCELLED"}});assert.equal((await http(g,`returns/${r.id}/complete`,{})).status,409);
- const h=await fixture();await request(h);const conflict=await http(h,"seller-cancel",{reason:"OUT_OF_STOCK"});assert.equal(conflict.status,409);assert.equal((await conflict.json()).error.code,"ORDER_RETURN_CONFLICT");
+ const h=await fixture(true,false);await legacyRequest(h);const conflict=await http(h,"seller-cancel",{reason:"OUT_OF_STOCK"});assert.equal(conflict.status,409);assert.equal((await conflict.json()).error.code,"ORDER_RETURN_CONFLICT");
 });
 
 function deferred(){let resolve!:()=>void;const promise=new Promise<void>(r=>{resolve=r;});return {promise,resolve};}
@@ -125,15 +131,15 @@ async function raceInOrder(f:Fixture,first:()=>Promise<unknown>,second:()=>Promi
  return Promise.all(operations);
 }
 for(const seller of [false,true])for(const returnFirst of [false,true])it(`real Order lock serializes ${seller?"seller":"customer"} cancellation/admission with ${returnFirst?"return":"cancellation"} queued first`,async()=>{
- const f=await fixture();const cancel=()=>seller?cancelOrderByAdmin(f.order.id,"OUT_OF_STOCK",f.user.id):cancelOrder(f.user.id,f.order.id,"CHANGED_MIND");
+ const f=await fixture(true,false);const cancel=()=>seller?cancelOrderByAdmin(f.order.id,"OUT_OF_STOCK",f.user.id):cancelOrder(f.user.id,f.order.id,"CHANGED_MIND");
  const result=await raceInOrder(f,returnFirst?()=>request(f):cancel,returnFirst?cancel:()=>request(f));
- assert.equal(result[0].status,"fulfilled");assert.equal(result[1].status,"rejected");
- assert.ok(result[1].status==="rejected"&&result[1].reason instanceof (returnFirst?OrderCancellationReturnConflictError:OrderReturnEligibilityError));
- const after=await snapshot(f);assert.equal(after.listing.currentStock,returnFirst?7:10);assert.equal(after.item.reservedReturnQuantity,returnFirst?1:0);
- assert.equal(after.movements.filter(m=>m.type==="ORDER_CANCELLATION_RETURN").length,returnFirst?0:1);assert.equal(after.movements.filter(m=>m.type==="ORDER_RETURN").length,0);
+ const admitted=result[returnFirst?0:1],cancelled=result[returnFirst?1:0];
+ assert.equal(cancelled.status,'fulfilled');assert.ok(admitted.status==='rejected'&&admitted.reason instanceof OrderReturnEligibilityError);
+ const after=await snapshot(f);assert.equal(after.listing.currentStock,10);assert.equal(after.item.reservedReturnQuantity,0);
+ assert.equal(after.movements.filter(m=>m.type==='ORDER_CANCELLATION_RETURN').length,1);assert.equal(after.movements.filter(m=>m.type==='ORDER_RETURN').length,0);
 });
 for(const completionFirst of [false,true])it(`completion/cancellation race with ${completionFirst?"completion":"cancellation"} queued first never restores twice`,async()=>{
- const f=await fixture(),r=await inspected(f);const complete=()=>completeOrderReturn(f.order.id,r.id,f.user.id),cancel=()=>cancelOrderByAdmin(f.order.id,"OUT_OF_STOCK",f.user.id);
+ const f=await fixture(true,false),r=await legacyInspected(f);const complete=()=>completeOrderReturn(f.order.id,r.id,f.user.id),cancel=()=>cancelOrderByAdmin(f.order.id,"OUT_OF_STOCK",f.user.id);
  const results=await raceInOrder(f,completionFirst?complete:cancel,completionFirst?cancel:complete);
  assert.equal(results[completionFirst?0:1].status,"fulfilled");const rejected=results[completionFirst?1:0];assert.ok(rejected.status==="rejected"&&rejected.reason instanceof OrderCancellationReturnConflictError);
  const after=await snapshot(f);assert.equal(after.listing.currentStock,8);assert.equal(after.item.returnedQuantity,1);assert.equal(after.movements.filter(m=>m.type==="ORDER_RETURN").length,1);assert.equal(after.movements.filter(m=>m.type==="ORDER_CANCELLATION_RETURN").length,0);
@@ -222,4 +228,9 @@ it("listing-scoped evidence accepts legitimate history amid unrelated movements 
  const next=await inspected(f);await completeOrderReturn(f.order.id,next.id,f.user.id);
  await prisma.inventoryMovement.create({data:{listingId:other.listing.id,type:"ORDER_CANCELLATION_RETURN",quantityChange:1,note:`Order ${f.order.id} cancellation return`,performedByUserId:f.user.id}});
  await assertNoMutation(f,()=>request(f));
+});
+
+it('confirmed but not dispatched, and forged unpaid dispatch, cannot admit new returns',async()=>{
+ const paid=await fixture(true,true);await prisma.order.update({where:{id:paid.order.id},data:{status:'CONFIRMED',dispatchedAt:null}});await assertNoMutation(paid,()=>request(paid));
+ const unpaid=await fixture(true,false);await prisma.order.update({where:{id:unpaid.order.id},data:{status:'DISPATCHED',dispatchedAt:new Date()}});await assertNoMutation(unpaid,()=>request(unpaid));assert.equal(await prisma.refund.count({where:{orderId:unpaid.order.id}}),0);
 });

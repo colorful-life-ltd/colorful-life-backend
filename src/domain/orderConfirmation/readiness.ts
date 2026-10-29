@@ -21,7 +21,7 @@ export async function assertEmailSchemaReady(db: Prisma.TransactionClient = pris
     if (!row?.ready) throw new Error('Schema incomplete');
   } catch { throw new Error('Transactional email schema not ready: apply and verify Issue #180 migrations before starting this release'); }
 }
-export type EmailType = 'ORDER_CONFIRMATION' | 'DISPATCH_CONFIRMATION';
+export type EmailType = 'ORDER_CONFIRMATION' | 'DISPATCH_CONFIRMATION' | 'RETURN_AUTHORIZATION';
 export const emailEnabled = (type: EmailType) => type === 'ORDER_CONFIRMATION' ? config.ORDER_CONFIRMATION_EMAIL_ENABLED : config.DISPATCH_CONFIRMATION_EMAIL_ENABLED;
 export class EmailActivationCutoffError extends Error {
   constructor(type: EmailType, future: boolean) {
