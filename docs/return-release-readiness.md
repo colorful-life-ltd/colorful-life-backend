@@ -45,3 +45,10 @@ migration-aware rollout/rollback exception can be used.
 
 Pre-dispatch selected-item/quantity cancellation/refund support remains a separate
 gap and is not implemented here.
+
+The manual deployment workflow also has a `prepare` action: it requires the same
+main ancestry, exact source and all three green CI checks, publishes immutable
+images and records digests without calling SSM or changing the running release.
+After owner-approved merges, use this to obtain exact image digests for isolated
+compatibility rehearsal and approval **before** serving migration writes. `deploy`
+and `rollback` retain their existing host gates. No workflow was dispatched here.
