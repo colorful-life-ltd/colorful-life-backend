@@ -12,6 +12,16 @@ try{
  await client.query('UPDATE "CommercialInvoice" SET "pdfBytes"="pdfBytes","pdfSha256"="pdfSha256" WHERE false');
  await client.query('INSERT INTO "AbuseBucket" (key,tokens,"updatedAt","expiresAt") VALUES ($1,1,now(),now())',['synthetic-rehearsal']);
  await client.query('DELETE FROM "AbuseBucket" WHERE key=$1',['synthetic-rehearsal']);
+ // Authentication cleanup is allowed; financial/audit deletion above remains denied.
+ for(const table of ['RefreshSession','EmailVerificationToken','PasswordResetToken','CartItem'])
+  await client.query('DELETE FROM "'+table+'" WHERE false');
+ await client.query('BEGIN');
+ try{
+  const user=await client.query(`INSERT INTO "User" (email,"passwordHash","updatedAt") VALUES ($1,'synthetic',now()) RETURNING id`,['retention-'+crypto.randomUUID()+'@example.test']);
+  await client.query(`INSERT INTO "RefreshSession" ("userId","refreshTokenHash","expiresAt") VALUES ($1,$2,now()-interval '1 hour')`,[user.rows[0].id,crypto.randomUUID()]);
+  const removed=await client.query(`DELETE FROM "RefreshSession" WHERE id IN (SELECT id FROM "RefreshSession" WHERE "userId"=$1 AND "expiresAt" <= statement_timestamp() ORDER BY "expiresAt",id LIMIT 1000 FOR UPDATE SKIP LOCKED)`,[user.rows[0].id]);
+  assert.equal(removed.rowCount,1);
+ }finally{await client.query('ROLLBACK');}
  // FBA shipments: append-only headers; the reference counter is an upsert (SELECT, INSERT, UPDATE). Rolled back.
  await client.query('SELECT count(*) FROM "FbaShipment"');
  await client.query('BEGIN');

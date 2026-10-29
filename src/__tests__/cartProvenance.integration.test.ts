@@ -18,6 +18,8 @@ import { reconcileStripePaymentEvent } from "../domain/payments/stripeReconcilia
 import { createOrReuseStripePaymentIntent, type StripePaymentClient } from "../domain/payments/stripePaymentService.js";
 import { readFileSync } from "node:fs";
 import { recoverStripePayment } from "../domain/payments/stripePaymentRecoveryService.js";
+import { deleteCustomerAccount } from "../domain/auth/accountDeletionService.js";
+import { CartAccountUnavailableError } from "../domain/cart/cartErrors.js";
 
 const users: number[] = [], products: number[] = [], listings: number[] = [], orders: number[] = [], events: string[] = [];
 let server: ReturnType<typeof app.listen>, url: string;
@@ -98,6 +100,49 @@ async function holdCart(f: Fixture) {
 }
 
 describe("durable order cart provenance", { concurrency: 1 }, () => {
+  it("rejects every cart write, including lazy creation, for deleted or missing accounts", async () => {
+    const f = await fixture();
+    await deleteCustomerAccount(f.userId);
+    for (const userId of [f.userId, -1]) {
+      for (const action of [() => getCart(userId), () => addCartItem(userId, f.a, 1),
+        () => updateCartItem(userId, f.a, 2), () => removeCartItem(userId, f.a), () => clearCart(userId)]) {
+        await assert.rejects(action, CartAccountUnavailableError);
+      }
+    }
+    assert.equal(await prisma.cart.count({ where: { userId: f.userId } }), 0);
+  });
+
+  for (const operation of ['add', 'update'] as const) it(`rejects a stale ${operation} queued behind account deletion without recreating basket items`, async () => {
+    const f = await fixture();
+    await addCartItem(f.userId, f.a, 1);
+    const held = await holdCart(f);
+    const deletion = deleteCustomerAccount(f.userId);
+    let write: Promise<void> | undefined;
+    try {
+      await waitForBlocked(held.pid, 1);
+      write = assert.rejects(() => operation === 'add' ? addCartItem(f.userId, f.b, 1) : updateCartItem(f.userId, f.a, 2), CartAccountUnavailableError);
+      await waitForBlocked(held.pid, 2);
+    } finally { await held.release(); }
+    await deletion; await write;
+    assert.deepEqual(await quantities(f), { a: 0, b: 0 });
+    assert.ok((await prisma.user.findUniqueOrThrow({ where: { id: f.userId } })).deletedAt);
+  });
+
+  it("deletion queued behind a cart write clears it without deadlock", async () => {
+    const f = await fixture();
+    const held = await holdCart(f);
+    // Deletion may finish before add's response projection; 401 is safe then.
+    const write = addCartItem(f.userId, f.a, 1).catch(error => { if (!(error instanceof CartAccountUnavailableError)) throw error; });
+    let deletion: Promise<void> | undefined;
+    try {
+      await waitForBlocked(held.pid, 1);
+      deletion = deleteCustomerAccount(f.userId);
+      await waitForBlocked(held.pid, 2);
+    } finally { await held.release(); }
+    await write; await deletion;
+    assert.deepEqual(await quantities(f), { a: 0, b: 0 });
+  });
+
   it("keeps pending quantity visible and consumes the purchased allocation once after authoritative success", async () => {
     const f = await fixture(); await addCartItem(f.userId, f.a, 1); const o = await order(f);
     assert.deepEqual(await quantities(f), { a: 1, b: 0 }); assert.equal((await provenance(o.id)).state, "ACTIVE");
