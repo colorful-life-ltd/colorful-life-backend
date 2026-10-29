@@ -1,0 +1,42 @@
+name: Isolated Return V1 exact-image rehearsal
+on:
+  push:
+    branches: [test/returns-exact-image-rehearsal]
+permissions:
+  contents: read
+concurrency:
+  group: returns-exact-image-rehearsal
+  cancel-in-progress: false
+jobs:
+  isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: dfebb5f0cb2fc128d68c2abb1d5ae040b43640e6
+          path: candidate
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: colorful-life-ltd/colorful-life-infra
+          ref: b8e27080f3725d43d0d194f0e499f3ee5e829832
+          path: infra
+          persist-credentials: false
+      - name: Exact images, isolated schema74, application failure and rollback
+        env:
+          RETURN_REHEARSAL_BLOB_LINKS: ${{ secrets.RETURN_REHEARSAL_BLOB_LINKS }}
+        run: sudo --preserve-env=GITHUB_WORKSPACE,GITHUB_ACTIONS,RUNNER_ENVIRONMENT,RUNNER_TEMP,RETURN_REHEARSAL_BLOB_LINKS,AWS_EC2_METADATA_DISABLED python3 .rehearsal/exact-images.py
+      - name: Preserve non-secret evidence and exact candidate registry blobs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: return-v1-exact-image-evidence
+          path: evidence/
+          retention-days: 3
+          if-no-files-found: warn
