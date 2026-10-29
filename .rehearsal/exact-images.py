@@ -105,7 +105,7 @@ for role in ['owner','migrator','runtime']:
 bootstrap_env=envfile('bootstrap',{**common,'DB_USER':'bootstrap','DB_PASSWORD':pw['bootstrap'],'OWNER_PASSWORD':pw['owner']})
 def node(ref,code,role='runtime',payload=None):
  return run(['docker','run','--rm','-i','--network',NET,'--read-only','--cap-drop','ALL','--env-file',str(files[role]),'--entrypoint','node',ref,'--input-type=module','-e',code],input=json.dumps(payload or {}))
-bootstrap="import pg from 'pg';const c=new pg.Client({host:'postgres',database:'colorful_life',user:'bootstrap',password:process.env.DB_PASSWORD});await c.connect();await c.query(\"CREATE ROLE cl_owner LOGIN NOSUPERUSER CREATEDB CREATEROLE PASSWORD '\"+process.env.OWNER_PASSWORD+\"'\");await c.end();"
+bootstrap="import pg from 'pg';const c=new pg.Client({host:'postgres',database:'colorful_life',user:'bootstrap',password:process.env.DB_PASSWORD});await c.connect();await c.query(\"CREATE ROLE cl_owner LOGIN NOSUPERUSER CREATEDB CREATEROLE PASSWORD '\"+process.env.OWNER_PASSWORD+\"'\");await c.query('ALTER DATABASE colorful_life OWNER TO cl_owner');await c.end();"
 run(['docker','run','--rm','--network',NET,'--env-file',str(bootstrap_env),'--entrypoint','node',old_migration,'--input-type=module','-e',bootstrap])
 initialize=envfile('initialize',{**common,'DB_USER':'cl_owner','DB_PASSWORD':pw['owner'],'RUNTIME_PASSWORD':pw['runtime'],'MIGRATOR_PASSWORD':pw['migrator']})
 run(['docker','run','--rm','--network',NET,'--env-file',str(initialize),'--entrypoint','node',old_migration,'scripts/database-identities.mjs','initialize'])
