@@ -436,6 +436,20 @@ describe("Return management V1", () => {
       config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM=saved.cutoff; config.ORDER_CONFIRMATION_BUSINESS_JSON=saved.business;
     }
   });
+  it("suppresses return mail before its cutoff while retaining account instructions", async () => {
+    const { businessFixture } = await import('./fixtures/orderConfirmation.fixture.js');
+    const o=await fixture(), c=await submitReturns(o.id,customer.id,input(o.orderItems[0].id));
+    const line=c.submissions[0].lines[0];await returnAction(o.id,line.id,admin.id,'authorize',authorization);
+    const job=await prisma.orderConfirmationJob.findUniqueOrThrow({where:{eventKey:`return:${line.id}`}});
+    await new Promise(resolve=>setTimeout(resolve,5));
+    const capture=captureConfirmationTransport();
+    await runConfirmationBatch({transport:capture.transport,business:businessFixture,jobId:job.id,types:['RETURN_AUTHORIZATION'],activeFrom:new Date(job.createdAt.getTime()+1)});
+    const after=await prisma.orderConfirmationJob.findUniqueOrThrow({where:{id:job.id}});
+    assert.equal(after.state,'SUPPRESSED');assert.equal(after.lastErrorCode,'BEFORE_ACTIVATION_CUTOFF');assert.equal(capture.messages.length,0);
+    const account=await customerReturnCase(o.id,customer.id);
+    assert.equal(account.submissions[0].lines[0].status,'AUTHORIZED');
+    assert.equal((account.submissions[0].lines[0].instructions as {instructions:string}).instructions,authorization.instructions);
+  });
   it("uses the durable outbox and identical authorised account/email instructions", async () => {
     const o = await fixture(),
       c = await submitReturns(o.id, customer.id, input(o.orderItems[0].id));
