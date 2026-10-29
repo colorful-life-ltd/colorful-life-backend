@@ -70,7 +70,9 @@ old_info=image_meta(old_api,OLD);old_migration_info=image_meta(old_migration,OLD
 assert old_info['contentDigest']=='sha256:58545e4fbd43f0d804c13a7532b2aa5fe1d23949a712684033d2518614a4d973'
 phase('Build exact reviewed candidate; no registry credentials, no deployment')
 assert run(['git','-C',str(ROOT/'candidate'),'rev-parse','HEAD'])==CANDIDATE
-assert run(['git','-C',str(ROOT/'infra'),'rev-parse','HEAD'])==INFRA
+infra_source=gzip.decompress(base64.b64decode(os.environ.pop('RETURN_REHEARSAL_INFRA_SOURCE')))
+assert hashlib.sha256(infra_source).hexdigest()=='a2f208b65e59d657eb386b840a4101ec0c80c41b9bc2f60595026c269ac0d487'
+infra_path=WORK/'reviewed-deployer.py';infra_path.write_bytes(infra_source);infra_path.chmod(0o600)
 new_refs=[]
 for kind,file in [('api','Dockerfile'),('migration','Dockerfile.migrations')]:
  tag=REG+'/returns-'+kind+':candidate'
@@ -115,7 +117,7 @@ print(migrate(old_migration),flush=True)
 # (ECR login, systemd/metadata guard, fixed project/ref names). Migration/approval/
 # context/health/switch/restore logic is unchanged. Fixture observation times are
 # shortened; production timing/configuration remain unchanged.
-spec=importlib.util.spec_from_file_location('deployer',ROOT/'infra/ops/ec2/backend/deploy_backend.py');d=importlib.util.module_from_spec(spec);spec.loader.exec_module(d)
+spec=importlib.util.spec_from_file_location('deployer',infra_path);d=importlib.util.module_from_spec(spec);spec.loader.exec_module(d)
 d.PROJECT=PROJECT;d.API=re.compile(re.escape(REG)+r'/returns-api@sha256:[0-9a-f]{64}');d.MIGRATION=re.compile(re.escape(REG)+r'/returns-migration@sha256:[0-9a-f]{64}');d.API_STABLE_SECONDS=5;d.HEALTH_TIMEOUT={'api':30,'worker':30}
 runtime_path=WORK/'runtime.json';runtime_path.write_text(json.dumps(base_runtime));runtime_path.chmod(0o600)
 identities=WORK/'identities.json';identities.write_text(json.dumps({'RUNTIME_PASSWORD':pw['runtime'],'MIGRATOR_PASSWORD':pw['migrator']}));identities.chmod(0o600)
