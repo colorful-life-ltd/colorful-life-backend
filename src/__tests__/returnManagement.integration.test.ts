@@ -421,7 +421,7 @@ describe("Return management V1", () => {
       config.ORDER_CONFIRMATION_EMAIL_ENABLED = false;
       config.DISPATCH_CONFIRMATION_EMAIL_ENABLED = false;
       config.RETURN_AUTHORIZATION_EMAIL_ENABLED = true;
-      config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM = new Date(job.createdAt.getTime()-1000).toISOString();
+      config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM = new Date(0).toISOString();
       config.ORDER_CONFIRMATION_BUSINESS_JSON = JSON.stringify(businessFixture);
       // Injected in-memory transport exercises production channel filtering; never calls SES.
       const result = await runConfirmationBatch({ transport: { kind:'ses', send:capture.transport.send }, jobId:job.id });
