@@ -70,3 +70,22 @@ it('future and malformed cutoff values load without terminating configuration or
     assert.throws(() => activationCutoff('ORDER_CONFIRMATION'), /future-dated at configuration load/);
   } finally { config.ORDER_CONFIRMATION_EMAIL_ACTIVE_FROM = saved; }
 });
+
+it('return activation is independent, requires its own fixed cutoff and approved business', async () => {
+ const {emailEnabled,activationCutoff}=await import('../domain/orderConfirmation/readiness.js');
+ const saved={...config};
+ try {
+  config.ORDER_CONFIRMATION_EMAIL_ENABLED=false;config.DISPATCH_CONFIRMATION_EMAIL_ENABLED=false;
+  config.RETURN_AUTHORIZATION_EMAIL_ENABLED=true;config.DISPATCH_CONFIRMATION_EMAIL_ACTIVE_FROM='2026-01-01T00:00:00Z';
+  config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM=undefined;
+  assert.equal(emailEnabled('RETURN_AUTHORIZATION'),true);assert.equal(emailEnabled('ORDER_CONFIRMATION'),false);assert.equal(emailEnabled('DISPATCH_CONFIRMATION'),false);
+  assert.throws(()=>activationCutoff('RETURN_AUTHORIZATION'),/cutoff/);
+  config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM=new Date(Date.now()+3600000).toISOString();assert.throws(()=>activationCutoff('RETURN_AUTHORIZATION'),/future/);
+  config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM='2026-01-01T00:00:00Z';config.ORDER_CONFIRMATION_BUSINESS_JSON='{}';
+  assert.throws(()=>approvedEmailConfiguration('RETURN_AUTHORIZATION'),/configuration/);
+  config.ORDER_CONFIRMATION_BUSINESS_JSON=JSON.stringify(businessFixture);
+  assert.equal(approvedEmailConfiguration('RETURN_AUTHORIZATION').replyToEmail,businessFixture.replyToEmail);
+  config.RETURN_AUTHORIZATION_EMAIL_ENABLED=false;config.DISPATCH_CONFIRMATION_EMAIL_ENABLED=true;
+  assert.equal(emailEnabled('RETURN_AUTHORIZATION'),false);
+ }finally{Object.assign(config,saved);}
+});
