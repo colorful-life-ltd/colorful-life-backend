@@ -18,6 +18,7 @@ try {
   const beforeDispatch=await prisma.order.create({data:{userId:customer.id,status:'CONFIRMED',totalAmount:10,...addresses,orderItems:{create:{productListingId:listing.id,quantity:1,unitPrice:10,lineTotal:10}}},include:{orderItems:true}});
   await prisma.payment.create({data:{orderId:beforeDispatch.id,provider:'MANUAL',providerReference:'synthetic-predispatch',status:'SUCCEEDED',paidAt:new Date(),amount:10}});
   const unpaid=await prisma.order.create({data:{userId:customer.id,status:'DISPATCHED',dispatchedAt:new Date(),totalAmount:10,...addresses,orderItems:{create:{productListingId:listing.id,quantity:1,unitPrice:10,lineTotal:10}}},include:{orderItems:true}});
+  for(const [o,q] of [[order,5],[beforeDispatch,1],[unpaid,1]])await prisma.inventoryMovement.create({data:{listingId:listing.id,quantityChange:-q,type:'WEBSITE_SALE',performedByUserId:admin.id,note:`Order ${o.id} sale`}});
   console.log(JSON.stringify({customerId:customer.id,otherId:other.id,adminId:admin.id,orderId:order.id,itemId:order.orderItems[0].id,listingId:listing.id,predispatch:{id:beforeDispatch.id,itemId:beforeDispatch.orderItems[0].id},unpaid:{id:unpaid.id,itemId:unpaid.orderItems[0].id}}));
  } else {
   const f=p.fixture;
@@ -47,7 +48,7 @@ try {
   assert.equal(account.submissions[0].lines[0].status,'RECEIVED');assert.ok(account.submissions[0].lines[0].instructions);
   const line=await prisma.orderReturn.findUniqueOrThrow({where:{id:f.lineId}});assert.equal(line.receivedByUserId,f.adminId);assert.equal(line.receiptNote,'Synthetic operator receipt, no real goods');
   assert.equal(await prisma.returnCase.count({where:{orderId:f.orderId}}),1);assert.equal(await prisma.returnSubmission.count(),2);
-  assert.equal(await prisma.refund.count(),0);assert.equal(await prisma.inventoryMovement.count(),0);
+  assert.equal(await prisma.refund.count(),0);assert.equal(await prisma.inventoryMovement.count(),3);
   assert.equal((await prisma.productListing.findUniqueOrThrow({where:{id:f.listingId}})).currentStock,20);
   const jobs=await prisma.orderConfirmationJob.findMany();assert.equal(jobs.length,1);assert.equal(jobs[0].type,'RETURN_AUTHORIZATION');assert.equal(jobs[0].state,'PENDING');
   assert.equal((await prisma.orderItem.findUniqueOrThrow({where:{id:f.itemId}})).reservedReturnQuantity,2);

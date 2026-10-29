@@ -8,6 +8,6 @@ try{
  await cancelOrderReturn(f.orderId,f.secondLineId);
  assert.equal((await prisma.orderReturn.findUniqueOrThrow({where:{id:f.secondLineId}})).status,'CANCELLED');
  assert.equal((await prisma.orderItem.findUniqueOrThrow({where:{id:f.itemId}})).reservedReturnQuantity,1);
- assert.equal(await prisma.refund.count(),0);assert.equal(await prisma.inventoryMovement.count(),0);
+ assert.equal(await prisma.refund.count(),0);assert.equal(await prisma.inventoryMovement.count(),3);
  console.log('PASS: exact old image reads schema74 candidate-created returns and cancels/relinquishes reservation without refunds or stock changes');
 }finally{await prisma.$disconnect()}
