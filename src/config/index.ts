@@ -19,6 +19,8 @@ export const emailConfigurationLoadedAt = Date.now();
 const configSchema = z.object({
   CORS_ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
   BACKGROUND_WORKERS_ENABLED: z.enum(["true","false"]).default("true").transform(v=>v==="true"),
+  RETURN_AUTHORIZATION_EMAIL_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
+  RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM: z.string().optional(),
   DISPATCH_CONFIRMATION_EMAIL_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   // Email cutoff validation is worker-local; invalid cutoffs must not terminate the API.
   DISPATCH_CONFIRMATION_EMAIL_ACTIVE_FROM: z.string().optional(),

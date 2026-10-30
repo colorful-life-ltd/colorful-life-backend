@@ -1,3 +1,4 @@
+import { dispatchOrder } from "../domain/orders/orderDispatchService.js";
 import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import assert from "node:assert";
@@ -104,6 +105,7 @@ async function createFixture(quantity = 3) {
   });
   await recordVerifiedPayment(order.id);
   await confirmOrder(customer.id, order.id);
+  await dispatchOrder(order.id,0,"Royal Mail","AB123456789GB",customer.id);
   orderIds.push(order.id);
   return { customer, listing, order, orderItem: order.orderItems[0] };
 }

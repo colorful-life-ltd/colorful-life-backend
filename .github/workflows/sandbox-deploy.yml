@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: status (read-only), deploy or rollback
+        description: status, prepare immutable images only, deploy or rollback
         type: choice
-        options: [status, deploy, rollback]
+        options: [status, prepare, deploy, rollback]
         default: status
       sha:
         description: Commit on main to deploy (default is the current main)
@@ -48,7 +48,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Resolve the commit and require a passed backend workflow
-        if: inputs.action == 'deploy'
+        if: inputs.action == 'deploy' || inputs.action == 'prepare'
         run: |
           sha="${INPUT_SHA:-$GITHUB_SHA}"
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "sha must be a full 40-hex commit"; exit 1; }
@@ -59,7 +59,7 @@ jobs:
           done
           echo "DEPLOY_SHA=$sha" >> "$GITHUB_ENV"
       - name: Check out the exact approved deployment source
-        if: inputs.action == 'deploy'
+        if: inputs.action == 'deploy' || inputs.action == 'prepare'
         run: |
           git checkout --detach "$DEPLOY_SHA"
           test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
@@ -72,6 +72,7 @@ jobs:
       - name: Confirm the Colorful Life AWS account
         run: test "$(aws sts get-caller-identity --query Account --output text)" = 919693204623
       - name: Define the host command helper
+        if: inputs.action != 'prepare'
         run: |
           cat > "$RUNNER_TEMP/host.sh" <<'SH'
           # usage: host.sh ACTION [API_IMAGE] [MIGRATION_IMAGE] [SHA]; prints host output, fails if the host failed
@@ -92,6 +93,7 @@ jobs:
           SH
           chmod +x "$RUNNER_TEMP/host.sh"
       - name: Read the running Sandbox release
+        if: inputs.action != 'prepare'
         run: |
           out=$("$RUNNER_TEMP/host.sh" status)
           echo "$out"
@@ -105,7 +107,7 @@ jobs:
           git cat-file -e "$CURRENT_SHA^{commit}" 2>/dev/null || { echo "running commit $CURRENT_SHA is not in this repository's history (unmerged branch?); merge it to main first"; exit 1; }
           git merge-base --is-ancestor "$CURRENT_SHA" "$DEPLOY_SHA" || { echo "$DEPLOY_SHA does not contain the running $CURRENT_SHA; deploying it would downgrade the Sandbox"; exit 1; }
       - name: Publish immutable images (reuse existing sandbox tags)
-        if: inputs.action == 'deploy'
+        if: inputs.action == 'deploy' || inputs.action == 'prepare'
         run: |
           tag="sandbox-$DEPLOY_SHA"
           digest() { aws ecr describe-images --repository-name "$1" --image-ids imageTag="$tag" --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true; }
@@ -129,7 +131,7 @@ jobs:
           done
           docker logout "$REGISTRY" >/dev/null
       - name: Trivy reports for newly built images (informational, never a gate)
-        if: inputs.action == 'deploy'
+        if: inputs.action == 'deploy' || inputs.action == 'prepare'
         continue-on-error: true
         run: |
           mkdir -p trivy
@@ -149,6 +151,10 @@ jobs:
           name: trivy-${{ github.run_id }}
           path: trivy/
           if-no-files-found: ignore
+      - name: Record prepared immutable images (no host command)
+        if: inputs.action == 'prepare'
+        run: |
+          { echo "### Prepared $DEPLOY_SHA (not deployed)"; echo "- API: $API_IMAGE"; echo "- Migration: $MIGRATION_IMAGE"; } >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy API then Worker on the host (staged, automatic restore on failure)
         if: inputs.action == 'deploy'
         run: |
@@ -166,7 +172,7 @@ jobs:
           { echo '### Rollback (application images only; migrations are never reversed)'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
       - name: Read the Sandbox release after the change
-        if: always() && inputs.action != 'status'
+        if: always() && (inputs.action == 'deploy' || inputs.action == 'rollback')
         run: |
           out=$("$RUNNER_TEMP/host.sh" status) || true
           { echo "### Sandbox backend after ${ACTION}"; echo '```json'; grep '^STATUS ' <<< "$out" | cut -c8- | jq . || echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

@@ -25,3 +25,18 @@ test('requested older commit supplies actual source; invalid or dirty source fai
   writeFileSync(join(root,'source.txt'),'unreviewed-dirty-source');assert.notEqual(run(older).status,0);
  } finally {rmSync(root,{recursive:true,force:true});}
 });
+
+test('image preparation retains main/CI admission and never calls SSM or deploys',()=>{
+ assert.ok(workflow.includes('options: [status, prepare, deploy, rollback]'));
+ for(const name of ['Resolve the commit and require a passed backend workflow','Check out the exact approved deployment source','Publish immutable images (reuse existing sandbox tags)']){
+  const block=workflow.split('      - name: '+name+'\n')[1]?.split('      - ')[0];
+  assert.ok(block?.includes("if: inputs.action == 'deploy' || inputs.action == 'prepare'"));
+ }
+ for(const name of ['Define the host command helper','Read the running Sandbox release']){
+  const block=workflow.split('      - name: '+name+'\n')[1]?.split('      - ')[0];
+  assert.ok(block?.includes("if: inputs.action != 'prepare'"));
+ }
+ const deploy=workflow.split('      - name: Deploy API then Worker on the host')[1]?.split('      - ')[0];
+ assert.ok(deploy?.includes("if: inputs.action == 'deploy'\n"));
+ assert.ok(workflow.includes("if: always() && (inputs.action == 'deploy' || inputs.action == 'rollback')"));
+});

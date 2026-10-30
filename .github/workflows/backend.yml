@@ -73,7 +73,8 @@ jobs:
           assert.equal(result.status, 0);"
 
   deployment-rehearsal:
-    runs-on: ubuntu-latest
+    # Pinned: needs the preinstalled PostgreSQL 16 binaries (Sandbox major); ubuntu-26.04 images do not ship them.
+    runs-on: ubuntu-24.04
     env:
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
@@ -93,3 +94,5 @@ jobs:
         run: python3 scripts/rehearse-tls.py
       - name: Rehearse populated FBA schema upgrade and restricted-runtime journey
         run: python3 scripts/rehearse-database.py --fba-upgrade --skip-application-tests
+      - name: Rehearse populated return-case upgrade and restricted runtime grants
+        run: python3 scripts/rehearse-database.py --returns-upgrade --skip-application-tests

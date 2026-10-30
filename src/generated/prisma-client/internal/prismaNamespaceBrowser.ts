@@ -76,6 +76,8 @@ export const ModelName = {
   PaymentWebhookEvent: 'PaymentWebhookEvent',
   Refund: 'Refund',
   OrderItem: 'OrderItem',
+  ReturnCase: 'ReturnCase',
+  ReturnSubmission: 'ReturnSubmission',
   OrderReturn: 'OrderReturn',
   Purchase: 'Purchase',
   PurchaseDocument: 'PurchaseDocument',
@@ -533,7 +535,34 @@ export const OrderItemScalarFieldEnum = {
 export type OrderItemScalarFieldEnum = (typeof OrderItemScalarFieldEnum)[keyof typeof OrderItemScalarFieldEnum]
 
 
+export const ReturnCaseScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  reference: 'reference',
+  createdAt: 'createdAt'
+} as const
+
+export type ReturnCaseScalarFieldEnum = (typeof ReturnCaseScalarFieldEnum)[keyof typeof ReturnCaseScalarFieldEnum]
+
+
+export const ReturnSubmissionScalarFieldEnum = {
+  id: 'id',
+  caseId: 'caseId',
+  idempotencyKey: 'idempotencyKey',
+  requestHash: 'requestHash',
+  requestedAt: 'requestedAt'
+} as const
+
+export type ReturnSubmissionScalarFieldEnum = (typeof ReturnSubmissionScalarFieldEnum)[keyof typeof ReturnSubmissionScalarFieldEnum]
+
+
 export const OrderReturnScalarFieldEnum = {
+  submissionId: 'submissionId',
+  instructions: 'instructions',
+  rejectionNote: 'rejectionNote',
+  decisionByUserId: 'decisionByUserId',
+  receivedByUserId: 'receivedByUserId',
+  receiptNote: 'receiptNote',
   id: 'id',
   orderItemId: 'orderItemId',
   quantity: 'quantity',

@@ -89,3 +89,10 @@ export async function assertReturnInventoryEligible(tx: Prisma.TransactionClient
   // Any exact cancellation reversal for this order is contradictory, even if its status was later edited.
   if (await tx.inventoryMovement.findFirst({ where: { type: "ORDER_CANCELLATION_RETURN", note: `Order ${orderId} cancellation return` }, select: { id: true } })) throw new OrderReturnEligibilityError();
 }
+
+/** New requests need confirmed dispatch and persisted payment, never a browser status hint. */
+export function hasConfirmedReturnDispatch(order: {status:string;dispatchedAt:Date|null}) { return ['DISPATCHED','COMPLETED','RETURNED'].includes(order.status) && !!order.dispatchedAt; }
+export async function assertNewReturnAdmission(tx: Prisma.TransactionClient, orderId:number) {
+ const order=await tx.order.findUnique({where:{id:orderId},include:{payments:true}});
+ if(!order||!hasConfirmedReturnDispatch(order)||!order.payments.some(p=>p.status==='SUCCEEDED'&&!!p.paidAt&&p.currency==='GBP'&&p.amount.equals(order.totalAmount)&&(p.provider!=='PAYPAL'||!!p.providerCaptureReference?.trim()&&!!p.providerReference&&!p.providerReference.startsWith('pending:'))))throw new OrderReturnEligibilityError();
+}

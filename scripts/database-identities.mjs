@@ -4,7 +4,7 @@ import {databaseUrl,databasePoolOptions} from '../src/config/database.ts';
 const mode=process.argv[2];
 if(!['initialize','grant'].includes(mode))throw Error('Explicit identity operation required');
 const client=new pg.Client(databasePoolOptions(databaseUrl(process.env),process.env));
-const appendOnly=new Set(['OperationalAudit','FbaOutbound','FbaShipment','InventoryMovement','InventoryAudit','FinancialEvidence','ReservationReleaseProof','OrderFulfilmentEvent','ShipmentTrackingEvent','ShipmentTrackingConflict','ShipmentCarrierEvidence','CommercialInvoice']);
+const appendOnly=new Set(['ReturnCase','ReturnSubmission','OperationalAudit','FbaOutbound','FbaShipment','InventoryMovement','InventoryAudit','FinancialEvidence','ReservationReleaseProof','OrderFulfilmentEvent','ShipmentTrackingEvent','ShipmentTrackingConflict','ShipmentCarrierEvidence','CommercialInvoice']);
 const deleteAllowed=new Set(['Address','CartItem','RefreshSession','EmailVerificationToken','PasswordResetToken','PasswordRecoveryLimit','ProductImage','AbuseBucket','PaymentChallengeUse']);
 try {
  await client.connect();await client.query('BEGIN');

@@ -51,5 +51,7 @@
   "PaymentSecurityEvent",
   "PaymentFulfilmentReview",
   "PaymentChallengeUse",
-  "OperationalAudit"
+  "OperationalAudit",
+  "ReturnCase",
+  "ReturnSubmission"
 ]
