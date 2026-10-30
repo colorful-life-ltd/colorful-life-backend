@@ -15,6 +15,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/return-compat-rehearsal.yml
+      - scripts/return-compat-schema.mjs
 permissions:
   contents: read
 jobs:
@@ -40,6 +41,10 @@ jobs:
       JWT_SECRET: synthetic-ci-only-not-production
       STRIPE_SECRET_KEY: sk_test_synthetic
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: tooling
+          persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ env.PREVIOUS_SHA }}
@@ -83,27 +88,33 @@ jobs:
             dist/__tests__/returnReservationWarnings.test.js \
             dist/__tests__/productionLifecycle.integration.test.js \
             dist/__tests__/workerHealth.test.js 2>&1 | tee ../rehearsal.log
+      - name: Negative control - a wrong expected schema must fail
+        working-directory: previous
+        run: |
+          set -euo pipefail
+          if EXPECTED_MIGRATIONS=75 node ../tooling/scripts/return-compat-schema.mjs > /dev/null; then
+            echo "Schema check passed with a wrong expectation; refusing to produce evidence"; exit 1
+          fi
+          echo "Schema check correctly rejected a wrong expectation"
       - name: Confirm the tested database really was schema 74
         working-directory: previous
         run: |
-          node --input-type=module -e "
-            import pg from 'pg'; const c = new pg.Client({ connectionString: process.env.TEST_DATABASE_URL }); await c.connect()
-            const q = async s => (await c.query(s)).rows[0]
-            const m = await q(\"SELECT count(*)::int n, bool_or(migration_name = '$TARGET') t FROM _prisma_migrations WHERE finished_at IS NOT NULL\")
-            const r = await q(\"SELECT to_regclass('\\\"ReturnCase\\\"') IS NOT NULL c, EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='OrderReturn' AND column_name='submissionId') s\")
-            console.log(JSON.stringify({ finishedMigrations: m.n, targetApplied: m.t, returnCaseTable: r.c, submissionIdColumn: r.s }))
-            if (m.n !== 74 || !m.t || !r.c || !r.s) process.exit(1); await c.end()" | tee ../schema.json
+          set -euo pipefail
+          # Write first, then print: a failing check fails this step and no evidence follows.
+          node ../tooling/scripts/return-compat-schema.mjs > ../schema.json
+          cat ../schema.json
       - name: Write the evidence summary
         run: |
           set -euo pipefail
+          jq -e '.problems == [] and .finishedMigrations == 74' schema.json > /dev/null
           jq -n --arg previous "$PREVIOUS_SHA" --arg next "$(git -C next rev-parse HEAD)" --arg nextRef "$NEXT_REF" \
             --arg target "$TARGET" --arg log "$(sha256sum rehearsal.log | cut -d' ' -f1)" \
             --arg checksums "$(sha256sum migration-checksums.txt | cut -d' ' -f1)" --argjson schema "$(cat schema.json)" \
             --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             '{previousRevision:$previous, nextRevision:$next, nextRef:$nextRef, targetMigration:$target, schema:$schema,
               migrationChecksumsSha256:$checksums, logSha256:$log, run:$run,
+              evidenceKind:"source-rebuild", exactImageDigests:false,
               previousSourceReturnWritesAndReservationsOnSchema74:true, previousSourceReadiness:true,
-              exactImageDigests:false,
               note:"Previous revision rebuilt from source, not the exact ECR digest. API/Worker exact-image readiness and failed-new-start recovery are not covered here."}' \
             > rehearsal-evidence.json
           cat rehearsal-evidence.json
