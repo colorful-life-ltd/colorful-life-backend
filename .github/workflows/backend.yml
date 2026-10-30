@@ -73,7 +73,8 @@ jobs:
           assert.equal(result.status, 0);"
 
   deployment-rehearsal:
-    runs-on: ubuntu-latest
+    # Pinned: needs the preinstalled PostgreSQL 16 binaries (Sandbox major); ubuntu-26.04 images do not ship them.
+    runs-on: ubuntu-24.04
     env:
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
