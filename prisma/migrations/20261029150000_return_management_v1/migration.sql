@@ -35,6 +35,26 @@ CREATE FUNCTION return_submission_order_guard() RETURNS trigger LANGUAGE plpgsql
   RAISE EXCEPTION 'Return submission is immutable' USING ERRCODE='23514'; END IF;
  RETURN NEW; END $$;
 CREATE TRIGGER return_submission_order_guard BEFORE INSERT OR UPDATE ON "OrderReturn" FOR EACH ROW EXECUTE FUNCTION return_submission_order_guard();
+-- Rollback compatibility: a previous application image inserts lines without a submission. Attach each one,
+-- atomically with its insert, to the order's permanent case (created if absent, exactly like the backfill) and a
+-- deterministic per-line legacy submission. Explicit submissions are never touched. No counters, stock or jobs change.
+-- Fires before return_submission_order_guard (BEFORE triggers run in name order), which still validates the result.
+CREATE FUNCTION return_legacy_attach() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE order_id integer; case_id text;
+BEGIN
+ IF NEW."submissionId" IS NOT NULL THEN RETURN NEW; END IF;
+ SELECT "orderId" INTO order_id FROM "OrderItem" WHERE id=NEW."orderItemId";
+ IF order_id IS NULL THEN RETURN NEW; END IF; -- the orderItemId foreign key rejects the insert
+ INSERT INTO "ReturnCase" (id,"orderId",reference,"createdAt")
+  VALUES ('return-case-'||order_id,order_id,'BB-R-'||order_id,NEW."requestedAt") ON CONFLICT DO NOTHING;
+ SELECT id INTO case_id FROM "ReturnCase" WHERE "orderId"=order_id;
+ IF case_id IS NULL THEN
+  RAISE EXCEPTION 'Return case for order % is not yet visible; retry', order_id USING ERRCODE='40001'; END IF;
+ INSERT INTO "ReturnSubmission" (id,"caseId","idempotencyKey","requestHash","requestedAt")
+  VALUES ('return-legacy-'||NEW.id,case_id,'legacy-'||NEW.id,'LEGACY',NEW."requestedAt");
+ NEW."submissionId" := 'return-legacy-'||NEW.id;
+ RETURN NEW; END $$;
+CREATE TRIGGER return_legacy_attach BEFORE INSERT ON "OrderReturn" FOR EACH ROW EXECUTE FUNCTION return_legacy_attach();
 ALTER TABLE "OrderConfirmationJob" DROP CONSTRAINT email_event_identity;
 ALTER TABLE "OrderConfirmationJob" ADD CONSTRAINT email_event_identity CHECK (
  (type='ORDER_CONFIRMATION' AND "shipmentId" IS NULL AND "eventKey"='order:'||"orderId"::text)
