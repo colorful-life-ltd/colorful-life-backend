@@ -1,0 +1,130 @@
+name: Return V1 compatibility rehearsal
+# Disposable evidence for the Infra #11 73 -> 74 gate: the PREVIOUS backend revision's own
+# return, reservation and readiness tests run against a database migrated to schema 74.
+# Uses only a throwaway PostgreSQL service container. No AWS, no secrets, no Sandbox access.
+# It rebuilds the previous revision from source; it is NOT the exact ECR image digest.
+on:
+  workflow_dispatch:
+    inputs:
+      previous_sha:
+        description: Previous backend revision (the serving image's revision label)
+        default: 7363c1638ead2a10125065b71f98ef9be717385a
+      next_ref:
+        description: Release candidate ref that adds migration 74
+        default: fix/return-release-readiness
+  pull_request:
+    paths:
+      - .github/workflows/return-compat-rehearsal.yml
+      - scripts/return-compat-schema.mjs
+permissions:
+  contents: read
+jobs:
+  rehearse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: isolated-ci-only
+          POSTGRES_DB: colorful_life_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U test -d colorful_life_test" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PREVIOUS_SHA: ${{ inputs.previous_sha || '7363c1638ead2a10125065b71f98ef9be717385a' }}
+      NEXT_REF: ${{ inputs.next_ref || 'fix/return-release-readiness' }}
+      TARGET: 20261029150000_return_management_v1
+      DATABASE_URL: postgresql://test:isolated-ci-only@localhost:5432/unused_normal
+      TEST_DATABASE_URL: postgresql://test:isolated-ci-only@localhost:5432/colorful_life_test
+      JWT_SECRET: synthetic-ci-only-not-production
+      STRIPE_SECRET_KEY: sk_test_synthetic
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: tooling
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.PREVIOUS_SHA }}
+          path: previous
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.NEXT_REF }}
+          path: next
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: previous/package-lock.json
+      - name: Verify the exact 73 -> 74 migration boundary
+        run: |
+          set -euo pipefail
+          test "$(git -C previous rev-parse HEAD)" = "$PREVIOUS_SHA"
+          old=$(ls previous/prisma/migrations | grep -v migration_lock.toml)
+          new=$(ls next/prisma/migrations | grep -v migration_lock.toml)
+          test "$(echo "$old" | wc -l)" = 73
+          # The candidate must add exactly the return migration and nothing else.
+          test "$(comm -13 <(echo "$old") <(echo "$new"))" = "$TARGET"
+          test -z "$(comm -23 <(echo "$old") <(echo "$new"))"
+          for m in $old; do cmp -s "previous/prisma/migrations/$m/migration.sql" "next/prisma/migrations/$m/migration.sql"; done
+          cp -r "next/prisma/migrations/$TARGET" previous/prisma/migrations/
+          (cd previous/prisma/migrations && sha256sum */migration.sql) > migration-checksums.txt
+          echo "74 migrations; 73 historical files byte-identical; target added to the previous revision only in this runner"
+      - name: Build the previous revision (its own schema and generated client)
+        working-directory: previous
+        run: npm ci && npm run generate:client && npm run build
+      - name: Previous revision's return, reservation and readiness tests on schema 74
+        working-directory: previous
+        run: |
+          set -o pipefail
+          node dist/testing/runTests.js run \
+            dist/__tests__/orderReturn.test.js \
+            dist/__tests__/orderReturn.integration.test.js \
+            dist/__tests__/returnInventorySafety.integration.test.js \
+            dist/__tests__/returnReservationWarnings.test.js \
+            dist/__tests__/productionLifecycle.integration.test.js \
+            dist/__tests__/workerHealth.test.js 2>&1 | tee ../rehearsal.log
+      - name: Negative control - a wrong expected schema must fail
+        working-directory: previous
+        run: |
+          set -euo pipefail
+          if EXPECTED_MIGRATIONS=75 node ../tooling/scripts/return-compat-schema.mjs > /dev/null; then
+            echo "Schema check passed with a wrong expectation; refusing to produce evidence"; exit 1
+          fi
+          echo "Schema check correctly rejected a wrong expectation"
+      - name: Confirm the tested database really was schema 74
+        working-directory: previous
+        run: |
+          set -euo pipefail
+          # Write first, then print: a failing check fails this step and no evidence follows.
+          node ../tooling/scripts/return-compat-schema.mjs > ../schema.json
+          cat ../schema.json
+      - name: Write the evidence summary
+        run: |
+          set -euo pipefail
+          jq -e '.problems == [] and .finishedMigrations == 74' schema.json > /dev/null
+          jq -n --arg previous "$PREVIOUS_SHA" --arg next "$(git -C next rev-parse HEAD)" --arg nextRef "$NEXT_REF" \
+            --arg target "$TARGET" --arg log "$(sha256sum rehearsal.log | cut -d' ' -f1)" \
+            --arg checksums "$(sha256sum migration-checksums.txt | cut -d' ' -f1)" --argjson schema "$(cat schema.json)" \
+            --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{previousRevision:$previous, nextRevision:$next, nextRef:$nextRef, targetMigration:$target, schema:$schema,
+              migrationChecksumsSha256:$checksums, logSha256:$log, run:$run,
+              evidenceKind:"source-rebuild", exactImageDigests:false,
+              previousSourceReturnWritesAndReservationsOnSchema74:true, previousSourceReadiness:true,
+              note:"Previous revision rebuilt from source, not the exact ECR digest. API/Worker exact-image readiness and failed-new-start recovery are not covered here."}' \
+            > rehearsal-evidence.json
+          cat rehearsal-evidence.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: return-v1-compat-rehearsal
+          path: |
+            rehearsal-evidence.json
+            rehearsal.log
+            migration-checksums.txt
+            schema.json
+          if-no-files-found: error
+          retention-days: 30

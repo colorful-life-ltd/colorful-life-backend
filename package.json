@@ -12,7 +12,7 @@
     "test:db:check": "npm run build && node dist/testing/runTests.js check",
     "test:db:prepare": "npm run build && node dist/testing/runTests.js prepare",
     "test:safety": "npm run build && node --test dist/__tests__/testDatabaseSafety.test.js",
-    "test:deployment-contracts": "node --test scripts/migration-contract_test.mjs scripts/recovery-contract_test.mjs",
+    "test:deployment-contracts": "node --test scripts/migration-contract_test.mjs scripts/recovery-contract_test.mjs scripts/return-compat-schema_test.mjs",
     "generate:client": "node scripts/generate-client.mjs"
   },
   "dependencies": {
