@@ -4,7 +4,7 @@ import { reconcileExternalRefund } from "../domain/refunds/refundReconciliationS
 import { RefundCapacityExceededError } from "../domain/refunds/refundCapacityService.js";
 import { Request, Response } from "express";
 import { createRefund, getOrderRefunds } from "../domain/refunds/refundService.js";
-import { createOrReusePayPalRefund, PayPalRefundProviderError, PayPalRefundValidationError } from "../domain/refunds/paypalRefundService.js";
+import { PayPalRefundProviderError, PayPalRefundValidationError } from "../domain/refunds/paypalRefundService.js";
 import { createOrReuseStripeRefund, StripeRefundProviderError, StripeRefundValidationError } from "../domain/refunds/stripeRefundService.js";
 import { prisma } from "../prisma/runtime.js";
 import { PaymentProvider } from "../generated/prisma-client/enums.js";
@@ -43,9 +43,7 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId }, select: { orderId: true, provider: true } });
     if (!payment || payment.orderId !== orderId) return res.status(404).json({ error: "Payment not found for order" });
     if (payment.provider === PaymentProvider.PAYPAL) {
-      if (providerReference !== undefined) return res.status(400).json({ error: "providerReference is only valid for manual refunds" });
-      const refund = await createOrReusePayPalRefund(orderId, paymentId, amount, reason, user.id, undefined, refundId, req.get("Idempotency-Key"));
-      return res.status(refund.status === "PROCESSING" ? 202 : refundId ? 200 : 201).json(refundProjection(refund));
+      return sendApiError(res, 503, "PAYPAL_INITIATION_DISABLED", "PayPal transactions are not supported");
     }
     if (payment.provider === PaymentProvider.STRIPE) {
       if (providerReference !== undefined) return res.status(400).json({ error: "providerReference is only valid for manual refunds" });

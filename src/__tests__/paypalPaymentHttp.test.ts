@@ -95,11 +95,31 @@ describe("PayPal customer payment HTTP", { concurrency: 1 }, () => {
     const f = await fixture();
     const calls = captureFake();
     const response = await fetch(`${base}/orders/${f.o.id}/payments/paypal/capture`, { method: "POST", headers: headers(f.u.id) });
-    assert.equal(response.status, 404);
+    assert.equal(response.status, 503);
     assert.equal(calls.length, 0);
     assert.equal(await prisma.payment.count({ where: { orderId: f.o.id } }), 0);
     assert.deepEqual(await prisma.order.findUniqueOrThrow({ where: { id: f.o.id } }), f.o);
   });
-  it("captures for the owner and ignores client Capture/payment fields", async () => { const f = await fixture(); await prisma.payment.create({ data: { orderId: f.o.id, amount: f.o.totalAmount, currency: "GBP", provider: PaymentProvider.PAYPAL, providerReference: `PP-${randomUUID()}`, status: PaymentStatus.PENDING } }); const calls = captureFake(); const r = await fetch(`${base}/orders/${f.o.id}/payments/paypal/capture`, { method: "POST", headers: headers(f.u.id), body: JSON.stringify({ amount: "0.01", currency: "USD", paypalOrderId: "ATTACK", captureId: "ATTACK" }) }); assert.equal(r.status, 200); const body = await r.json(); assert.ok(body.paypalOrderId); assert.ok(body.captureId); assert.equal(calls.length, 1); });
-  it("blocks capture before provider for unauthenticated, unverified, wrong-owner, expired, and provider failure cases", async () => { const f = await fixture(false); assert.equal((await fetch(`${base}/orders/${f.o.id}/payments/paypal/capture`, { method: "POST" })).status, 401); createFake(); assert.equal((await fetch(`${base}/orders/${f.o.id}/payments/paypal/capture`, { method: "POST", headers: headers(f.u.id) })).status, 403); const other = await fixture(); createFake(); assert.equal((await fetch(`${base}/orders/${f.o.id}/payments/paypal/capture`, { method: "POST", headers: headers(other.u.id) })).status, 404); const expired = await fixture(true, true); const calls = captureFake(); assert.equal((await fetch(`${base}/orders/${expired.o.id}/payments/paypal/capture`, { method: "POST", headers: headers(expired.u.id) })).status, 409); assert.equal(calls.length, 0); const failure = await fixture(); await prisma.payment.create({ data: { orderId: failure.o.id, amount: failure.o.totalAmount, currency: "GBP", provider: PaymentProvider.PAYPAL, providerReference: `PP-${randomUUID()}`, status: PaymentStatus.PENDING } }); captureFake(true); const response = await fetch(`${base}/orders/${failure.o.id}/payments/paypal/capture`, { method: "POST", headers: headers(failure.u.id) }); assert.equal(response.status, 503); assert.equal((await response.text()).includes("provider credentials"), false); });
+  it("rejects capture with existing payment without provider calls or mutations", async () => {
+    const f = await fixture();
+    const payment = await prisma.payment.create({ data: { orderId: f.o.id, amount: f.o.totalAmount, currency: "GBP", provider: PaymentProvider.PAYPAL, providerReference: `PP-${randomUUID()}`, status: PaymentStatus.PENDING } });
+    const calls = captureFake();
+    for (const enabled of [false, true]) {
+      const previous = config.PAYMENT_PAYPAL_INITIATION_ENABLED;
+      config.PAYMENT_PAYPAL_INITIATION_ENABLED = enabled;
+      try {
+        const response = await fetch(`${base}/orders/${f.o.id}/payments/paypal/capture`, { method: "POST", headers: headers(f.u.id) });
+        assert.equal(response.status, 503);
+        assert.equal((await response.json()).error.code, "PAYPAL_INITIATION_DISABLED");
+        assert.deepEqual(await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }), payment);
+        assert.deepEqual(await prisma.order.findUniqueOrThrow({ where: { id: f.o.id } }), f.o);
+      } finally { config.PAYMENT_PAYPAL_INITIATION_ENABLED = previous; }
+    }
+    assert.equal(calls.length, 0);
+  });
+  it("preserves authentication and verification for capture", async () => {
+    const f = await fixture(false);
+    assert.equal((await fetch(`${base}/orders/${f.o.id}/payments/paypal/capture`, { method: "POST" })).status, 401);
+    assert.equal((await fetch(`${base}/orders/${f.o.id}/payments/paypal/capture`, { method: "POST", headers: headers(f.u.id) })).status, 403);
+  });
 });

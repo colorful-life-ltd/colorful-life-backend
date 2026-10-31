@@ -608,9 +608,16 @@ describe("Order Return HTTP Integration", () => {
     const fixture = await createInspectedHttpReturn(customer.id, 2, 1);
     const itemBefore = await prisma.orderItem.findUnique({ where: { id: fixture.orderItem.id } });
     const listingBefore = await prisma.productListing.findUnique({ where: { id: fixture.listing.id } });
+    const financialSnapshot = () => Promise.all([
+      prisma.payment.findMany({ where: { orderId: fixture.order.id } }),
+      prisma.refund.findMany({ where: { orderId: fixture.order.id } }),
+      prisma.paymentOperation.findMany({ where: { attempt: { orderId: fixture.order.id } } }),
+    ]);
+    const financesBefore = await financialSnapshot();
     const response = await completeReturn(url, fixture.order.id, fixture.returnId, admin.token);
     const body = await response.json();
     assert.strictEqual(response.status, 200, JSON.stringify(body));
+    assert.deepEqual(await financialSnapshot(), financesBefore, "Return completion must not initiate or record refunds/payments");
     assert.strictEqual(body.status, "COMPLETED"); assert.ok(body.completedAt); assert.strictEqual(body.quantity, 2); assert.strictEqual(body.restockQuantity, 1); assert.strictEqual(body.condition, "AS_NEW"); assert.strictEqual(body.performedByUserId, admin.id); assert.strictEqual(body.inspectedByUserId, admin.id);
     const itemAfter = await prisma.orderItem.findUnique({ where: { id: fixture.orderItem.id } }); const listingAfter = await prisma.productListing.findUnique({ where: { id: fixture.listing.id } }); const movements = await prisma.inventoryMovement.findMany({ where: { listingId: fixture.listing.id, type: InventoryMovementType.ORDER_RETURN } });
     assert.strictEqual(itemAfter?.returnedQuantity, (itemBefore?.returnedQuantity ?? 0) + 2); assert.strictEqual(listingAfter?.currentStock, (listingBefore?.currentStock ?? 0) + 1); assert.strictEqual(movements.length, 1); assert.strictEqual(movements[0].quantityChange, 1);
