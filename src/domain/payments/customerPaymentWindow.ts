@@ -1,6 +1,5 @@
 import { Prisma as PrismaSql } from "../../generated/prisma-client/client.js";
 import type { Order, Payment, PaymentAttempt, PaymentOperation, PaymentResolution, Prisma } from "../../generated/prisma-client/client.js";
-import { paypalSandboxAvailable } from "./paypalSandbox.js";
 import { config } from "../../config/index.js";
 
 export type CustomerPaymentWindow = {
@@ -41,7 +40,7 @@ export type PaymentWindowInput = {
 export function presentCustomerPaymentWindow(input: PaymentWindowInput): CustomerPaymentWindow {
   const { order, payment, resolution: r, attempts, now } = input;
   const provider = payment?.provider ?? input.preferredProvider ?? "STRIPE";
-  const configured = provider === "PAYPAL" ? !!input.paypalConfigured : input.stripeConfigured;
+  const configured = provider === "PAYPAL" ? false : input.stripeConfigured;
   const unavailableReason = provider === "PAYPAL" ? "PAYPAL_UNAVAILABLE" : "STRIPE_UNAVAILABLE";
   const managed = !!r && !r.historical && !r.quarantineReason;
   const unavailable = !managed && (input.managedEnabled || !!r);
@@ -78,15 +77,6 @@ export function presentCustomerPaymentWindow(input: PaymentWindowInput): Custome
     && r.state !== "INITIAL_OPEN" && r.state !== "RETRY_OPEN") return finish("OUTCOME_UNRESOLVED", "ADMISSION_UNAVAILABLE");
   if ((!payment || (managed && finalUnpaid && payment.status === "CANCELED")) && input.newInitiationEnabled === false) return finish("NOT_PAYABLE", unavailableReason);
   if (!payment) return finish("INITIAL_PAYMENT", "INITIAL_WINDOW_OPEN", "ELIGIBLE");
-  if (payment.provider === "PAYPAL") {
-    if (managed && r.retryDeadline && finalUnpaid && payment.status === "CANCELED") return finish("RETRY_AVAILABLE", "VERIFIED_UNPAID_RETRY", "ELIGIBLE");
-    if (pending && !finalUnpaid) {
-      const capture = current?.operations.some(o => o.type === "CAPTURE");
-      if (capture || payment.status === "PROCESSING" || r?.firstFailureVerifiedAt) return finish("PROCESSING", "AWAITING_PAYMENT_OUTCOME");
-      if (input.newInitiationEnabled !== false && managed && current && current.operations.some(o => o.type === "CREATE") && current.operations.every(o => o.type === "RETRIEVE" || (o.type === "CREATE" && (o.state === "RESULT_RECORDED" || o.state === "POTENTIALLY_DISPATCHED")))) return { ...finish("CHECKOUT_RESUMABLE", "EXISTING_CHECKOUT_OPEN"), resumeEligibility: "ELIGIBLE" };
-    }
-    return finish("OUTCOME_UNRESOLVED", "PAYMENT_OUTCOME_UNRESOLVED");
-  }
   if (payment.provider !== "STRIPE") return finish("OUTCOME_UNRESOLVED", "OTHER_PROVIDER");
   if (managed && r.retryDeadline && finalUnpaid && payment.status === "CANCELED") return finish("RETRY_AVAILABLE", "VERIFIED_UNPAID_RETRY", "ELIGIBLE");
   // A failure receipt opens a window but does not persist the current provider status.
@@ -120,8 +110,8 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
     COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='STRIPE'), false) AS enabled,
     COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='PAYPAL'), false) AS "paypalEnabled"`;
   const now = clock.now;
-  const paypalConfigured = paypalSandboxAvailable();
-  const preferredProvider = paypalConfigured && config.PAYMENT_PAYPAL_INITIATION_ENABLED && clock.paypalEnabled && !config.PAYMENT_STRIPE_INITIATION_ENABLED ? "PAYPAL" : "STRIPE";
+  const paypalConfigured = false;
+  const preferredProvider = "STRIPE" as const;
   for (let offset = 0; offset < orderIds.length; offset += PAYMENT_WINDOW_BATCH_SIZE) {
     const orders = await tx.order.findMany({ where: { userId, id: { in: orderIds.slice(offset, offset + PAYMENT_WINDOW_BATCH_SIZE) } }, select: paymentWindowSelect });
     if (!orders.length) continue;
