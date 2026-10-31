@@ -122,21 +122,56 @@ function replayProcess(paypalOrderId: string) {
 // Only provider I/O is faked. Transactions, authorization, constraints and lock
 // contention below use the guarded PostgreSQL test database.
 describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }, () => {
-  it("authorizes a second customer before exposing an in-flight capture over HTTP", async () => {
+  it("rejects PayPal capture over HTTP without provider I/O or financial/inventory mutations", async () => {
+    const f = await fixture(), other = await user();
+    let calls = 0;
+    const restore = setPayPalCaptureClientForTests({ captureOrder: async () => {
+      calls++;
+      assert.fail("Stripe-only HTTP capture must never call PayPal");
+    } });
+    const snapshot = async () => ({
+      order: await prisma.order.findUniqueOrThrow({ where: { id: f.order.id }, include: {
+        payments: true, orderItems: true, paymentResolution: true,
+        paymentAttempts: { include: { operations: true } }, financialEvidence: true,
+      } }),
+      listing: await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } }),
+      movements: await prisma.inventoryMovement.findMany({ where: { listingId: f.listing.id }, orderBy: { id: "asc" } }),
+    });
+    const before = await snapshot();
+    const previous = config.PAYMENT_PAYPAL_INITIATION_ENABLED;
+    config.PAYMENT_PAYPAL_INITIATION_ENABLED = true;
+    try {
+      for (const id of [f.owner.id, other.id, f.owner.id]) {
+        const response = await fetch(`${url}/orders/${f.order.id}/payments/paypal/capture`, { method: "POST", headers: {
+          "Idempotency-Key": randomUUID(), Authorization: `Bearer ${jwt.sign({ id }, config.JWT_SECRET)}`,
+        } });
+        assert.equal(response.status, 503);
+        assert.deepEqual(await response.json(), { error: { code: "PAYPAL_INITIATION_DISABLED", message: "PayPal checkout is currently unavailable" } });
+        assert.equal(calls, 0);
+        assert.deepEqual(await snapshot(), before);
+      }
+      await inventory(f, 2);
+    } finally { config.PAYMENT_PAYPAL_INITIATION_ENABLED = previous; restore(); }
+  });
+
+  it("authorizes a second customer before exposing an in-flight direct-service capture", async () => {
     const f = await fixture(), other = await user(), entered = gate(), release = gate();
     const c = captureClient(f); let calls = 0;
-    const restore = setPayPalCaptureClientForTests({ captureOrder: async (...args) => { calls++; entered.resolve(); await release.promise; return c.client.captureOrder(args[0]); } });
-    const post = (id: number) => fetch(`${url}/orders/${f.order.id}/payments/paypal/capture`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${jwt.sign({ id }, config.JWT_SECRET)}` } });
-    const first = post(f.owner.id);
+    const client: PayPalCaptureClient = { captureOrder: async (id) => {
+      calls++; entered.resolve(); await release.promise; return c.client.captureOrder(id);
+    } };
+    const first = capturePayPalOrder(f.order.id, f.owner.id, client);
     try {
       await entered.promise;
-      const denied = await post(other.id); assert.equal(denied.status, 404); assert.deepEqual(await denied.json(), { error: "Order not found" });
-      const repeated = post(f.owner.id); release.resolve();
-      const responses = await Promise.all([first, repeated]);
-      assert.ok(responses.every((r) => r.status === 200));
-      for (const response of responses) assert.deepEqual(await response.json(), { paypalOrderId: f.payment!.providerReference, captureId: c.captureId });
+      await assert.rejects(capturePayPalOrder(f.order.id, other.id, client), PayPalCaptureOwnershipError);
+      const repeated = capturePayPalOrder(f.order.id, f.owner.id, client);
+      release.resolve();
+      const results = await Promise.all([first, repeated]);
+      assert.deepEqual(results[0], results[1]);
+      assert.equal(results[0].paypalOrderId, f.payment!.providerReference);
+      assert.equal(results[0].captureId, c.captureId);
       assert.equal(calls, 1); await paid(f, c.captureId); await inventory(f, 0, 8, 1);
-    } finally { release.resolve(); await first; restore(); }
+    } finally { release.resolve(); await first; }
   });
 
   it("replays successful capture without provider I/O and retains the first paidAt", async () => {
