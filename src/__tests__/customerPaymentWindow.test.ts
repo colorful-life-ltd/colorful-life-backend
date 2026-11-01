@@ -140,18 +140,16 @@ describe("customer payment window projection", () => {
   });
 });
 
-describe('PayPal provider-aware windows',()=>{
- it('offers Sandbox initial payment and preserves provider identity',()=>{
+describe('Stripe-only payment policy',()=>{
+ it('rejects PayPal capabilities even with enabled Sandbox flags',()=>{
   const i=input(true);i.stripeConfigured=false;i.paypalConfigured=true;i.preferredProvider='PAYPAL';i.newInitiationEnabled=true;
-  const w=presentCustomerPaymentWindow(i);assert.equal(w.provider,'PAYPAL');assert.equal(w.state,'INITIAL_PAYMENT');
-  i.newInitiationEnabled=false;assert.equal(presentCustomerPaymentWindow(i).state,'NOT_PAYABLE');
+  const w=presentCustomerPaymentWindow(i);assert.equal(w.provider,'PAYPAL');assert.equal(w.state,'NOT_PAYABLE');
+  assert.equal(w.initiationEligibility,'INELIGIBLE');assert.equal(w.resumeEligibility,'INELIGIBLE');
  });
- it('approval resumes only a known completed CREATE; capture is processing and uncertainty is held',()=>{
+ it('does not resume an existing PayPal test order',()=>{
   const i=input(true);i.paypalConfigured=true;i.payment={id:1,provider:'PAYPAL',providerReference:'PP-fixture',status:'PENDING',paidAt:null};
   i.attempts=[{paymentId:1,providerReference:'PP-fixture',historical:false,successEvidenceId:null,finalityEvidenceId:null,operations:[{type:'CREATE',state:'POTENTIALLY_DISPATCHED'}]}];
-  assert.equal(presentCustomerPaymentWindow(i).state,'CHECKOUT_RESUMABLE');
-  i.attempts[0].operations.push({type:'CAPTURE',state:'POTENTIALLY_DISPATCHED'});assert.equal(presentCustomerPaymentWindow(i).state,'PROCESSING');
-  i.attempts[0].operations[1].state='UNKNOWN';assert.equal(presentCustomerPaymentWindow(i).state,'OUTCOME_UNRESOLVED');
+  const w=presentCustomerPaymentWindow(i);assert.equal(w.state,'OUTCOME_UNRESOLVED');assert.equal(w.resumeEligibility,'INELIGIBLE');
   i.attempts[0].successEvidenceId=1;assert.equal(presentCustomerPaymentWindow(i).state,'PAID');
  });
 });

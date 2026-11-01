@@ -11,7 +11,7 @@ import {setPayPalCaptureClientForTests} from '../domain/payments/paypalCaptureSe
 let server:ReturnType<typeof app.listen>,base:string;
 before(async()=>{server=app.listen(0);await new Promise<void>(r=>server.once('listening',r));base=`http://127.0.0.1:${(server.address() as {port:number}).port}`});
 after(async()=>{await prisma.$disconnect();await new Promise<void>(r=>server.close(()=>r()))});
-it('managed browser journey gates Live, flags and policy; reuses order, captures once and confirms from evidence',async()=>{
+it('PayPal stays disabled with Sandbox credentials, enabled flags and policy; Stripe remains the only offered provider',async()=>{
  const previous={...config},environment=process.env.DEPLOYMENT_ENVIRONMENT;
  const prior=await prisma.paymentInitiationPolicy.findUniqueOrThrow({where:{provider:'PAYPAL'}});
  const user=await prisma.user.create({data:{email:`${randomUUID()}@example.invalid`,passwordHash:'not-a-login-fixture',emailVerified:true}});
@@ -34,19 +34,16 @@ it('managed browser journey gates Live, flags and policy; reuses order, captures
   config.PAYMENT_PAYPAL_INITIATION_ENABLED=true;await prisma.paymentInitiationPolicy.update({where:{provider:'PAYPAL'},data:{enabled:false}});assert.equal((await post()).status,503);
   assert.equal(calls,0);assert.equal(await prisma.payment.count({where:{orderId:order.id}}),0);
   await prisma.paymentInitiationPolicy.update({where:{provider:'PAYPAL'},data:{enabled:true}});
-  const initial=await (await fetch(`${base}/orders/${order.id}`,{headers})).json();assert.equal(initial.paymentWindow.provider,'PAYPAL');assert.equal(initial.paymentWindow.state,'INITIAL_PAYMENT');
-  const first=await post();assert.equal(first.status,201);const body=await first.json();assert.ok(body.paypalOrderId);
-  const replay=await post();assert.equal(replay.status,201);assert.equal((await replay.json()).paypalOrderId,body.paypalOrderId);assert.equal(calls,1);
-  const awaiting=await (await fetch(`${base}/orders/${order.id}`,{headers})).json();assert.equal(awaiting.paymentWindow.state,'CHECKOUT_RESUMABLE');
-  // Capture amounts are always the server order amount, not a browser amount.
-  restoreCapture();const amount=order.totalAmount.toFixed(2);
-  const restoreExact=setPayPalCaptureClientForTests({async captureOrder(id){captures++;return{id,status:'COMPLETED',purchase_units:[{payments:{captures:[{id:'CAP-'+order.id,status:'COMPLETED',amount:{value:amount,currency_code:'GBP'}}]}}]}}});
-  try{
-   const capture=()=>fetch(`${base}/orders/${order.id}/payments/paypal/capture`,{method:'POST',headers});
-   const result=await capture();assert.equal(result.status,200);
-   const detail=await (await fetch(`${base}/orders/${order.id}`,{headers})).json();assert.equal(detail.paymentWindow.state,'PAID');assert.equal(detail.status,'CONFIRMED');
-   await capture();assert.equal(captures,1);
-  }finally{restoreExact()}
+  const initial=await (await fetch(`${base}/orders/${order.id}`,{headers})).json();
+  assert.equal(initial.paymentWindow.provider,'STRIPE');
+  assert.equal(initial.paymentWindow.initiationEligibility,'INELIGIBLE');
+  for(let attempt=0;attempt<2;attempt++){
+   assert.equal((await post()).status,503);
+   assert.equal((await fetch(`${base}/orders/${order.id}/payments/paypal/capture`,{method:'POST',headers})).status,503);
+  }
+  assert.equal(calls,0);assert.equal(captures,0);
+  assert.equal(await prisma.payment.count({where:{orderId:order.id}}),0);
+
  }finally{
   restoreCreate();restoreCapture();Object.assign(config,previous);if(environment===undefined)delete process.env.DEPLOYMENT_ENVIRONMENT;else process.env.DEPLOYMENT_ENVIRONMENT=environment;
   await prisma.paymentInitiationPolicy.update({where:{provider:'PAYPAL'},data:{enabled:prior.enabled}});

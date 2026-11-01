@@ -35,7 +35,7 @@ describe("Refund HTTP integration", () => {
   it("maps payment ownership, state, and over-refund failures", async () => { const c = await fixture(customer.id); const other = await fixture(customer.id); assert.strictEqual((await request(url, `/orders/${c.order.id}/refunds`, admin.token, "POST", { paymentId: 999999999, amount: 1, providerReference: randomUUID() })).status, 404); assert.strictEqual((await request(url, `/orders/${c.order.id}/refunds`, admin.token, "POST", { paymentId: other.payment.id, amount: 1, providerReference: randomUUID() })).status, 404); await prisma.payment.update({ where: { id: c.payment.id }, data: { status: "FAILED" } }); assert.strictEqual((await request(url, `/orders/${c.order.id}/refunds`, admin.token, "POST", { paymentId: c.payment.id, amount: 1, providerReference: randomUUID() })).status, 409); const over = await fixture(customer.id); const partial = await (await request(url, `/orders/${over.order.id}/refunds`, admin.token, "POST", { paymentId: over.payment.id, amount: 40, providerReference: randomUUID() })).json(); refundIds.push(partial.id); assert.strictEqual((await request(url, `/orders/${over.order.id}/refunds`, admin.token, "POST", { paymentId: over.payment.id, amount: over.payment.amount.minus(40).add("0.01").toNumber(), providerReference: randomUUID() })).status, 409); });
   it("GET enforces auth, scopes results, and orders deterministically", async () => { const c = await fixture(customer.id); const other = await fixture(customer.id); const first = await (await request(url, `/orders/${c.order.id}/refunds`, admin.token, "POST", { paymentId: c.payment.id, amount: 5, providerReference: randomUUID() })).json(); const second = await (await request(url, `/orders/${c.order.id}/refunds`, admin.token, "POST", { paymentId: c.payment.id, amount: 6, providerReference: randomUUID() })).json(); const foreign = await (await request(url, `/orders/${other.order.id}/refunds`, admin.token, "POST", { paymentId: other.payment.id, amount: 7, providerReference: randomUUID() })).json(); refundIds.push(first.id, second.id, foreign.id); assert.strictEqual((await request(url, `/orders/${c.order.id}/refunds`, undefined)).status, 401); assert.strictEqual((await request(url, `/orders/${c.order.id}/refunds`, customer.token)).status, 403); assert.strictEqual((await request(url, "/orders/bad/refunds", admin.token)).status, 400); assert.strictEqual((await request(url, "/orders/999999999/refunds", admin.token)).status, 404); const listed = await (await request(url, `/orders/${c.order.id}/refunds`, admin.token)).json(); assert.deepStrictEqual(listed.map((r: { id: number }) => r.id), [first.id, second.id]); assert.ok(listed.every((r: { orderId: number }) => r.orderId === c.order.id)); });
 
-  it("routes PayPal refunds from persisted provider identity and sanitizes the response", async () => {
+  it("rejects new PayPal refunds before provider submission or financial mutations", async () => {
     const c = await fixture(customer.id);
     const captureId = `CAP-${randomUUID()}`;
     await prisma.payment.update({ where: { id: c.payment.id }, data: { provider: PaymentProvider.PAYPAL, providerCaptureReference: captureId, status: PaymentStatus.SUCCEEDED, paidAt: new Date() } });
@@ -45,17 +45,14 @@ describe("Refund HTTP integration", () => {
     const body = await response.json();
     assert.equal(response.status, 400);
     assert.equal(calls.length, 0);
-    const success = await request(url, `/orders/${c.order.id}/refunds`, admin.token, "POST", { paymentId: c.payment.id, amount: 10 });
-    const successBody = await success.json();
-    assert.equal(success.status, 201);
-    refundIds.push(successBody.refundId);
-    assert.deepEqual(Object.keys(successBody).sort(), ["amount", "currency", "provider", "refundId", "status"]);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].captureId, captureId);
-    assert.equal(calls[0].currency, "GBP");
-    assert.equal(successBody.provider, "PAYPAL");
-    assert.equal("refundIdempotencyKey" in successBody, false);
-    assert.equal("providerCaptureReference" in successBody, false);
+    const before = await prisma.payment.findUniqueOrThrow({ where: { id: c.payment.id } });
+    const responseDisabled = await request(url, `/orders/${c.order.id}/refunds`, admin.token, "POST", { paymentId: c.payment.id, amount: 10 });
+    assert.equal(responseDisabled.status, 503);
+    assert.equal((await responseDisabled.json()).error.code, "PAYPAL_INITIATION_DISABLED");
+    assert.equal(calls.length, 0);
+    assert.deepEqual(await prisma.payment.findUniqueOrThrow({ where: { id: c.payment.id } }), before);
+    assert.equal(await prisma.refund.count({ where: { orderId: c.order.id } }), 0);
+
   });
   it("routes Stripe refunds from persisted provider identity with a sanitized response", async () => {
     const c = await fixture(customer.id);

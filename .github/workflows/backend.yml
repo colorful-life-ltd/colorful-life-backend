@@ -39,6 +39,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: python3 -B -m unittest discover -s scripts -p sandbox_disposal_preflight_test.py -v
       - run: npm run test:deployment-contracts
       - run: npm run generate:client
       - run: npx prisma validate
@@ -73,7 +74,8 @@ jobs:
           assert.equal(result.status, 0);"
 
   deployment-rehearsal:
-    runs-on: ubuntu-latest
+    # Pinned: needs the preinstalled PostgreSQL 16 binaries (Sandbox major); ubuntu-26.04 images do not ship them.
+    runs-on: ubuntu-24.04
     env:
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
