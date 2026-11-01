@@ -101,3 +101,5 @@ jobs:
         run: python3 scripts/rehearse-database.py --fba-upgrade --skip-application-tests
       - name: Rehearse populated return-case upgrade and restricted runtime grants
         run: python3 scripts/rehearse-database.py --returns-upgrade --skip-application-tests
+      - name: Rehearse single-Admin constraint upgrade with existing accounts
+        run: python3 scripts/rehearse-database.py --single-admin-upgrade --skip-application-tests

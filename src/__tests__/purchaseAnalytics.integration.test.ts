@@ -143,7 +143,9 @@ after(async () => {
 beforeEach(async () => {
   const [admin, otherAdmin, customer] = await Promise.all([
     prisma.user.create({ data: { email: `${randomUUID()}@analytics.test`, passwordHash: "test", role: "ADMIN", emailVerified: true } }),
-    prisma.user.create({ data: { email: `${randomUUID()}@analytics.test`, passwordHash: "test", role: "ADMIN", emailVerified: true } }),
+    // The database enforces a single Admin; a second operator-owned purchase still
+    // needs only an ordinary user identity for the importedByUserId foreign key.
+    prisma.user.create({ data: { email: `${randomUUID()}@analytics.test`, passwordHash: "test", role: "CUSTOMER", emailVerified: true } }),
     prisma.user.create({ data: { email: `${randomUUID()}@analytics.test`, passwordHash: "test", role: "CUSTOMER", emailVerified: true } }),
   ]);
   adminId = admin.id;

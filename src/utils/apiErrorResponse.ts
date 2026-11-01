@@ -48,7 +48,11 @@ export type ApiErrorCode =
   | "ORDER_PAYMENT_NOT_VERIFIED"
   | "FULFILMENT_TRANSITION_INVALID"
   | "ORDER_ALREADY_DISPATCHED"
-  | "NOT_FOUND";
+  | "NOT_FOUND"
+  | "BOOTSTRAP_UNAVAILABLE"
+  | "BOOTSTRAP_CLOSED"
+  | "BOOTSTRAP_AUTHORIZATION_INVALID"
+  | "INVALID_REGISTRATION";
 
 /** Sends a stable machine-readable API error envelope. */
 export function sendApiError(res: Response, status: number, code: ApiErrorCode, message: string,
