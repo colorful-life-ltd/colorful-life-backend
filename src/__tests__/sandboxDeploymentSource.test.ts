@@ -31,6 +31,10 @@ test('image preparation retains main/CI admission and never calls SSM or deploys
  for(const name of ['Resolve the commit and require a passed backend workflow','Check out the exact approved deployment source','Publish immutable images (reuse existing sandbox tags)']){
   const block=workflow.split('      - name: '+name+'\n')[1]?.split('      - ')[0];
   assert.ok(block?.includes("if: inputs.action == 'deploy' || inputs.action == 'prepare'"));
+  if(name==='Publish immutable images (reuse existing sandbox tags)'){
+   assert.ok(block?.includes('docker pull "$image_ref"'));
+   assert.ok(block?.includes('node scripts/verify-sandbox-image.mjs "$kind" "$image_ref" "$DEPLOY_SHA"'));
+  }
  }
  for(const name of ['Define the host command helper','Read the running Sandbox release']){
   const block=workflow.split('      - name: '+name+'\n')[1]?.split('      - ')[0];

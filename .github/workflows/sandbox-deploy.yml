@@ -117,6 +117,8 @@ jobs:
             existing=$(digest "$repo")
             if [[ "$existing" =~ ^sha256:[0-9a-f]{64}$ ]]; then
               echo "$repo:$tag already published as $existing"
+              image_ref="$REGISTRY/$repo@$existing"
+              docker pull "$image_ref" >/dev/null
             else
               file=Dockerfile; [ "$kind" = migration ] && file=Dockerfile.migrations
               docker build --platform linux/amd64 --file "$file" \
@@ -126,7 +128,9 @@ jobs:
               docker push --quiet "$REGISTRY/$repo:$tag"
               existing=$(digest "$repo")
               [[ "$existing" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "could not read the pushed digest for $repo"; exit 1; }
+              image_ref="$REGISTRY/$repo@$existing"
             fi
+            node scripts/verify-sandbox-image.mjs "$kind" "$image_ref" "$DEPLOY_SHA"
             echo "$(tr '[:lower:]' '[:upper:]' <<< "$kind")_IMAGE=$REGISTRY/$repo@$existing" >> "$GITHUB_ENV"
           done
           docker logout "$REGISTRY" >/dev/null
