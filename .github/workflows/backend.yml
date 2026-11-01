@@ -84,6 +84,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Install PostgreSQL 16 rehearsal binaries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y postgresql-16
       - run: test -x /usr/lib/postgresql/16/bin/initdb
       - run: npm ci
       - run: DATABASE_URL=postgresql://unused@127.0.0.1:1/unused npm run generate:client
