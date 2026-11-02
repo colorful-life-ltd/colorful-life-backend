@@ -5,6 +5,9 @@ import Stripe from "stripe";
 import jwt from "jsonwebtoken";
 import app from "../app.js";
 import { config } from "../config/index.js";
+import { databasePoolOptions } from "../config/database.js";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma-client/client.js";
 import { prisma } from "../prisma/runtime.js";
 import { createOrReuseStripeRefund, setStripeRefundClientForTests, type StripeRefundClient } from "../domain/refunds/stripeRefundService.js";
 import { createOrReusePayPalRefund, setPayPalRefundClientForTests, type PayPalRefundClient } from "../domain/refunds/paypalRefundService.js";
@@ -68,15 +71,18 @@ it("read-only refund request status serializes with preparation and returns exac
  const unauthenticatedPost=await fetch(`${base}/orders/${f.order.id}/refunds`,{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":randomUUID()},body:JSON.stringify({paymentId:f.payment.id,amount:1,reason:"Unauthenticated test"})});
  assert.equal(unauthenticatedPost.status,401);assert.equal("refundSubmissionDisposition" in await unauthenticatedPost.json(),false);
 });
-it("durably retires an absent request key so a late POST and a later process cannot create its refund",async()=>{
+it("persists retired keys across independent database clients and blocks later requests",async()=>{
  const f=await fixture(),key=randomUUID();const retirementPath=`${base}/orders/${f.order.id}/payments/${f.payment.id}/refund-request-retirement`;let posts=0;
  const retire=()=>fetch(retirementPath,{method:"POST",headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key,"Content-Type":"application/json"},body:"{}"});
  const first=await retire();assert.equal(first.status,200);assert.deepEqual(await first.json(),{state:"RETIRED",requestKey:key});
  const persisted=await prisma.retiredRefundRequestKey.findUniqueOrThrow({where:{clientRequestKey:key}});assert.equal(persisted.orderId,f.order.id);assert.equal(persisted.paymentId,f.payment.id);
+ const independentClient=new PrismaClient({adapter:new PrismaPg(databasePoolOptions(config.DATABASE_URL!,process.env))});
+ try{assert.deepEqual(await independentClient.retiredRefundRequestKey.findUniqueOrThrow({where:{clientRequestKey:key},select:{clientRequestKey:true,orderId:true,paymentId:true}}),{clientRequestKey:key,orderId:f.order.id,paymentId:f.payment.id});}
+ finally{await independentClient.$disconnect();}
  restores.push(setStripeRefundClientForTests({createRefund:async()=>{posts++;return stripeResponse(f);}}));
  const late=await api(f,{paymentId:f.payment.id,amount:10,reason:"Return request"},key);assert.equal(late.status,409);const body=await late.json();assert.equal(body.error,"REFUND_REQUEST_KEY_RETIRED");assert.equal("refundSubmissionDisposition" in body,false);assert.equal(posts,0);assert.equal(await prisma.refund.count({where:{clientRequestKey:key}}),0);
  const status=await fetch(`${base}/orders/${f.order.id}/payments/${f.payment.id}/refund-request-status`,{headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key}});assert.deepEqual(await status.json(),{state:"RETIRED",requestKey:key});
- const anotherProcessRequest=await api(f,{paymentId:f.payment.id,amount:10,reason:"Return request"},key);assert.equal(anotherProcessRequest.status,409);assert.equal(posts,0);
+ const subsequentRequest=await api(f,{paymentId:f.payment.id,amount:10,reason:"Return request"},key);assert.equal(subsequentRequest.status,409);assert.equal(posts,0);
  const corrected=await api(f,{paymentId:f.payment.id,amount:10,reason:"Corrected return request"},randomUUID());assert.equal(corrected.status,201);assert.equal(posts,1);
 });
 it("serializes simultaneous refund creation and request-key retirement on one global key lock",async()=>{
