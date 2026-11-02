@@ -19,7 +19,7 @@ on:
         required: false
         default: ''
       migration_writes_approved:
-        description: Explicit owner approval to apply Migration 75 to local Sandbox PostgreSQL
+        description: Explicit owner approval to apply pending checksum-verified Sandbox migrations (currently through Migration 76)
         type: boolean
         default: false
       nginx_routes_approved:
@@ -174,13 +174,13 @@ jobs:
         if: inputs.action == 'prepare'
         run: |
           { echo "### Prepared $DEPLOY_SHA (not deployed)"; echo "- API: $API_IMAGE"; echo "- Migration: $MIGRATION_IMAGE"; } >> "$GITHUB_STEP_SUMMARY"
-      - name: Apply Migration 75 to the verified local Sandbox database
+      - name: Apply checksum-verified migrations to the verified local Sandbox database
         if: inputs.action == 'migrate'
         run: |
           [ "$MIGRATION_WRITES_APPROVED" = true ] || { echo "Migration requires explicit owner approval"; exit 1; }
           out=$("$RUNNER_TEMP/host.sh" migrate "$API_IMAGE" "$MIGRATION_IMAGE" "$DEPLOY_SHA" "$MIGRATION_WRITES_APPROVED") && rc=0 || rc=$?
           echo "$out"
-          { echo '### Sandbox Migration 75 (applications unchanged)'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '### Sandbox migrations (applications unchanged)'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
       - name: Install owner-restricted bootstrap and recovery routes
         if: inputs.action == 'routes'

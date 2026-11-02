@@ -8,6 +8,8 @@ import { validateTargetMarker, validateMigrationHistory } from './migration-cont
 
 const migrationName = '20261101120000_single_admin_bootstrap';
 const migrationSha256 = '842c9ad5ced74c50a8a22c25350d4a2254d38abbe6b1536bddc2b0f58180b91b';
+const retirementMigrationName = '20261102100000_retired_refund_request_keys';
+const retirementMigrationSha256 = 'a612186dd78085c2c7dada35bb1c8495d464bde82b08e89b95a4b39f5d5c7be8';
 const identityPath = process.env.SANDBOX_IDENTITIES_FILE ?? '/run/colorful/sandbox-identities.json';
 const localRehearsal = process.env.LOCAL_DATABASE_REHEARSAL === 'true';
 let phase = 'configuration';
@@ -32,7 +34,8 @@ function expectedChecksums() {
     .filter(entry => entry.isDirectory())
     .map(entry => [entry.name, createHash('sha256').update(readFileSync(`prisma/migrations/${entry.name}/migration.sql`)).digest('hex')])
     .sort(([a], [b]) => a.localeCompare(b));
-  if (migrations.at(-1)?.[0] !== migrationName || migrations.at(-1)?.[1] !== migrationSha256) throw new Error('Unexpected migration bundle');
+  const pinned = new Map(migrations);
+  if (pinned.get(migrationName) !== migrationSha256 || pinned.get(retirementMigrationName) !== retirementMigrationSha256 || migrations.at(-1)?.[0] !== retirementMigrationName) throw new Error('Unexpected migration bundle');
   return Object.fromEntries(migrations);
 }
 
@@ -53,14 +56,15 @@ async function verifyDatabase(env, checksums, before) {
     check = 'migration checksum validation';
     const summary = validateMigrationHistory(applied, new Map(Object.entries(checksums)), true);
     if (before) {
-      if (summary.applied === 74 && summary.pending.length === 1 && summary.pending[0] === migrationName) {
+      if ((summary.applied === 74 && summary.pending.join(',') === [migrationName, retirementMigrationName].join(',')) ||
+        (summary.applied === 75 && summary.pending.length === 1 && summary.pending[0] === retirementMigrationName)) {
         check = 'existing Admin count';
         const adminCount = Number((await client.query('SELECT count(*) AS count FROM public."User" WHERE role = \'ADMIN\'')).rows[0].count);
         if (adminCount > 1) throw new Error('Sandbox contains duplicate Admin rows before migration');
         await client.query('ROLLBACK');
         return 'pending';
       }
-      if (summary.applied === 75 && summary.pending.length === 0) {
+      if (summary.applied === 76 && summary.pending.length === 0) {
         check = 'already-applied constraint verification';
         const index = (await client.query("SELECT i.indisunique AS is_unique, i.indisvalid AS is_valid, pg_get_expr(i.indpred,i.indrelid) AS predicate FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname='User_single_admin_idx' AND i.indrelid='public.\"User\"'::regclass")).rows[0];
         if (!index?.is_unique || !index?.is_valid || !index.predicate?.includes("'ADMIN'")) throw new Error('Applied migration has no valid unique Admin index');
@@ -70,7 +74,7 @@ async function verifyDatabase(env, checksums, before) {
       throw new Error('Unexpected Sandbox migration history');
     } else {
       check = 'constraint verification';
-      if (summary.applied !== 75 || summary.pending.length !== 0) throw new Error('Migration history did not reach the expected baseline');
+      if (summary.applied !== 76 || summary.pending.length !== 0) throw new Error('Migration history did not reach the expected baseline');
       const index = (await client.query("SELECT i.indisunique AS is_unique, i.indisvalid AS is_valid, pg_get_expr(i.indpred,i.indrelid) AS predicate FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname='User_single_admin_idx' AND i.indrelid='public.\"User\"'::regclass")).rows[0];
       if (!index?.is_unique || !index?.is_valid || !index.predicate?.includes("'ADMIN'")) throw new Error('Single-Admin database constraint is missing');
     }
@@ -107,7 +111,7 @@ async function main() {
   await verifyDatabase(common, checksums, false);
   phase = 'runtime privilege verification';
   run('scripts/runtime-privilege-probes.mjs', { ...process.env, DB_USER: 'cl_runtime', DB_PASSWORD: identities.RUNTIME_PASSWORD });
-  console.log('Sandbox Migration 75 verified; runtime privilege probes passed.');
+  console.log('Sandbox Migrations 75-76 verified; runtime privilege probes passed.');
 }
 
 main().catch(() => {

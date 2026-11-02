@@ -45,7 +45,8 @@ try:
   fba_index=next((i for i,m in enumerate(migrations) if m.parent.name=='20261027120000_fba_shipment_builder'),-1)
   return_index=next((i for i,m in enumerate(migrations) if m.parent.name=='20261029150000_return_management_v1'),-1)
   admin_index=next((i for i,m in enumerate(migrations) if m.parent.name=='20261101120000_single_admin_bootstrap'),-1)
-  if fba_index!=72 or return_index!=73 or admin_index!=74 or admin_index!=len(migrations)-1:
+  retired_index=next((i for i,m in enumerate(migrations) if m.parent.name=='20261102100000_retired_refund_request_keys'),-1)
+  if fba_index!=72 or return_index!=73 or admin_index!=74 or retired_index!=75 or len(migrations)!=76:
    raise RuntimeError('Review the baseline upgrade rehearsal when migration history changes')
   baseline=owned/'baseline-migrations';baseline.mkdir()
   shutil.copy2(root/'prisma/migrations/migration_lock.toml',baseline/'migration_lock.toml')

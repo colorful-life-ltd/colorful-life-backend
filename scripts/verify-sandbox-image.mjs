@@ -7,6 +7,7 @@ const SOURCE = 'https://github.com/colorful-life-ltd/colorful-life-backend';
 const MIGRATIONS = {
   'prisma/migrations/20261029150000_return_management_v1/migration.sql': '67caf46e7c10618a810543a193307a616aae59aa7725fa95c2463b6ced1b0d1d',
   'prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql': '842c9ad5ced74c50a8a22c25350d4a2254d38abbe6b1536bddc2b0f58180b91b',
+  'prisma/migrations/20261102100000_retired_refund_request_keys/migration.sql': 'a612186dd78085c2c7dada35bb1c8495d464bde82b08e89b95a4b39f5d5c7be8',
 };
 
 export function verifySandboxImage({ kind, ref, revision, run = execFileSync }) {

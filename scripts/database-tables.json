@@ -23,6 +23,7 @@
   "Payment",
   "PaymentWebhookEvent",
   "Refund",
+  "RetiredRefundRequestKey",
   "OrderItem",
   "OrderReturn",
   "Purchase",
