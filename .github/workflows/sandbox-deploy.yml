@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: status, prepare images, apply approved Sandbox migration, install owner-restricted bootstrap routes, deploy or rollback
+        description: status, prepare images, apply approved Sandbox migration, install owner-restricted bootstrap routes, deploy, rollback, or an owner-approved www step (vhost, certificate, remove)
         type: choice
-        options: [status, prepare, migrate, routes, deploy, rollback]
+        options: [status, prepare, migrate, routes, deploy, rollback, www-vhost, www-certificate, www-remove]
         default: status
       sha:
         description: Commit on main to deploy (default is the current main)
@@ -24,6 +24,10 @@ on:
         default: false
       nginx_routes_approved:
         description: Explicit owner approval to install the reviewed owner-restricted Sandbox Admin bootstrap routes
+        type: boolean
+        default: false
+      www_approved:
+        description: Explicit owner approval for the selected www step (vhost install, Let's Encrypt certificate expansion, or vhost removal)
         type: boolean
         default: false
 permissions:
@@ -47,6 +51,7 @@ jobs:
       ROLLBACK_TO: ${{ inputs.rollback_to }}
       MIGRATION_WRITES_APPROVED: ${{ inputs.migration_writes_approved }}
       NGINX_ROUTES_APPROVED: ${{ inputs.nginx_routes_approved }}
+      WWW_APPROVED: ${{ inputs.www_approved }}
       AWS_REGION: eu-west-2
       REGISTRY: 919693204623.dkr.ecr.eu-west-2.amazonaws.com
       INSTANCE_ID: i-02b28336518077a8f
@@ -88,7 +93,7 @@ jobs:
           # usage: host.sh ACTION [API_IMAGE] [MIGRATION_IMAGE] [SHA]; prints host output, fails if the host failed
           set -euo pipefail
           commit="${4:-}"
-          params=$(jq -nc --arg a "$1" --arg api "${2:-}" --arg mig "${3:-}" --arg s "${4:-}" --arg approved "${5:-false}" --arg routes "$NGINX_ROUTES_APPROVED" '{Action:[$a],ApiImage:[$api],MigrationImage:[$mig],Sha:[$s],MigrationWritesApproved:[$approved],NginxRoutesApproved:[$routes]}')
+          params=$(jq -nc --arg a "$1" --arg api "${2:-}" --arg mig "${3:-}" --arg s "${4:-}" --arg approved "${5:-false}" --arg routes "$NGINX_ROUTES_APPROVED" --arg www "$WWW_APPROVED" '{Action:[$a],ApiImage:[$api],MigrationImage:[$mig],Sha:[$s],MigrationWritesApproved:[$approved],NginxRoutesApproved:[$routes]} | if ($a|startswith("www-")) then . + {WwwApproved:[$www]} else . end')
           id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name "$DEPLOY_DOCUMENT" --timeout-seconds 600 \
             --comment "backend $1 ${commit:0:12} run $GITHUB_RUN_ID" --parameters "$params" --query Command.CommandId --output text)
           status=Pending
@@ -184,6 +189,14 @@ jobs:
           out=$("$RUNNER_TEMP/host.sh" routes "" "" "" false) && rc=0 || rc=$?
           echo "$out"
           { echo '### Sandbox owner-restricted Admin routes'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+      - name: Owner-approved www canonical redirect and certificate step
+        if: startsWith(inputs.action, 'www-')
+        run: |
+          [ "$WWW_APPROVED" = true ] || { echo "The www step requires explicit owner approval"; exit 1; }
+          out=$("$RUNNER_TEMP/host.sh" "$ACTION" "" "" "" false) && rc=0 || rc=$?
+          echo "$out"
+          { echo "### Sandbox ${ACTION}"; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
       - name: Deploy API then Worker on the host (staged, automatic restore on failure)
         if: inputs.action == 'deploy'
