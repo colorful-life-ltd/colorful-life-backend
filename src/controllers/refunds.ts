@@ -43,7 +43,7 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId }, select: { orderId: true, provider: true } });
     if (!payment || payment.orderId !== orderId) return res.status(404).json({ error: "Payment not found for order", refundSubmissionDisposition: "NOT_SUBMITTED" });
     if (payment.provider === PaymentProvider.PAYPAL) {
-      return res.status(503).json({ error: "PAYPAL_INITIATION_DISABLED", refundSubmissionDisposition: "NOT_SUBMITTED" });
+      return res.status(503).json({ error: { code: "PAYPAL_INITIATION_DISABLED", message: "PayPal transactions are not supported" }, refundSubmissionDisposition: "NOT_SUBMITTED" });
     }
     if (payment.provider === PaymentProvider.STRIPE) {
       if (providerReference !== undefined) return res.status(400).json({ error: "providerReference is only valid for manual refunds", refundSubmissionDisposition: "NOT_SUBMITTED" });

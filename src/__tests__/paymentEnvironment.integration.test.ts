@@ -3,17 +3,28 @@ import { after, afterEach, before, it } from 'node:test'
 import jwt from 'jsonwebtoken'
 import app from '../app.js'
 import { config } from '../config/index.js'
+import { setAuthenticatedUserLookupForTests } from '../middleware/auth.js'
 
 let server: ReturnType<typeof app.listen>, base: string
 const oldSecret = config.STRIPE_SECRET_KEY
 const oldReconciliation = config.REFUND_RECONCILIATION_ENABLED
+let restoreAuthLookup: (() => void) | undefined
 before(async () => {
+  restoreAuthLookup = setAuthenticatedUserLookupForTests(async id => ({
+    id,
+    role: id === 7 ? 'ADMIN' : 'CUSTOMER',
+    deletedAt: null,
+    credentialVersion: null,
+  }))
   server = app.listen(0, '127.0.0.1')
   await new Promise<void>(resolve => server.once('listening', resolve))
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 })
 afterEach(() => { config.STRIPE_SECRET_KEY = oldSecret; config.REFUND_RECONCILIATION_ENABLED = oldReconciliation })
-after(async () => { await new Promise<void>(resolve => server.close(() => resolve())) })
+after(async () => {
+  await new Promise<void>(resolve => server.close(() => resolve()))
+  restoreAuthLookup?.()
+})
 const token = (role: 'ADMIN' | 'CUSTOMER') => jwt.sign({ id: role === 'ADMIN' ? 7 : 8, role }, config.JWT_SECRET)
 
 it('reports only authoritative Stripe mode and reconciliation availability to Admins', async () => {
