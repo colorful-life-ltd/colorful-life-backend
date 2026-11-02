@@ -90,7 +90,8 @@ function run(script, env) {
 
 async function main() {
   if (process.env.DEPLOYMENT_ENVIRONMENT !== 'staging' || process.env.DB_NAME !== 'colorful_life' ||
-    (!localRehearsal && process.env.DB_HOST !== 'postgres') || !process.env.EXPECTED_DB_SERVER) throw new Error('Sandbox-only migration configuration required');
+    (!localRehearsal && process.env.DB_HOST !== 'postgres') || !process.env.EXPECTED_DB_SERVER ||
+    process.env.MIGRATION_WRITES_APPROVED !== 'true') throw new Error('Sandbox-only migration configuration required');
   phase = 'identity-file validation';
   const identities = readIdentities();
   const common = { ...process.env, DB_USER: 'cl_migrator', DB_PASSWORD: identities.MIGRATOR_PASSWORD };
