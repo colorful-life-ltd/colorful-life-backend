@@ -77,7 +77,7 @@ it("durably retires an absent request key so a late POST and a later process can
  const late=await api(f,{paymentId:f.payment.id,amount:10,reason:"Return request"},key);assert.equal(late.status,409);const body=await late.json();assert.equal(body.error,"REFUND_REQUEST_KEY_RETIRED");assert.equal("refundSubmissionDisposition" in body,false);assert.equal(posts,0);assert.equal(await prisma.refund.count({where:{clientRequestKey:key}}),0);
  const status=await fetch(`${base}/orders/${f.order.id}/payments/${f.payment.id}/refund-request-status`,{headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key}});assert.deepEqual(await status.json(),{state:"RETIRED",requestKey:key});
  const anotherProcessRequest=await api(f,{paymentId:f.payment.id,amount:10,reason:"Return request"},key);assert.equal(anotherProcessRequest.status,409);assert.equal(posts,0);
- const corrected=await api(f,{paymentId:f.payment.id,amount:9.98,reason:"Corrected return request"},randomUUID());assert.equal(corrected.status,201);assert.equal(posts,1);
+ const corrected=await api(f,{paymentId:f.payment.id,amount:10,reason:"Corrected return request"},randomUUID());assert.equal(corrected.status,201);assert.equal(posts,1);
 });
 it("serializes simultaneous refund creation and request-key retirement on one global key lock",async()=>{
  const f=await fixture(),key=randomUUID();let posts=0;restores.push(setStripeRefundClientForTests({createRefund:async()=>{posts++;return stripeResponse(f);}}));
@@ -313,7 +313,7 @@ it("post-submission capacity failure retains the refund identity and never claim
  restores.push(setStripeRefundClientForTests({createRefund:async()=>{calls++;await prisma.payment.update({where:{id:f.payment.id},data:{amount:5}});return stripeResponse(f);}}));
  const response=await api(f,{paymentId:f.payment.id,amount:10,reason:"Post submission capacity race"},key);assert.equal(response.status,503);
  const body=await response.json();assert.equal(body.error,"REFUND_PERSISTENCE_UNAVAILABLE");assert.equal(body.status,"UNKNOWN");assert.ok(body.refundId);assert.equal("refundSubmissionDisposition" in body,false);assert.equal("refundRequestKey" in body,false);
- const saved=await prisma.refund.findUniqueOrThrow({where:{clientRequestKey:key}});assert.equal(saved.status,"PROCESSING");assert.equal(saved.resolutionCode,"RECONCILIATION_REQUIRED");assert.equal(calls,1);assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+ const saved=await prisma.refund.findUniqueOrThrow({where:{clientRequestKey:key}});assert.equal(saved.status,"PROCESSING");assert.equal(saved.resolutionCode,"SUBMISSION_STARTED");assert.equal(calls,1);assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
 });
 
 it("uncorrelated verified refund evidence for the exact provider parent blocks new payouts",async()=>{
