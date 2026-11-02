@@ -75,6 +75,7 @@ export const ModelName = {
   Payment: 'Payment',
   PaymentWebhookEvent: 'PaymentWebhookEvent',
   Refund: 'Refund',
+  RetiredRefundRequestKey: 'RetiredRefundRequestKey',
   OrderItem: 'OrderItem',
   ReturnCase: 'ReturnCase',
   ReturnSubmission: 'ReturnSubmission',
@@ -512,6 +513,16 @@ export const RefundScalarFieldEnum = {
 } as const
 
 export type RefundScalarFieldEnum = (typeof RefundScalarFieldEnum)[keyof typeof RefundScalarFieldEnum]
+
+
+export const RetiredRefundRequestKeyScalarFieldEnum = {
+  clientRequestKey: 'clientRequestKey',
+  orderId: 'orderId',
+  paymentId: 'paymentId',
+  retiredAt: 'retiredAt'
+} as const
+
+export type RetiredRefundRequestKeyScalarFieldEnum = (typeof RetiredRefundRequestKeyScalarFieldEnum)[keyof typeof RetiredRefundRequestKeyScalarFieldEnum]
 
 
 export const OrderItemScalarFieldEnum = {
