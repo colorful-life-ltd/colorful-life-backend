@@ -30,6 +30,7 @@ import { createUsedOffersRouter, createConditionConversionRouter } from "./route
 import adminProductsRouter from "./routes/adminProducts.js";
 import adminProductListingsRouter from "./routes/adminProductListings.js";
 import { createSitemapRouter } from "./routes/sitemap.js";
+import adminBootstrapRouter from "./routes/adminBootstrap.js";
 import type { ImageStorage } from "./infrastructure/imageStorage/imageStorage.js";
 
 export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?: ImageStorage, categoryArtworkStorage?: ImageStorage) {
@@ -43,6 +44,7 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/payments", paypalWebhookRouter);
   app.use(express.json());
   app.use("/auth", authRouter);
+  app.use("/admin/bootstrap", adminBootstrapRouter);
   app.use("/", profileRouter);
   app.use("/users", usersRouter);
   app.use("/products", productsRouter);

@@ -9,6 +9,8 @@ const ref = `919693204623.dkr.ecr.eu-west-2.amazonaws.com/repo@sha256:${'a'.repe
 const source = 'https://github.com/colorful-life-ltd/colorful-life-backend';
 const sql = readFileSync('prisma/migrations/20261029150000_return_management_v1/migration.sql');
 const sqlHash = createHash('sha256').update(sql).digest('hex');
+const bootstrapSql = readFileSync('prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql');
+const bootstrapHash = createHash('sha256').update(bootstrapSql).digest('hex');
 
 function fakeDocker({ imageRevision = revision, imageSource = source, embeddedHash = sqlHash } = {}) {
   const calls = [];
@@ -18,7 +20,7 @@ function fakeDocker({ imageRevision = revision, imageSource = source, embeddedHa
       'org.opencontainers.image.revision': imageRevision,
       'org.opencontainers.image.source': imageSource,
     });
-    return `${embeddedHash}  /app/prisma/migrations/20261029150000_return_management_v1/migration.sql\n`;
+    return `${embeddedHash}  /app/prisma/migrations/20261029150000_return_management_v1/migration.sql\n${bootstrapHash}  /app/prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql\n`;
   };
   return { run, calls };
 }
@@ -36,18 +38,28 @@ test('rejects reused image with mismatched OCI revision or source', () => {
   }
 });
 
-test('checks embedded Migration 74 checksum in a network-disabled read-only container', () => {
+test('checks embedded Migration 74 and 75 checksums in a network-disabled read-only container', () => {
   const docker = fakeDocker();
   assert.equal(verifySandboxImage({ kind: 'migration', ref, revision, run: docker.run }), true);
   assert.deepEqual(docker.calls[1].slice(0, 11), [
     'run', '--rm', '--network', 'none', '--read-only', '--cap-drop', 'ALL',
-    '--security-opt', 'no-new-privileges', '--entrypoint', 'sh',
+    '--security-opt', 'no-new-privileges', '--entrypoint', 'sha256sum',
   ]);
-  assert.match(docker.calls[1].at(-1), /sha256sum \/app\/prisma\/migrations\/20261029150000_return_management_v1\/migration\.sql/);
+  assert.deepEqual(docker.calls[1].slice(-2), [
+    '/app/prisma/migrations/20261029150000_return_management_v1/migration.sql',
+    '/app/prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql',
+  ]);
 });
 
 test('rejects migration image with altered embedded SQL', () => {
   const docker = fakeDocker({ embeddedHash: '0'.repeat(64) });
+  assert.throws(() => verifySandboxImage({ kind: 'migration', ref, revision, run: docker.run }), /migration image SQL checksum mismatch/);
+});
+
+test('rejects migration image missing Migration 75 content', () => {
+  const docker = fakeDocker();
+  const original = docker.run;
+  docker.run = (command, args, options) => args[0] === 'image' ? original(command, args, options) : `${sqlHash}  /app/prisma/migrations/20261029150000_return_management_v1/migration.sql\n`;
   assert.throws(() => verifySandboxImage({ kind: 'migration', ref, revision, run: docker.run }), /migration image SQL checksum mismatch/);
 });
 
