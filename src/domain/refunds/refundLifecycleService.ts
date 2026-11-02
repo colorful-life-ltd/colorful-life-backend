@@ -24,7 +24,9 @@ export function validClientRequestKey(value: unknown): value is string {
 }
 /** A global per-key transaction lock coordinates retirement and creation, even if a key is presented against different targets. */
 export async function lockRefundRequestKey(tx: Prisma.TransactionClient, key: string) {
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+  // Return a Prisma-decodable scalar; PostgreSQL's advisory lock function itself
+  // returns `void`, which Prisma cannot deserialize through $queryRaw.
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))::text AS locked`;
 }
 export async function lockRefundPayment(tx: Prisma.TransactionClient, orderId: number, paymentId: number) {
   await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${orderId} FOR NO KEY UPDATE`;
