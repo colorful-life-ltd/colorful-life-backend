@@ -421,6 +421,7 @@ export const ModelName = {
   Payment: 'Payment',
   PaymentWebhookEvent: 'PaymentWebhookEvent',
   Refund: 'Refund',
+  RetiredRefundRequestKey: 'RetiredRefundRequestKey',
   OrderItem: 'OrderItem',
   ReturnCase: 'ReturnCase',
   ReturnSubmission: 'ReturnSubmission',
@@ -467,7 +468,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "fbaOutbound" | "fbaShipment" | "fbaShipmentSequence" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "orderItem" | "returnCase" | "returnSubmission" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence" | "orderConfirmationJob" | "commercialInvoice" | "abuseBucket" | "paymentInitiationPolicy" | "paymentAdmission" | "paymentSecurityEvent" | "paymentFulfilmentReview" | "paymentChallengeUse" | "operationalAudit"
+    modelProps: "businessExpense" | "user" | "refreshSession" | "emailVerificationToken" | "passwordResetToken" | "address" | "legoProduct" | "category" | "productListing" | "usedConditionPhoto" | "cart" | "cartItem" | "productImage" | "fbaOutbound" | "fbaShipment" | "fbaShipmentSequence" | "inventoryMovement" | "inventoryAudit" | "order" | "orderCartProvenance" | "orderCartAllocation" | "payment" | "paymentWebhookEvent" | "refund" | "retiredRefundRequestKey" | "orderItem" | "returnCase" | "returnSubmission" | "orderReturn" | "purchase" | "purchaseDocument" | "purchaseItem" | "paymentAttempt" | "paymentOperation" | "financialEvidence" | "reservationReleaseProof" | "paymentResolution" | "passwordRecoveryLimit" | "shipment" | "orderFulfilmentEvent" | "shipmentTrackingEvent" | "shipmentTrackingState" | "shipmentTrackingSync" | "trackingCarrierBudget" | "shipmentTrackingPoll" | "shipmentTrackingConflict" | "shipmentCarrierEvidence" | "orderConfirmationJob" | "commercialInvoice" | "abuseBucket" | "paymentInitiationPolicy" | "paymentAdmission" | "paymentSecurityEvent" | "paymentFulfilmentReview" | "paymentChallengeUse" | "operationalAudit"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2244,6 +2245,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.RefundCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.RefundCountAggregateOutputType> | number
+        }
+      }
+    }
+    RetiredRefundRequestKey: {
+      payload: Prisma.$RetiredRefundRequestKeyPayload<ExtArgs>
+      fields: Prisma.RetiredRefundRequestKeyFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.RetiredRefundRequestKeyFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.RetiredRefundRequestKeyFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>
+        }
+        findFirst: {
+          args: Prisma.RetiredRefundRequestKeyFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.RetiredRefundRequestKeyFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>
+        }
+        findMany: {
+          args: Prisma.RetiredRefundRequestKeyFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>[]
+        }
+        create: {
+          args: Prisma.RetiredRefundRequestKeyCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>
+        }
+        createMany: {
+          args: Prisma.RetiredRefundRequestKeyCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.RetiredRefundRequestKeyCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>[]
+        }
+        delete: {
+          args: Prisma.RetiredRefundRequestKeyDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>
+        }
+        update: {
+          args: Prisma.RetiredRefundRequestKeyUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>
+        }
+        deleteMany: {
+          args: Prisma.RetiredRefundRequestKeyDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.RetiredRefundRequestKeyUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.RetiredRefundRequestKeyUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>[]
+        }
+        upsert: {
+          args: Prisma.RetiredRefundRequestKeyUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetiredRefundRequestKeyPayload>
+        }
+        aggregate: {
+          args: Prisma.RetiredRefundRequestKeyAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateRetiredRefundRequestKey>
+        }
+        groupBy: {
+          args: Prisma.RetiredRefundRequestKeyGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RetiredRefundRequestKeyGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.RetiredRefundRequestKeyCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RetiredRefundRequestKeyCountAggregateOutputType> | number
         }
       }
     }
@@ -4970,6 +5045,16 @@ export const RefundScalarFieldEnum = {
 export type RefundScalarFieldEnum = (typeof RefundScalarFieldEnum)[keyof typeof RefundScalarFieldEnum]
 
 
+export const RetiredRefundRequestKeyScalarFieldEnum = {
+  clientRequestKey: 'clientRequestKey',
+  orderId: 'orderId',
+  paymentId: 'paymentId',
+  retiredAt: 'retiredAt'
+} as const
+
+export type RetiredRefundRequestKeyScalarFieldEnum = (typeof RetiredRefundRequestKeyScalarFieldEnum)[keyof typeof RetiredRefundRequestKeyScalarFieldEnum]
+
+
 export const OrderItemScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
@@ -6298,6 +6383,7 @@ export type GlobalOmitConfig = {
   payment?: Prisma.PaymentOmit
   paymentWebhookEvent?: Prisma.PaymentWebhookEventOmit
   refund?: Prisma.RefundOmit
+  retiredRefundRequestKey?: Prisma.RetiredRefundRequestKeyOmit
   orderItem?: Prisma.OrderItemOmit
   returnCase?: Prisma.ReturnCaseOmit
   returnSubmission?: Prisma.ReturnSubmissionOmit

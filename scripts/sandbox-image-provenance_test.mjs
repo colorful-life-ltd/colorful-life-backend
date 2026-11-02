@@ -11,6 +11,8 @@ const sql = readFileSync('prisma/migrations/20261029150000_return_management_v1/
 const sqlHash = createHash('sha256').update(sql).digest('hex');
 const bootstrapSql = readFileSync('prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql');
 const bootstrapHash = createHash('sha256').update(bootstrapSql).digest('hex');
+const retiredSql = readFileSync('prisma/migrations/20261102100000_retired_refund_request_keys/migration.sql');
+const retiredHash = createHash('sha256').update(retiredSql).digest('hex');
 
 function fakeDocker({ imageRevision = revision, imageSource = source, embeddedHash = sqlHash } = {}) {
   const calls = [];
@@ -20,7 +22,7 @@ function fakeDocker({ imageRevision = revision, imageSource = source, embeddedHa
       'org.opencontainers.image.revision': imageRevision,
       'org.opencontainers.image.source': imageSource,
     });
-    return `${embeddedHash}  /app/prisma/migrations/20261029150000_return_management_v1/migration.sql\n${bootstrapHash}  /app/prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql\n`;
+    return `${embeddedHash}  /app/prisma/migrations/20261029150000_return_management_v1/migration.sql\n${bootstrapHash}  /app/prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql\n${retiredHash}  /app/prisma/migrations/20261102100000_retired_refund_request_keys/migration.sql\n`;
   };
   return { run, calls };
 }
@@ -38,16 +40,17 @@ test('rejects reused image with mismatched OCI revision or source', () => {
   }
 });
 
-test('checks embedded Migration 74 and 75 checksums in a network-disabled read-only container', () => {
+test('checks embedded Migration 74, 75 and 76 checksums in a network-disabled read-only container', () => {
   const docker = fakeDocker();
   assert.equal(verifySandboxImage({ kind: 'migration', ref, revision, run: docker.run }), true);
   assert.deepEqual(docker.calls[1].slice(0, 11), [
     'run', '--rm', '--network', 'none', '--read-only', '--cap-drop', 'ALL',
     '--security-opt', 'no-new-privileges', '--entrypoint', 'sha256sum',
   ]);
-  assert.deepEqual(docker.calls[1].slice(-2), [
+  assert.deepEqual(docker.calls[1].slice(-3), [
     '/app/prisma/migrations/20261029150000_return_management_v1/migration.sql',
     '/app/prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql',
+    '/app/prisma/migrations/20261102100000_retired_refund_request_keys/migration.sql',
   ]);
 });
 
@@ -56,10 +59,10 @@ test('rejects migration image with altered embedded SQL', () => {
   assert.throws(() => verifySandboxImage({ kind: 'migration', ref, revision, run: docker.run }), /migration image SQL checksum mismatch/);
 });
 
-test('rejects migration image missing Migration 75 content', () => {
+test('rejects migration image missing Migration 76 content', () => {
   const docker = fakeDocker();
   const original = docker.run;
-  docker.run = (command, args, options) => args[0] === 'image' ? original(command, args, options) : `${sqlHash}  /app/prisma/migrations/20261029150000_return_management_v1/migration.sql\n`;
+  docker.run = (command, args, options) => args[0] === 'image' ? original(command, args, options) : `${sqlHash}  /app/prisma/migrations/20261029150000_return_management_v1/migration.sql\n${bootstrapHash}  /app/prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql\n`;
   assert.throws(() => verifySandboxImage({ kind: 'migration', ref, revision, run: docker.run }), /migration image SQL checksum mismatch/);
 });
 

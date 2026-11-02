@@ -5,6 +5,9 @@ import Stripe from "stripe";
 import jwt from "jsonwebtoken";
 import app from "../app.js";
 import { config } from "../config/index.js";
+import { databasePoolOptions } from "../config/database.js";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma-client/client.js";
 import { prisma } from "../prisma/runtime.js";
 import { createOrReuseStripeRefund, setStripeRefundClientForTests, type StripeRefundClient } from "../domain/refunds/stripeRefundService.js";
 import { createOrReusePayPalRefund, setPayPalRefundClientForTests, type PayPalRefundClient } from "../domain/refunds/paypalRefundService.js";
@@ -50,6 +53,57 @@ it("requires a client key before any new external intent or provider call",async
  const f=await fixture();let calls=0;restores.push(setStripeRefundClientForTests({createRefund:async()=>{calls++;return stripeResponse(f);}}));
  for(const key of [undefined,"short","bad key "+randomUUID()]){const response=await api(f,{paymentId:f.payment.id,amount:10},key);assert.equal(response.status,400);}
  assert.equal(calls,0);assert.equal(await prisma.refund.count({where:{paymentId:f.payment.id}}),0);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+});
+it("marks an over-capacity Stripe request as definitively not submitted without creating or reserving a refund",async()=>{
+ const f=await fixture();let calls=0;restores.push(setStripeRefundClientForTests({createRefund:async()=>{calls++;return stripeResponse(f);}}));
+ const key=randomUUID();const response=await api(f,{paymentId:f.payment.id,amount:100.01,reason:"Return amount correction"},key);
+ assert.equal(response.status,409);assert.deepEqual(await response.json(),{error:"REFUND_CAPACITY_EXCEEDED",availableRefundAmount:"100.00",refundSubmissionDisposition:"NOT_SUBMITTED",refundRequestKey:key});
+ assert.equal(calls,0);assert.equal(await prisma.refund.count({where:{paymentId:f.payment.id}}),0);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+});
+it("read-only refund request status serializes with preparation and returns exact-key evidence",async()=>{
+ const f=await fixture();const key=randomUUID();
+ const statusUrl=`${base}/orders/${f.order.id}/payments/${f.payment.id}/refund-request-status`;
+ const check=()=>fetch(statusUrl,{headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key}});
+ const empty=await check();assert.equal(empty.status,200);assert.deepEqual(await empty.json(),{state:"NOT_SUBMITTED",requestKey:key});assert.equal(await prisma.retiredRefundRequestKey.count(),0);
+ const saved=await stripe(f,{createRefund:async()=>stripeResponse(f)},key,10,"Return request test");
+ const recorded=await check();assert.equal(recorded.status,200);assert.deepEqual(await recorded.json(),{state:"RECORDED",requestKey:key,refund:{refundId:saved.id,status:"SUCCEEDED",amount:"10",currency:"GBP",provider:"STRIPE"}});
+ const denied=await fetch(statusUrl,{headers:{"Idempotency-Key":key}});assert.equal(denied.status,401);assert.equal("refundSubmissionDisposition" in await denied.json(),false);
+ const unauthenticatedPost=await fetch(`${base}/orders/${f.order.id}/refunds`,{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":randomUUID()},body:JSON.stringify({paymentId:f.payment.id,amount:1,reason:"Unauthenticated test"})});
+ assert.equal(unauthenticatedPost.status,401);assert.equal("refundSubmissionDisposition" in await unauthenticatedPost.json(),false);
+});
+it("persists retired keys across independent database clients and blocks later requests",async()=>{
+ const f=await fixture(),key=randomUUID();const retirementPath=`${base}/orders/${f.order.id}/payments/${f.payment.id}/refund-request-retirement`;let posts=0;
+ const retire=()=>fetch(retirementPath,{method:"POST",headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key,"Content-Type":"application/json"},body:"{}"});
+ const first=await retire();assert.equal(first.status,200);assert.deepEqual(await first.json(),{state:"RETIRED",requestKey:key});
+ const persisted=await prisma.retiredRefundRequestKey.findUniqueOrThrow({where:{clientRequestKey:key}});assert.equal(persisted.orderId,f.order.id);assert.equal(persisted.paymentId,f.payment.id);
+ const independentClient=new PrismaClient({adapter:new PrismaPg(databasePoolOptions(config.DATABASE_URL!,process.env))});
+ try{assert.deepEqual(await independentClient.retiredRefundRequestKey.findUniqueOrThrow({where:{clientRequestKey:key},select:{clientRequestKey:true,orderId:true,paymentId:true}}),{clientRequestKey:key,orderId:f.order.id,paymentId:f.payment.id});}
+ finally{await independentClient.$disconnect();}
+ restores.push(setStripeRefundClientForTests({createRefund:async()=>{posts++;return stripeResponse(f);}}));
+ const late=await api(f,{paymentId:f.payment.id,amount:10,reason:"Return request"},key);assert.equal(late.status,409);const body=await late.json();assert.equal(body.error,"REFUND_REQUEST_KEY_RETIRED");assert.equal("refundSubmissionDisposition" in body,false);assert.equal(posts,0);assert.equal(await prisma.refund.count({where:{clientRequestKey:key}}),0);
+ const status=await fetch(`${base}/orders/${f.order.id}/payments/${f.payment.id}/refund-request-status`,{headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key}});assert.deepEqual(await status.json(),{state:"RETIRED",requestKey:key});
+ const subsequentRequest=await api(f,{paymentId:f.payment.id,amount:10,reason:"Return request"},key);assert.equal(subsequentRequest.status,409);assert.equal(posts,0);
+ const corrected=await api(f,{paymentId:f.payment.id,amount:10,reason:"Corrected return request"},randomUUID());assert.equal(corrected.status,201);assert.equal(posts,1);
+});
+it("serializes simultaneous refund creation and request-key retirement on one global key lock",async()=>{
+ const f=await fixture(),key=randomUUID();let posts=0;restores.push(setStripeRefundClientForTests({createRefund:async()=>{posts++;return stripeResponse(f);}}));
+ const retirementPath=`${base}/orders/${f.order.id}/payments/${f.payment.id}/refund-request-retirement`;
+ const retire=fetch(retirementPath,{method:"POST",headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key,"Content-Type":"application/json"},body:"{}"});
+ const submission=api(f,{paymentId:f.payment.id,amount:10,reason:"Concurrent refund request"},key);
+ const [retired,response]=await Promise.all([retire,submission]);assert.equal(retired.status,200);const retirement=await retired.json();
+ if(retirement.state==="RETIRED"){
+   assert.equal(response.status,409);assert.equal((await response.json()).error,"REFUND_REQUEST_KEY_RETIRED");assert.equal(posts,0);assert.equal(await prisma.refund.count({where:{clientRequestKey:key}}),0);
+ }else{
+   assert.equal(retirement.state,"RECORDED");assert.equal(response.status,201);assert.equal(posts,1);assert.equal(await prisma.retiredRefundRequestKey.count({where:{clientRequestKey:key}}),0);assert.equal(await prisma.refund.count({where:{clientRequestKey:key}}),1);
+ }
+});
+it("marks REFUND_UNRESOLVED safe only for the checked request key and keeps blocker identity separate",async()=>{
+ const f=await fixture();const firstKey=randomUUID(),nextKey=randomUUID();let calls=0;
+ const client:StripeRefundClient={createRefund:async()=>{calls++;throw new Error("uncertain provider outcome");}};
+ await stripe(f,client,firstKey,10,"First request");
+ const blocked=await api(f,{paymentId:f.payment.id,amount:10,reason:"Second request"},nextKey);
+ const body=await blocked.json();assert.equal(blocked.status,409);assert.equal(body.error,"REFUND_UNRESOLVED");assert.equal(body.refundSubmissionDisposition,"NOT_SUBMITTED");assert.equal(body.refundRequestKey,nextKey);assert.equal(typeof body.blockingRefundId,"number");
+ assert.equal("refundId" in body,false);assert.equal("status" in body,false);assert.equal("resolutionCode" in body,false);assert.equal(calls,1);
 });
 it("lost successful HTTP response replays the original intent; a new key permits a sequential partial refund",async()=>{
  const f=await fixture();let calls=0;const client:StripeRefundClient={createRefund:async()=>{calls++;return stripeResponse(f);}};
@@ -193,7 +247,7 @@ it("HTTP ambiguous responses expose refundId, replay safely and report competing
  const f=await fixture();let calls=0;restores.push(setStripeRefundClientForTests({createRefund:async()=>{calls++;throw new Error("secret body");}}));const key=randomUUID();
  const first=await api(f,{paymentId:f.payment.id,amount:10},key);assert.equal(first.status,202);const body=await first.json();assert.equal(body.status,"PROCESSING");assert.ok(body.refundId);assert.equal(body.resolutionCode,"PROVIDER_OUTCOME_UNKNOWN");assert.ok(!JSON.stringify(body).includes("secret"));
  const replay=await api(f,{paymentId:f.payment.id,amount:10},key);assert.equal((await replay.json()).refundId,body.refundId);
- const conflict=await api(f,{paymentId:f.payment.id,amount:10},randomUUID());assert.equal(conflict.status,409);assert.equal((await conflict.json()).refundId,body.refundId);assert.equal(calls,1);
+ const conflict=await api(f,{paymentId:f.payment.id,amount:10},randomUUID());assert.equal(conflict.status,409);const conflictBody=await conflict.json();assert.equal(conflictBody.blockingRefundId,body.refundId);assert.equal(conflictBody.blockingRefundStatus,"PROCESSING");assert.equal("refundId" in conflictBody,false);assert.equal("status" in conflictBody,false);assert.equal(calls,1);
  const mismatch=await api(f,{paymentId:f.payment.id,amount:11},key);assert.equal(mismatch.status,409);
 });
 it("legacy unresolved refunds and unknown explicit refundIds never create new provider intents",async()=>{
@@ -259,6 +313,13 @@ it("a post-submission persistence failure returns stable identity and UNKNOWN wi
  try{response=await api(f,{paymentId:f.payment.id,amount:10},key);}finally{prisma.$transaction=transaction;}
  assert.equal(response.status,503);const body=await response.json();assert.ok(body.refundId);assert.equal(body.status,"UNKNOWN");assert.equal(body.resolutionCode,"RECONCILIATION_REQUIRED");
  assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});const replay=await api(f,{paymentId:f.payment.id,amount:10},key);assert.equal(replay.status,202);assert.equal((await replay.json()).refundId,body.refundId);assert.equal(calls,1);
+});
+it("post-submission capacity failure retains the refund identity and never claims NOT_SUBMITTED",async()=>{
+ const f=await fixture(),key=randomUUID();let calls=0;
+ restores.push(setStripeRefundClientForTests({createRefund:async()=>{calls++;await prisma.payment.update({where:{id:f.payment.id},data:{amount:5}});return stripeResponse(f);}}));
+ const response=await api(f,{paymentId:f.payment.id,amount:10,reason:"Post submission capacity race"},key);assert.equal(response.status,503);
+ const body=await response.json();assert.equal(body.error,"REFUND_PERSISTENCE_UNAVAILABLE");assert.equal(body.status,"UNKNOWN");assert.ok(body.refundId);assert.equal("refundSubmissionDisposition" in body,false);assert.equal("refundRequestKey" in body,false);
+ const saved=await prisma.refund.findUniqueOrThrow({where:{clientRequestKey:key}});assert.equal(saved.status,"PROCESSING");assert.equal(saved.resolutionCode,"SUBMISSION_STARTED");assert.equal(calls,1);assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
 });
 
 it("uncorrelated verified refund evidence for the exact provider parent blocks new payouts",async()=>{

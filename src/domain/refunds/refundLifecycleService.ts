@@ -10,7 +10,8 @@ import { RefundOrderNotFoundError, RefundPaymentNotFoundError, RefundPaymentNotR
 
 export type ExternalRefundProvider = "STRIPE" | "PAYPAL";
 export class RefundIntentError extends Error {
-  constructor(public readonly code: string, public readonly httpStatus=409, public readonly refundId?: number, public readonly refundStatus?: string) { super(code); }
+  constructor(public readonly code: string, public readonly httpStatus=409, public readonly refundId?: number, public readonly refundStatus?: string,
+    public readonly clientRequestKey?: string) { super(code); }
 }
 export class RefundPersistenceError extends Error {
   constructor(public readonly refundId: number) { super("Refund persistence failed; reconcile the existing intent"); }
@@ -20,6 +21,12 @@ export class DefinitiveRefundRejection extends Error {
 }
 export function validClientRequestKey(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9._:-]{16,128}$/.test(value);
+}
+/** A global per-key transaction lock coordinates retirement and creation, even if a key is presented against different targets. */
+export async function lockRefundRequestKey(tx: Prisma.TransactionClient, key: string) {
+  // Return a Prisma-decodable scalar; PostgreSQL's advisory lock function itself
+  // returns `void`, which Prisma cannot deserialize through $queryRaw.
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))::text AS locked`;
 }
 export async function lockRefundPayment(tx: Prisma.TransactionClient, orderId: number, paymentId: number) {
   await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${orderId} FOR NO KEY UPDATE`;
@@ -38,12 +45,25 @@ export async function lockRefund(tx: Prisma.TransactionClient, refundId: number)
   if(refund.orderId!==candidate.orderId || refund.paymentId!==payment.id) throw new RefundIntentError("REFUND_IDENTITY_CONFLICT");
   return {refund,payment};
 }
-export async function assertNoUnresolvedRefund(tx: Prisma.TransactionClient, paymentId:number) {
+export async function assertNoUnresolvedRefund(tx: Prisma.TransactionClient, paymentId:number, clientRequestKey?: string) {
   const existing=await tx.refund.findFirst({where:{paymentId,OR:[{status:"PROCESSING"},{reviewRequired:true}]},orderBy:{id:"asc"}});
-  if(existing) throw new RefundIntentError("REFUND_UNRESOLVED",409,existing.id,existing.status);
+  if(existing) throw new RefundIntentError("REFUND_UNRESOLVED",409,existing.id,existing.status,clientRequestKey);
   const payment=await tx.payment.findUniqueOrThrow({where:{id:paymentId}});
   const hold=await providerFinancialHold(tx,payment);
   if(hold==='REFUND')throw new RefundIntentError('REFUND_PROVIDER_EVIDENCE_UNRESOLVED');
+}
+export async function retireUnsubmittedRefundRequest(orderId: number, paymentId: number, key: string): Promise<"RETIRED" | "RECORDED" | "CONFLICT"> {
+  if (!validClientRequestKey(key)) throw new RefundIntentError("INVALID_IDEMPOTENCY_KEY", 400);
+  return prisma.$transaction(async tx => {
+    await lockRefundRequestKey(tx, key);
+    await lockRefundPayment(tx, orderId, paymentId);
+    const refund = await tx.refund.findUnique({ where: { clientRequestKey: key } });
+    if (refund) return refund.orderId === orderId && refund.paymentId === paymentId ? "RECORDED" : "CONFLICT";
+    const retired = await tx.retiredRefundRequestKey.findUnique({ where: { clientRequestKey: key } });
+    if (retired) return retired.orderId === orderId && retired.paymentId === paymentId ? "RETIRED" : "CONFLICT";
+    await tx.retiredRefundRequestKey.create({ data: { clientRequestKey: key, orderId, paymentId } });
+    return "RETIRED";
+  });
 }
 export async function prepareExternalRefund(input:{orderId:number;paymentId:number;amount:Decimal|number;reason?:string;actor:number;provider:ExternalRefundProvider;clientRequestKey?:string;refundId?:number}) {
   const amount=new Decimal(input.amount);
@@ -56,16 +76,22 @@ export async function prepareExternalRefund(input:{orderId:number;paymentId:numb
     && (!input.clientRequestKey || r.clientRequestKey===input.clientRequestKey);
   let allocatedId:number|undefined;
   try { return await prisma.$transaction(async tx=>{
+    if (input.clientRequestKey) {
+      await lockRefundRequestKey(tx, input.clientRequestKey);
+    }
     const payment=await lockRefundPayment(tx,input.orderId,input.paymentId);
     const existing=input.refundId ? await tx.refund.findUnique({where:{id:input.refundId}})
       : await tx.refund.findUnique({where:{clientRequestKey:input.clientRequestKey!}});
     if(input.refundId && !existing) throw new RefundIntentError("REFUND_NOT_FOUND",404);
     if(existing){if(!matches(existing))throw new RefundIntentError("IDEMPOTENCY_CONFLICT",409,existing.id,existing.status);allocatedId=existing.id;return {refund:existing,payment,submit:false};}
+    if (input.clientRequestKey && await tx.retiredRefundRequestKey.findUnique({ where: { clientRequestKey: input.clientRequestKey } })) {
+      throw new RefundIntentError("REFUND_REQUEST_KEY_RETIRED", 409, undefined, undefined, input.clientRequestKey);
+    }
     if(payment.status!=="SUCCEEDED")throw new RefundPaymentNotRefundableError(payment.id);
     const parent=input.provider==="STRIPE"?payment.providerReference:payment.providerCaptureReference;
     if(payment.provider!==input.provider || !parent || parent.startsWith("pending:"))throw new RefundIntentError("PROVIDER_PAYMENT_UNAVAILABLE");
-    await assertNoUnresolvedRefund(tx,payment.id);
-    await reserveRefundCapacity(payment.id,amount,tx);
+    await assertNoUnresolvedRefund(tx,payment.id,input.clientRequestKey);
+    await reserveRefundCapacity(payment.id,amount,tx,input.clientRequestKey);
     const key=randomUUID(); // Also fits PayPal's conservative UUID request-id guidance.
     const refund=await tx.refund.create({data:{orderId:input.orderId,paymentId:payment.id,amount,currency:payment.currency,
       provider:input.provider,status:"PROCESSING",providerReference:`pending:${key}`,refundIdempotencyKey:key,

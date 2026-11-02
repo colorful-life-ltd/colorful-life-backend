@@ -669,6 +669,17 @@ model Refund {
   @@index([createdAt])
 }
 
+// Durable tombstones prevent a timed-out client request from creating a refund
+// after an operator has explicitly retired its request key for correction.
+model RetiredRefundRequestKey {
+  clientRequestKey String   @id @db.VarChar(128)
+  orderId          Int
+  paymentId        Int
+  retiredAt        DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([paymentId, retiredAt])
+}
+
 model OrderItem {
   id                        Int               @id @default(autoincrement())
   orderId                   Int
