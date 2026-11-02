@@ -10,7 +10,8 @@ import { RefundOrderNotFoundError, RefundPaymentNotFoundError, RefundPaymentNotR
 
 export type ExternalRefundProvider = "STRIPE" | "PAYPAL";
 export class RefundIntentError extends Error {
-  constructor(public readonly code: string, public readonly httpStatus=409, public readonly refundId?: number, public readonly refundStatus?: string) { super(code); }
+  constructor(public readonly code: string, public readonly httpStatus=409, public readonly refundId?: number, public readonly refundStatus?: string,
+    public readonly clientRequestKey?: string) { super(code); }
 }
 export class RefundPersistenceError extends Error {
   constructor(public readonly refundId: number) { super("Refund persistence failed; reconcile the existing intent"); }
@@ -38,9 +39,9 @@ export async function lockRefund(tx: Prisma.TransactionClient, refundId: number)
   if(refund.orderId!==candidate.orderId || refund.paymentId!==payment.id) throw new RefundIntentError("REFUND_IDENTITY_CONFLICT");
   return {refund,payment};
 }
-export async function assertNoUnresolvedRefund(tx: Prisma.TransactionClient, paymentId:number) {
+export async function assertNoUnresolvedRefund(tx: Prisma.TransactionClient, paymentId:number, clientRequestKey?: string) {
   const existing=await tx.refund.findFirst({where:{paymentId,OR:[{status:"PROCESSING"},{reviewRequired:true}]},orderBy:{id:"asc"}});
-  if(existing) throw new RefundIntentError("REFUND_UNRESOLVED",409,existing.id,existing.status);
+  if(existing) throw new RefundIntentError("REFUND_UNRESOLVED",409,existing.id,existing.status,clientRequestKey);
   const payment=await tx.payment.findUniqueOrThrow({where:{id:paymentId}});
   const hold=await providerFinancialHold(tx,payment);
   if(hold==='REFUND')throw new RefundIntentError('REFUND_PROVIDER_EVIDENCE_UNRESOLVED');
@@ -64,8 +65,8 @@ export async function prepareExternalRefund(input:{orderId:number;paymentId:numb
     if(payment.status!=="SUCCEEDED")throw new RefundPaymentNotRefundableError(payment.id);
     const parent=input.provider==="STRIPE"?payment.providerReference:payment.providerCaptureReference;
     if(payment.provider!==input.provider || !parent || parent.startsWith("pending:"))throw new RefundIntentError("PROVIDER_PAYMENT_UNAVAILABLE");
-    await assertNoUnresolvedRefund(tx,payment.id);
-    await reserveRefundCapacity(payment.id,amount,tx);
+    await assertNoUnresolvedRefund(tx,payment.id,input.clientRequestKey);
+    await reserveRefundCapacity(payment.id,amount,tx,input.clientRequestKey);
     const key=randomUUID(); // Also fits PayPal's conservative UUID request-id guidance.
     const refund=await tx.refund.create({data:{orderId:input.orderId,paymentId:payment.id,amount,currency:payment.currency,
       provider:input.provider,status:"PROCESSING",providerReference:`pending:${key}`,refundIdempotencyKey:key,

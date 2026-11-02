@@ -1,5 +1,5 @@
 import {logOperationalError} from "../utils/operationalLog.js";
-import { RefundIntentError, RefundPersistenceError, refundProjection } from "../domain/refunds/refundLifecycleService.js";
+import { RefundIntentError, RefundPersistenceError, refundProjection, validClientRequestKey } from "../domain/refunds/refundLifecycleService.js";
 import { reconcileExternalRefund } from "../domain/refunds/refundReconciliationService.js";
 import { RefundCapacityExceededError } from "../domain/refunds/refundCapacityService.js";
 import { Request, Response } from "express";
@@ -29,29 +29,29 @@ export const createRefundHandler = async (req: Request, res: Response) => {
 
   const orderId = Number(req.params.orderId);
   if (!Number.isInteger(orderId) || orderId < 1) {
-    return res.status(400).json({ error: "Invalid order id", refundSubmissionDisposition: "NOT_SUBMITTED" });
+    return res.status(400).json({ error: "Invalid order id" });
   }
 
   const parseResult = CreateRefundSchema.safeParse(req.body);
   if (!parseResult.success) {
-    return res.status(400).json({ error: parseResult.error.format(), refundSubmissionDisposition: "NOT_SUBMITTED" });
+    return res.status(400).json({ error: parseResult.error.format() });
   }
 
   const { paymentId, amount, providerReference, reason, refundId } = parseResult.data;
 
   try {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId }, select: { orderId: true, provider: true } });
-    if (!payment || payment.orderId !== orderId) return res.status(404).json({ error: "Payment not found for order", refundSubmissionDisposition: "NOT_SUBMITTED" });
+    if (!payment || payment.orderId !== orderId) return res.status(404).json({ error: "Payment not found for order" });
     if (payment.provider === PaymentProvider.PAYPAL) {
-      return res.status(503).json({ error: { code: "PAYPAL_INITIATION_DISABLED", message: "PayPal transactions are not supported" }, refundSubmissionDisposition: "NOT_SUBMITTED" });
+      return res.status(503).json({ error: { code: "PAYPAL_INITIATION_DISABLED", message: "PayPal transactions are not supported" } });
     }
     if (payment.provider === PaymentProvider.STRIPE) {
-      if (providerReference !== undefined) return res.status(400).json({ error: "providerReference is only valid for manual refunds", refundSubmissionDisposition: "NOT_SUBMITTED" });
+      if (providerReference !== undefined) return res.status(400).json({ error: "providerReference is only valid for manual refunds" });
       const refund = await createOrReuseStripeRefund(orderId, paymentId, amount, reason, user.id, undefined, refundId, req.get("Idempotency-Key"));
       return res.status(refund.status === "PROCESSING" ? 202 : refundId ? 200 : 201).json(refundProjection(refund));
     }
-    if (refundId !== undefined) return res.status(400).json({ error: "refundId is only valid for PayPal refunds", refundSubmissionDisposition: "NOT_SUBMITTED" });
-    if (providerReference === undefined) return res.status(400).json({ error: "Refund provider reference cannot be empty", refundSubmissionDisposition: "NOT_SUBMITTED" });
+    if (refundId !== undefined) return res.status(400).json({ error: "refundId is only valid for PayPal refunds" });
+    if (providerReference === undefined) return res.status(400).json({ error: "Refund provider reference cannot be empty" });
     const result = await createRefund(
       orderId,
       paymentId,
@@ -63,30 +63,40 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     return res.status(result.created ? 201 : 200).json(result.refund);
   } catch (err: unknown) {
     if(err instanceof RefundIntentError) {
-      const noSubmission = !err.refundId && ["INVALID_REFUND_AMOUNT", "INVALID_IDEMPOTENCY_KEY", "IDEMPOTENCY_KEY_REQUIRED", "PROVIDER_PAYMENT_UNAVAILABLE"].includes(err.code);
-      return res.status(err.httpStatus).json({error:err.code,...(noSubmission?{refundSubmissionDisposition:"NOT_SUBMITTED"}:{}),...(err.refundId?{refundId:err.refundId,status:err.refundStatus??"UNKNOWN",resolutionCode:err.code}:{})});
+      if (err.code === "REFUND_UNRESOLVED" && err.refundId) {
+        const key = req.get("Idempotency-Key");
+        const provedUnsubmitted = validClientRequestKey(key) && err.clientRequestKey === key;
+        return res.status(err.httpStatus).json({ error: err.code, blockingRefundId: err.refundId, blockingRefundStatus: err.refundStatus ?? "UNKNOWN",
+          ...(provedUnsubmitted ? { refundSubmissionDisposition: "NOT_SUBMITTED", refundRequestKey: key } : {}) });
+      }
+      return res.status(err.httpStatus).json({error:err.code,...(err.refundId?{refundId:err.refundId,status:err.refundStatus??"UNKNOWN",resolutionCode:err.code}:{})});
     }
     if(err instanceof RefundPersistenceError)return res.status(503).json({error:"REFUND_PERSISTENCE_UNAVAILABLE",refundId:err.refundId,status:"UNKNOWN",resolutionCode:"RECONCILIATION_REQUIRED"});
-    if(err instanceof RefundCapacityExceededError)return res.status(409).json({error:"REFUND_CAPACITY_EXCEEDED",refundSubmissionDisposition:"NOT_SUBMITTED"});
+    if(err instanceof RefundCapacityExceededError) {
+      const key = req.get("Idempotency-Key");
+      const provedUnsubmitted = validClientRequestKey(key) && err.clientRequestKey === key;
+      return res.status(409).json({ error: "REFUND_CAPACITY_EXCEEDED", ...(err.availableRefundAmount === undefined ? {} : { availableRefundAmount: err.availableRefundAmount }),
+        ...(provedUnsubmitted ? { refundSubmissionDisposition: "NOT_SUBMITTED", refundRequestKey: key } : {}) });
+    }
     if (
       err instanceof RefundInvalidAmountError ||
       err instanceof RefundInvalidProviderReferenceError ||
       err instanceof RefundInvalidReasonError
     ) {
-      return res.status(400).json({ error: err.message, refundSubmissionDisposition: "NOT_SUBMITTED" });
+      return res.status(400).json({ error: err.message });
     }
     if (
       err instanceof RefundOrderNotFoundError ||
       err instanceof RefundPaymentNotFoundError
     ) {
-      return res.status(404).json({ error: err.message, refundSubmissionDisposition: "NOT_SUBMITTED" });
+      return res.status(404).json({ error: err.message });
     }
     if (
       err instanceof RefundPaymentNotRefundableError ||
       err instanceof RefundAmountExceededError ||
       err instanceof RefundProviderReferenceConflictError
     ) {
-      return res.status(409).json({ error: err.message, refundSubmissionDisposition: "NOT_SUBMITTED" });
+      return res.status(409).json({ error: err.message });
     }
     if (err instanceof PayPalRefundValidationError) return res.status(409).json({ error: "PayPal refund request is not valid" });
     if (err instanceof PayPalRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
@@ -94,6 +104,37 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     if (err instanceof StripeRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
     logOperationalError("Create refund failed; inspect existing intent before retry", err);
     return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const refundRequestStatusHandler = async (req: Request, res: Response) => {
+  if ((req.user as { role: string }).role !== "ADMIN") return sendApiError(res, 403, "FORBIDDEN", "Forbidden: ADMIN only");
+  res.setHeader("Cache-Control", "no-store");
+  const orderId = Number(req.params.orderId);
+  const paymentId = Number(req.params.paymentId);
+  const key = req.get("Idempotency-Key");
+  if (!Number.isSafeInteger(orderId) || orderId < 1 || !Number.isSafeInteger(paymentId) || paymentId < 1 || !validClientRequestKey(key)) return res.status(400).json({ error: "Invalid refund request reference" });
+  try {
+    // Serialize against refund preparation. Intent rows commit before Stripe is called;
+    // holding the same Order/Payment locks means absence also excludes a concurrent prepare.
+    const state = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${orderId} FOR NO KEY UPDATE`;
+      const order = await tx.order.findUnique({ where: { id: orderId }, select: { id: true } });
+      if (!order) return { state: "NOT_FOUND" as const };
+      await tx.$queryRaw`SELECT id FROM "Payment" WHERE id=${paymentId} FOR UPDATE`;
+      const payment = await tx.payment.findUnique({ where: { id: paymentId }, select: { id: true, orderId: true } });
+      if (!payment || payment.orderId !== orderId) return { state: "NOT_FOUND" as const };
+      const refund = await tx.refund.findUnique({ where: { clientRequestKey: key } });
+      if (!refund) return { state: "NOT_SUBMITTED" as const };
+      if (refund.orderId !== orderId || refund.paymentId !== paymentId) return { state: "CONFLICT" as const };
+      return { state: "RECORDED" as const, refund };
+    });
+    if (state.state === "NOT_FOUND") return res.status(404).json({ error: "Refund request target not found" });
+    if (state.state === "CONFLICT") return res.status(409).json({ state: "CONFLICT" });
+    if (state.state === "NOT_SUBMITTED") return res.json({ state: "NOT_SUBMITTED", requestKey: key });
+    return res.json({ state: "RECORDED", requestKey: key, refund: refundProjection(state.refund) });
+  } catch {
+    return res.status(503).json({ error: "Refund request status unavailable" });
   }
 };
 

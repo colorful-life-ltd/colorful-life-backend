@@ -30,6 +30,7 @@ import {
   reconcileRefundHandler,
   createRefundHandler,
   listRefundsHandler,
+  refundRequestStatusHandler,
 } from "../controllers/refunds.js";
 import { createStripePaymentIntentHandler } from "../controllers/stripePaymentController.js";
 import { recoverStripePaymentHandler } from "../controllers/stripePaymentRecoveryController.js";
@@ -96,6 +97,7 @@ router.post("/:orderId/payments/paypal/capture", authMiddleware, requireVerified
 router.get("/:orderId/payments", authMiddleware, listPaymentsHandler);
 router.post("/:orderId/refunds", authMiddleware, createRefundHandler);
 router.get("/:orderId/refunds", authMiddleware, listRefundsHandler);
+router.get("/:orderId/payments/:paymentId/refund-request-status", authMiddleware, refundRequestStatusHandler);
 router.post("/:orderId/refunds/:refundId/reconcile", authMiddleware, reconcileRefundHandler);
 
 export default router;

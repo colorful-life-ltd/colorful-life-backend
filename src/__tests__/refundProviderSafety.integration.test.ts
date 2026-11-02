@@ -53,9 +53,28 @@ it("requires a client key before any new external intent or provider call",async
 });
 it("marks an over-capacity Stripe request as definitively not submitted without creating or reserving a refund",async()=>{
  const f=await fixture();let calls=0;restores.push(setStripeRefundClientForTests({createRefund:async()=>{calls++;return stripeResponse(f);}}));
- const response=await api(f,{paymentId:f.payment.id,amount:100.01,reason:"Return amount correction"},randomUUID());
- assert.equal(response.status,409);assert.deepEqual(await response.json(),{error:"REFUND_CAPACITY_EXCEEDED",refundSubmissionDisposition:"NOT_SUBMITTED"});
+ const key=randomUUID();const response=await api(f,{paymentId:f.payment.id,amount:100.01,reason:"Return amount correction"},key);
+ assert.equal(response.status,409);assert.deepEqual(await response.json(),{error:"REFUND_CAPACITY_EXCEEDED",availableRefundAmount:"100.00",refundSubmissionDisposition:"NOT_SUBMITTED",refundRequestKey:key});
  assert.equal(calls,0);assert.equal(await prisma.refund.count({where:{paymentId:f.payment.id}}),0);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+});
+it("read-only refund request status serializes with preparation and returns exact-key evidence",async()=>{
+ const f=await fixture();const key=randomUUID();
+ const statusUrl=`${base}/orders/${f.order.id}/payments/${f.payment.id}/refund-request-status`;
+ const check=()=>fetch(statusUrl,{headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key}});
+ const empty=await check();assert.equal(empty.status,200);assert.deepEqual(await empty.json(),{state:"NOT_SUBMITTED",requestKey:key});
+ const saved=await stripe(f,{createRefund:async()=>stripeResponse(f)},key,10,"Return request test");
+ const recorded=await check();assert.equal(recorded.status,200);assert.deepEqual(await recorded.json(),{state:"RECORDED",requestKey:key,refund:{refundId:saved.id,status:"SUCCEEDED",amount:"10.00",currency:"GBP",provider:"STRIPE"}});
+ const denied=await fetch(statusUrl,{headers:{"Idempotency-Key":key}});assert.equal(denied.status,401);assert.equal("refundSubmissionDisposition" in await denied.json(),false);
+ const unauthenticatedPost=await fetch(`${base}/orders/${f.order.id}/refunds`,{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":randomUUID()},body:JSON.stringify({paymentId:f.payment.id,amount:1,reason:"Unauthenticated test"})});
+ assert.equal(unauthenticatedPost.status,401);assert.equal("refundSubmissionDisposition" in await unauthenticatedPost.json(),false);
+});
+it("marks REFUND_UNRESOLVED safe only for the checked request key and keeps blocker identity separate",async()=>{
+ const f=await fixture();const firstKey=randomUUID(),nextKey=randomUUID();let calls=0;
+ const client:StripeRefundClient={createRefund:async()=>{calls++;throw new Error("uncertain provider outcome");}};
+ await stripe(f,client,firstKey,10,"First request");
+ const blocked=await api(f,{paymentId:f.payment.id,amount:10,reason:"Second request"},nextKey);
+ const body=await blocked.json();assert.equal(blocked.status,409);assert.equal(body.error,"REFUND_UNRESOLVED");assert.equal(body.refundSubmissionDisposition,"NOT_SUBMITTED");assert.equal(body.refundRequestKey,nextKey);assert.equal(typeof body.blockingRefundId,"number");
+ assert.equal("refundId" in body,false);assert.equal("status" in body,false);assert.equal("resolutionCode" in body,false);assert.equal(calls,1);
 });
 it("lost successful HTTP response replays the original intent; a new key permits a sequential partial refund",async()=>{
  const f=await fixture();let calls=0;const client:StripeRefundClient={createRefund:async()=>{calls++;return stripeResponse(f);}};
