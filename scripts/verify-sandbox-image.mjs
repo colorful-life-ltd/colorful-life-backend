@@ -4,9 +4,10 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 const SOURCE = 'https://github.com/colorful-life-ltd/colorful-life-backend';
-const MIGRATION = 'prisma/migrations/20261029150000_return_management_v1/migration.sql';
-const IMAGE_MIGRATION = `/app/${MIGRATION}`;
-const EXPECTED_MIGRATION_SHA256 = '67caf46e7c10618a810543a193307a616aae59aa7725fa95c2463b6ced1b0d1d';
+const MIGRATIONS = {
+  'prisma/migrations/20261029150000_return_management_v1/migration.sql': '67caf46e7c10618a810543a193307a616aae59aa7725fa95c2463b6ced1b0d1d',
+  'prisma/migrations/20261101120000_single_admin_bootstrap/migration.sql': '842c9ad5ced74c50a8a22c25350d4a2254d38abbe6b1536bddc2b0f58180b91b',
+};
 
 export function verifySandboxImage({ kind, ref, revision, run = execFileSync }) {
   if (!['api', 'migration'].includes(kind)) throw new Error(`unsupported image kind: ${kind}`);
@@ -24,15 +25,23 @@ export function verifySandboxImage({ kind, ref, revision, run = execFileSync }) 
   }
 
   if (kind === 'migration') {
-    const expected = createHash('sha256').update(readFileSync(MIGRATION)).digest('hex');
-    if (expected !== EXPECTED_MIGRATION_SHA256) throw new Error(`checked-out Migration 74 checksum is not approved (expected ${EXPECTED_MIGRATION_SHA256})`);
+    for (const [path, expected] of Object.entries(MIGRATIONS)) {
+      const checkedOut = createHash('sha256').update(readFileSync(path)).digest('hex');
+      if (checkedOut !== expected) throw new Error(`checked-out migration checksum is not approved (${path})`);
+    }
+    const paths = Object.keys(MIGRATIONS).map(path => `/app/${path}`);
     const output = run('docker', [
       'run', '--rm', '--network', 'none', '--read-only', '--cap-drop', 'ALL',
-      '--security-opt', 'no-new-privileges', '--entrypoint', 'sh', ref, '-c',
-      `sha256sum ${IMAGE_MIGRATION}`,
+      '--security-opt', 'no-new-privileges', '--entrypoint', 'sha256sum', ref, ...paths,
     ], { encoding: 'utf8' }).trim();
-    const actual = /^([0-9a-f]{64})\s+\S+$/.exec(output)?.[1];
-    if (actual !== expected) throw new Error(`migration image SQL checksum mismatch (expected ${expected})`);
+    const actual = new Map(output.split('\n').map(line => {
+      const match = /^([0-9a-f]{64})\s+(.+)$/.exec(line.trim());
+      if (!match) throw new Error('migration image SQL checksum output is invalid');
+      return [match[2].replace(/^\/app\//, ''), match[1]];
+    }));
+    if (actual.size !== Object.keys(MIGRATIONS).length || Object.entries(MIGRATIONS).some(([path, hash]) => actual.get(path) !== hash)) {
+      throw new Error('migration image SQL checksum mismatch');
+    }
   }
   return true;
 }
