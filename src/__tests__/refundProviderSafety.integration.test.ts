@@ -63,7 +63,7 @@ it("read-only refund request status serializes with preparation and returns exac
  const check=()=>fetch(statusUrl,{headers:{Authorization:`Bearer ${f.token}`,"Idempotency-Key":key}});
  const empty=await check();assert.equal(empty.status,200);assert.deepEqual(await empty.json(),{state:"NOT_SUBMITTED",requestKey:key});
  const saved=await stripe(f,{createRefund:async()=>stripeResponse(f)},key,10,"Return request test");
- const recorded=await check();assert.equal(recorded.status,200);assert.deepEqual(await recorded.json(),{state:"RECORDED",requestKey:key,refund:{refundId:saved.id,status:"SUCCEEDED",amount:"10.00",currency:"GBP",provider:"STRIPE"}});
+ const recorded=await check();assert.equal(recorded.status,200);assert.deepEqual(await recorded.json(),{state:"RECORDED",requestKey:key,refund:{refundId:saved.id,status:"SUCCEEDED",amount:"10",currency:"GBP",provider:"STRIPE"}});
  const denied=await fetch(statusUrl,{headers:{"Idempotency-Key":key}});assert.equal(denied.status,401);assert.equal("refundSubmissionDisposition" in await denied.json(),false);
  const unauthenticatedPost=await fetch(`${base}/orders/${f.order.id}/refunds`,{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":randomUUID()},body:JSON.stringify({paymentId:f.payment.id,amount:1,reason:"Unauthenticated test"})});
  assert.equal(unauthenticatedPost.status,401);assert.equal("refundSubmissionDisposition" in await unauthenticatedPost.json(),false);
@@ -218,7 +218,7 @@ it("HTTP ambiguous responses expose refundId, replay safely and report competing
  const f=await fixture();let calls=0;restores.push(setStripeRefundClientForTests({createRefund:async()=>{calls++;throw new Error("secret body");}}));const key=randomUUID();
  const first=await api(f,{paymentId:f.payment.id,amount:10},key);assert.equal(first.status,202);const body=await first.json();assert.equal(body.status,"PROCESSING");assert.ok(body.refundId);assert.equal(body.resolutionCode,"PROVIDER_OUTCOME_UNKNOWN");assert.ok(!JSON.stringify(body).includes("secret"));
  const replay=await api(f,{paymentId:f.payment.id,amount:10},key);assert.equal((await replay.json()).refundId,body.refundId);
- const conflict=await api(f,{paymentId:f.payment.id,amount:10},randomUUID());assert.equal(conflict.status,409);assert.equal((await conflict.json()).refundId,body.refundId);assert.equal(calls,1);
+ const conflict=await api(f,{paymentId:f.payment.id,amount:10},randomUUID());assert.equal(conflict.status,409);const conflictBody=await conflict.json();assert.equal(conflictBody.blockingRefundId,body.refundId);assert.equal(conflictBody.blockingRefundStatus,"PROCESSING");assert.equal("refundId" in conflictBody,false);assert.equal("status" in conflictBody,false);assert.equal(calls,1);
  const mismatch=await api(f,{paymentId:f.payment.id,amount:11},key);assert.equal(mismatch.status,409);
 });
 it("legacy unresolved refunds and unknown explicit refundIds never create new provider intents",async()=>{
