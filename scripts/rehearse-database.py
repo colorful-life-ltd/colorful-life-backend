@@ -79,7 +79,11 @@ try:
   url=f'postgresql://cl_owner:{password}@127.0.0.1:{port}/colorful_life_test'
   tests=dict(TEST_DATABASE_URL=url,DATABASE_URL=f'postgresql://unused@127.0.0.1:{port}/unused_normal',JWT_SECRET='synthetic-rehearsal-only',STRIPE_SECRET_KEY='sk_test_synthetic')
   run(['npm','run','build'])
-  run(['node','dist/testing/runTests.js','run','dist/__tests__/operationalMetrics.integration.test.js','dist/__tests__/emailIsolation.test.js','dist/__tests__/paymentResolutionFoundation.integration.test.js','dist/__tests__/fbaShipment.integration.test.js','dist/__tests__/fbaShipmentContract.integration.test.js'],tests)
+  # Run the Single-Admin database invariant suite first. The shared test runner then
+  # drops only that index from this disposable application-test database so legacy
+  # FBA fixtures can create multiple synthetic Admins. The rehearsed migrated DB
+  # retains and separately verifies the index above.
+  run(['node','dist/testing/runTests.js','run','dist/__tests__/adminBootstrap.integration.test.js','dist/__tests__/operationalMetrics.integration.test.js','dist/__tests__/emailIsolation.test.js','dist/__tests__/paymentResolutionFoundation.integration.test.js','dist/__tests__/fbaShipment.integration.test.js','dist/__tests__/fbaShipmentContract.integration.test.js'],tests)
   if args.full_suite:run(['npm','test'],tests)
 finally:
  if started:run([str(pg/'pg_ctl'),'-D',str(owned/'data'),'-m','fast','-w','stop'])
