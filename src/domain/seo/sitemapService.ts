@@ -6,13 +6,17 @@ import { prisma as defaultPrisma } from "../../prisma/runtime.js";
 export const SITEMAP_MAX_URLS = 50_000;
 export const SITEMAP_MAX_BYTES = 50 * 1024 * 1024;
 
-/**
- * Confirmed public, indexable storefront routes that are not product pages.
- * Category routes are excluded: their slugs are resolved by the storefront from
- * curated configuration and name collisions, so they are not a backend contract.
- * Private routes (account, checkout, orders, verification, reset) never appear.
- */
-const STATIC_PATHS = ["/"] as const;
+/** Public legal/trust pages and home. Private routes never enter the sitemap. */
+const STATIC_PATHS = ["/", "/help", "/legal/contact", "/legal/delivery-returns", "/legal/cancellation-form", "/legal/terms", "/legal/privacy", "/legal/cookies"] as const;
+
+const CURATED_CATEGORY_SLUGS: Record<string, string> = {
+  "harry potter": "harry-potter", "star wars": "star-wars", friends: "friends", city: "city", disney: "disney",
+  marvel: "marvel", "jurassic world": "jurassic-world", "flowers botanicals": "flowers-botanicals",
+  ninjago: "ninjago", "dc batman": "dc-batman", vehicles: "vehicles", creator: "creator", others: "others",
+};
+const normalizeCategoryName = (name: string) => name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, " ").trim();
+const categorySlug = (name: string, id: number) => CURATED_CATEGORY_SLUGS[normalizeCategoryName(name)] ??
+  (name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `category-${id}`);
 
 /** Stable canonical product URL path, keyed by LegoProduct ID and independent of offers or stock. */
 export const productPath = (productId: number) => `/products/${productId}`;
@@ -49,6 +53,30 @@ export function createSitemapService({ siteOrigin, maxUrlsPerSitemap = SITEMAP_M
   const absolute = (path: string) => `${siteOrigin}${path}`;
   const staticUrls: SitemapUrl[] = STATIC_PATHS.map((path) => ({ loc: absolute(path), lastmod: null }));
 
+  async function publicUrls(tx: Prisma.TransactionClient): Promise<SitemapUrl[]> {
+    const rows = await tx.$queryRaw<Array<{ id: number; name: string }>>(Prisma.sql`
+      SELECT DISTINCT c."id", c."name"
+      FROM "Category" c
+      JOIN "LegoProduct" lp ON lp."categoryId" = c."id"
+      WHERE lp."isPublished" = TRUE
+    `);
+    const curatedOrder = Object.values(CURATED_CATEGORY_SLUGS);
+    const candidates = rows.map((row) => ({ ...row, normalized: normalizeCategoryName(row.name), base: categorySlug(row.name, row.id) }))
+      .sort((a, b) => {
+        const ai = curatedOrder.indexOf(a.base), bi = curatedOrder.indexOf(b.base);
+        return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi) || a.normalized.localeCompare(b.normalized, "en") || a.id - b.id;
+      });
+    const used = new Set<string>();
+    const categories = candidates.map((row) => {
+      let slug = row.base;
+      if (used.has(slug)) slug = `${slug}-${row.id}`;
+      while (used.has(slug)) slug = `${slug}-${row.id}`;
+      used.add(slug);
+      return { loc: absolute(`/categories/${slug}`), lastmod: null };
+    });
+    return [...staticUrls, ...categories];
+  }
+
   /**
    * Published products only, sold out or not. lastmod covers product-level page
    * content (metadata, publication and added images); offer price/stock churn is
@@ -69,11 +97,11 @@ export function createSitemapService({ siteOrigin, maxUrlsPerSitemap = SITEMAP_M
   }
 
   /** Static URLs first, then products by ascending ID: a stable order for page partitioning. */
-  async function pageUrls(tx: Prisma.TransactionClient, page: number): Promise<SitemapUrl[]> {
+  async function pageUrls(tx: Prisma.TransactionClient, page: number, publicPaths: SitemapUrl[]): Promise<SitemapUrl[]> {
     const start = (page - 1) * maxUrlsPerSitemap;
     const end = start + maxUrlsPerSitemap;
-    const fromStatic = staticUrls.slice(start, end);
-    const productOffset = Math.max(0, start - staticUrls.length);
+    const fromStatic = publicPaths.slice(start, end);
+    const productOffset = Math.max(0, start - publicPaths.length);
     return [...fromStatic, ...await publishedProducts(tx, productOffset, maxUrlsPerSitemap - fromStatic.length)];
   }
 
@@ -84,11 +112,11 @@ export function createSitemapService({ siteOrigin, maxUrlsPerSitemap = SITEMAP_M
   const read = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
     db.$transaction(fn, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
 
-  async function pageCount(tx: Prisma.TransactionClient) {
+  async function pageCount(tx: Prisma.TransactionClient, publicPaths: SitemapUrl[]) {
     const [row] = await tx.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
       SELECT COUNT(*)::bigint AS "count" FROM "LegoProduct" WHERE "isPublished" = TRUE
     `);
-    return Math.max(1, Math.ceil((staticUrls.length + Number(row?.count ?? 0n)) / maxUrlsPerSitemap));
+    return Math.max(1, Math.ceil((publicPaths.length + Number(row?.count ?? 0n)) / maxUrlsPerSitemap));
   }
 
   return {
@@ -98,8 +126,9 @@ export function createSitemapService({ siteOrigin, maxUrlsPerSitemap = SITEMAP_M
     /** A single urlset when everything fits, otherwise a sitemap index of child sitemaps. */
     async root(): Promise<SitemapDocument> {
       return read(async (tx) => {
-        const pages = await pageCount(tx);
-        if (pages === 1) return { kind: "urlset", xml: urlset(await pageUrls(tx, 1)) };
+        const publicPaths = await publicUrls(tx);
+        const pages = await pageCount(tx, publicPaths);
+        if (pages === 1) return { kind: "urlset", xml: urlset(await pageUrls(tx, 1, publicPaths)) };
         const entries = Array.from({ length: pages }, (_, index) =>
           `<sitemap><loc>${escapeXml(absolute(`/sitemap-${index + 1}.xml`))}</loc></sitemap>`);
         return {
@@ -112,9 +141,10 @@ export function createSitemapService({ siteOrigin, maxUrlsPerSitemap = SITEMAP_M
     /** Child sitemap page (1-based); null when the catalogue fits one file or the page is out of range. */
     async page(page: number): Promise<string | null> {
       return read(async (tx) => {
-        const pages = await pageCount(tx);
+        const publicPaths = await publicUrls(tx);
+        const pages = await pageCount(tx, publicPaths);
         if (pages === 1 || page < 1 || page > pages) return null;
-        return urlset(await pageUrls(tx, page));
+        return urlset(await pageUrls(tx, page, publicPaths));
       });
     },
   };
