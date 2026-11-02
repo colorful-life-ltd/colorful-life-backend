@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: status, prepare immutable images, apply approved Sandbox migration, deploy or rollback
+        description: status, prepare images, apply approved Sandbox migration, install owner-restricted bootstrap routes, deploy or rollback
         type: choice
-        options: [status, prepare, migrate, deploy, rollback]
+        options: [status, prepare, migrate, routes, deploy, rollback]
         default: status
       sha:
         description: Commit on main to deploy (default is the current main)
@@ -20,6 +20,10 @@ on:
         default: ''
       migration_writes_approved:
         description: Explicit owner approval to apply Migration 75 to local Sandbox PostgreSQL
+        type: boolean
+        default: false
+      nginx_routes_approved:
+        description: Explicit owner approval to install the reviewed owner-restricted Sandbox Admin bootstrap routes
         type: boolean
         default: false
 permissions:
@@ -42,6 +46,7 @@ jobs:
       INPUT_SHA: ${{ inputs.sha }}
       ROLLBACK_TO: ${{ inputs.rollback_to }}
       MIGRATION_WRITES_APPROVED: ${{ inputs.migration_writes_approved }}
+      NGINX_ROUTES_APPROVED: ${{ inputs.nginx_routes_approved }}
       AWS_REGION: eu-west-2
       REGISTRY: 919693204623.dkr.ecr.eu-west-2.amazonaws.com
       INSTANCE_ID: i-02b28336518077a8f
@@ -83,7 +88,7 @@ jobs:
           # usage: host.sh ACTION [API_IMAGE] [MIGRATION_IMAGE] [SHA]; prints host output, fails if the host failed
           set -euo pipefail
           commit="${4:-}"
-          params=$(jq -nc --arg a "$1" --arg api "${2:-}" --arg mig "${3:-}" --arg s "${4:-}" --arg approved "${5:-false}" '{Action:[$a],ApiImage:[$api],MigrationImage:[$mig],Sha:[$s],MigrationWritesApproved:[$approved]}')
+          params=$(jq -nc --arg a "$1" --arg api "${2:-}" --arg mig "${3:-}" --arg s "${4:-}" --arg approved "${5:-false}" --arg routes "$NGINX_ROUTES_APPROVED" '{Action:[$a],ApiImage:[$api],MigrationImage:[$mig],Sha:[$s],MigrationWritesApproved:[$approved],NginxRoutesApproved:[$routes]}')
           id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name "$DEPLOY_DOCUMENT" --timeout-seconds 600 \
             --comment "backend $1 ${commit:0:12} run $GITHUB_RUN_ID" --parameters "$params" --query Command.CommandId --output text)
           status=Pending
@@ -172,6 +177,14 @@ jobs:
           echo "$out"
           { echo '### Sandbox Migration 75 (applications unchanged)'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
+      - name: Install owner-restricted bootstrap and recovery routes
+        if: inputs.action == 'routes'
+        run: |
+          [ "$NGINX_ROUTES_APPROVED" = true ] || { echo "Installing owner routes requires explicit approval"; exit 1; }
+          out=$("$RUNNER_TEMP/host.sh" routes "" "" "" false) && rc=0 || rc=$?
+          echo "$out"
+          { echo '### Sandbox owner-restricted Admin routes'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
       - name: Deploy API then Worker on the host (staged, automatic restore on failure)
         if: inputs.action == 'deploy'
         run: |
@@ -189,7 +202,7 @@ jobs:
           { echo '### Rollback (application images only; migrations are never reversed)'; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
       - name: Read the Sandbox release after the change
-        if: always() && (inputs.action == 'deploy' || inputs.action == 'rollback' || inputs.action == 'migrate')
+        if: always() && (inputs.action == 'deploy' || inputs.action == 'rollback' || inputs.action == 'migrate' || inputs.action == 'routes')
         run: |
           out=$("$RUNNER_TEMP/host.sh" status) || true
           { echo "### Sandbox backend after ${ACTION}"; echo '```json'; grep '^STATUS ' <<< "$out" | cut -c8- | jq . || echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

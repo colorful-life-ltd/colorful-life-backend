@@ -27,8 +27,11 @@ test('requested older commit supplies actual source; invalid or dirty source fai
 });
 
 test('image preparation retains main/CI admission and never calls SSM or deploys',()=>{
- assert.ok(workflow.includes('options: [status, prepare, migrate, deploy, rollback]'));
+ assert.ok(workflow.includes('options: [status, prepare, migrate, routes, deploy, rollback]'));
  assert.ok(workflow.includes('migration_writes_approved:'));
+ assert.ok(workflow.includes('nginx_routes_approved:'));
+ assert.ok(workflow.includes('NginxRoutesApproved:[$routes]'));
+ assert.ok(workflow.includes("if: inputs.action == 'routes'"));
  for(const name of ['Resolve the commit and require a passed backend workflow','Check out the exact approved deployment source','Publish immutable images (reuse existing sandbox tags)']){
   const block=workflow.split('      - name: '+name+'\n')[1]?.split('      - ')[0];
   assert.ok(block?.includes("if: inputs.action == 'deploy' || inputs.action == 'prepare' || inputs.action == 'migrate'"));
@@ -43,5 +46,5 @@ test('image preparation retains main/CI admission and never calls SSM or deploys
  }
  const deploy=workflow.split('      - name: Deploy API then Worker on the host')[1]?.split('      - ')[0];
  assert.ok(deploy?.includes("if: inputs.action == 'deploy'\n"));
- assert.ok(workflow.includes("if: always() && (inputs.action == 'deploy' || inputs.action == 'rollback' || inputs.action == 'migrate')"));
+ assert.ok(workflow.includes("if: always() && (inputs.action == 'deploy' || inputs.action == 'rollback' || inputs.action == 'migrate' || inputs.action == 'routes')"));
 });
