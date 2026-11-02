@@ -51,6 +51,12 @@ it("requires a client key before any new external intent or provider call",async
  for(const key of [undefined,"short","bad key "+randomUUID()]){const response=await api(f,{paymentId:f.payment.id,amount:10},key);assert.equal(response.status,400);}
  assert.equal(calls,0);assert.equal(await prisma.refund.count({where:{paymentId:f.payment.id}}),0);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
 });
+it("marks an over-capacity Stripe request as definitively not submitted without creating or reserving a refund",async()=>{
+ const f=await fixture();let calls=0;restores.push(setStripeRefundClientForTests({createRefund:async()=>{calls++;return stripeResponse(f);}}));
+ const response=await api(f,{paymentId:f.payment.id,amount:100.01,reason:"Return amount correction"},randomUUID());
+ assert.equal(response.status,409);assert.deepEqual(await response.json(),{error:"REFUND_CAPACITY_EXCEEDED",refundSubmissionDisposition:"NOT_SUBMITTED"});
+ assert.equal(calls,0);assert.equal(await prisma.refund.count({where:{paymentId:f.payment.id}}),0);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+});
 it("lost successful HTTP response replays the original intent; a new key permits a sequential partial refund",async()=>{
  const f=await fixture();let calls=0;const client:StripeRefundClient={createRefund:async()=>{calls++;return stripeResponse(f);}};
  const key=randomUUID();const first=await stripe(f,client,key);const retry=await stripe(f,client,key);assert.equal(retry.id,first.id);assert.equal(calls,1);

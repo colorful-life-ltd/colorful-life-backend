@@ -4,6 +4,7 @@ import refundReviews from "./routes/refundReviews.js";
 import adminOperatorIntents from "./routes/adminOperatorIntents.js";
 import { prisma } from "./prisma/runtime.js";
 import adminPaymentSecurity from "./routes/adminPaymentSecurity.js";
+import adminPaymentEnvironment from "./routes/adminPaymentEnvironment.js";
 import adminPayPalWebhookReviewsRouter from './routes/adminPayPalWebhookReviews.js';
 import express from "express";
 import { config } from "./config/index.js";
@@ -61,6 +62,7 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/admin/refund-reviews",refundReviews);
   app.use("/admin/operator-intents", adminOperatorIntents);
   app.use("/admin/payment-security", adminPaymentSecurity);
+  app.use("/admin/payment-environment", adminPaymentEnvironment);
 app.use("/admin/orders", adminOrdersRouter);
   app.use("/admin/paypal/webhook-reviews", adminPayPalWebhookReviewsRouter);
   app.use("/orders", customerReturns);
