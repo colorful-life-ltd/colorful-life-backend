@@ -11,10 +11,12 @@ import { AdminOrderIdSchema, AdminOrderQuerySchema } from "../domain/orders/admi
 import { getAdminOrder, listAdminOrders } from "../domain/orders/orderReadService.js";
 import { DispatchShipmentSchema, StartPreparingSchema } from "../domain/fulfilment/fulfilmentValidator.js";
 import { dispatchShipment, startPreparing } from "../domain/fulfilment/fulfilmentService.js";
+import { ConfirmDeliverySchema, confirmManualDelivery } from "../domain/fulfilment/manualDelivery.js";
 import {
   FulfilmentOrderNotFoundError,
   FulfilmentPaymentNotVerifiedError,
   FulfilmentTransitionError,
+  OrderAlreadyDeliveredError,
   OrderAlreadyDispatchedError,
 } from "../domain/fulfilment/fulfilmentErrors.js";
 
@@ -82,6 +84,10 @@ function sendFulfilmentError(res: Response, error: unknown, operation: string) {
   if (error instanceof FulfilmentPaymentNotVerifiedError) return sendApiError(res, 409, error.reason === "REFUND_REVIEW_REQUIRED" ? "REFUND_REVIEW_REQUIRED" : "ORDER_PAYMENT_NOT_VERIFIED", error.message, { reason: error.reason });
   if (error instanceof FulfilmentTransitionError) return sendApiError(res, 409, "FULFILMENT_TRANSITION_INVALID", error.message);
   if (error instanceof OrderAlreadyDispatchedError) return sendApiError(res, 409, "ORDER_ALREADY_DISPATCHED", error.message);
+  // The unique manual-delivery key backs up the order lock against a concurrent duplicate.
+  if (error instanceof OrderAlreadyDeliveredError || (operation === "delivered" && (error as { code?: unknown })?.code === "P2002")) {
+    return sendApiError(res, 409, "ORDER_ALREADY_DELIVERED", "This order has already been confirmed as delivered.");
+  }
   logOperationalError(`Admin fulfilment ${operation} error`);
   return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
 }
@@ -112,6 +118,21 @@ router.post("/:orderId/fulfilment/dispatch", async (req: Request, res: Response)
     return res.json(order);
   } catch (error) {
     return sendFulfilmentError(res, error, "dispatch");
+  }
+});
+
+// DISPATCHED -> DELIVERED after the operator manually checked the carrier's tracking website.
+// No carrier integration and no inference from elapsed time; Order.status stays DISPATCHED.
+router.post("/:orderId/fulfilment/delivered", async (req: Request, res: Response) => {
+  const id = AdminOrderIdSchema.safeParse(req.params.orderId);
+  if (!id.success) return res.status(400).json({ error: "Invalid order id" });
+  const body = ConfirmDeliverySchema.safeParse(req.body);
+  if (!body.success) return sendApiError(res, 400, "DELIVERY_CONFIRMATION_REQUIRED", "Confirm that delivery was verified on the carrier's tracking website.");
+  try {
+    await confirmManualDelivery(req.user!.id, id.data);
+    return res.json(await getAdminOrder(id.data));
+  } catch (error) {
+    return sendFulfilmentError(res, error, "delivered");
   }
 });
 

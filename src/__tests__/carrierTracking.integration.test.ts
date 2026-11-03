@@ -226,8 +226,13 @@ it("database forbids recovery-counter regression and completed-journal mutation"
 it("customers and admins cannot inject Delivered through an HTTP evidence endpoint",async()=>{
  const f=await fixture();const body=JSON.stringify({verified:true,status:"DELIVERED",deliveryConfirmed:true});
  assert.equal((await fetch(`${base}/orders/${f.order.id}/tracking`,{method:"POST",headers:{Authorization:`Bearer ${f.token}`,"Content-Type":"application/json"},body})).status,404);
- assert.equal((await fetch(`${base}/admin/orders/${f.order.id}/fulfilment/delivered`,{method:"POST",headers:{Authorization:`Bearer ${f.adminToken}`,"Content-Type":"application/json"},body})).status,404);
+ // The owner-approved manual confirmation endpoint exists, but its strict schema accepts only the operator's
+ // explicit manual-check flag: carrier evidence (verified/status/deliveryConfirmed) is rejected, for customers too.
+ const delivered=(token:string)=>fetch(`${base}/admin/orders/${f.order.id}/fulfilment/delivered`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body});
+ assert.equal((await delivered(f.adminToken)).status,400);
+ assert.equal((await delivered(f.token)).status,403);
  assert.equal((await safeOrder(f)).fulfilment.stage,"DISPATCHED");assert.equal(await prisma.shipmentTrackingEvent.count({where:{shipmentId:f.shipment!.id}}),0);
+ assert.equal(await prisma.operationalAudit.count({where:{orderId:f.order.id,kind:"MANUAL_DELIVERY_CONFIRMED"}}),0);
 });
 
 it("carrier delivery does not alter an in-progress refund or release inventory",async()=>{
