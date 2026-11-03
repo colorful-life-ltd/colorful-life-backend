@@ -44,3 +44,11 @@ export class OrderAlreadyDispatchedError extends Error {
     this.name = "OrderAlreadyDispatchedError";
   }
 }
+
+/** Every shipment is already delivered (manual confirmation or verified carrier proof). */
+export class OrderAlreadyDeliveredError extends Error {
+  constructor(orderId: number) {
+    super(`Order ${orderId} has already been confirmed as delivered`);
+    this.name = "OrderAlreadyDeliveredError";
+  }
+}
