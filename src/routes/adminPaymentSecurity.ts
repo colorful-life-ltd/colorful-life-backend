@@ -4,6 +4,7 @@ import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth.js';
 import { prisma } from '../prisma/runtime.js';
+import { listUnresolvedStripeReconciliation } from '../domain/payments/stripeReconciliationVisibility.js';
 import { reviewOrder, updatePolicy, pruneSecurityState, PaymentSecurityOperationError } from '../domain/security/paymentSecurityOperations.js';
 const router = Router();
 router.use(authMiddleware, (req, res, next) => {
@@ -18,7 +19,7 @@ router.post('/maintenance', async (_req, res) => {
 });
 router.get('/', async (_req, res) => {
   try {
-    const [policies, reviews, counts, providerOutcomes, providerBudgets] = await Promise.all([
+    const [policies, reviews, counts, providerOutcomes, providerBudgets, reconciliation] = await Promise.all([
       prisma.$queryRaw`SELECT * FROM "PaymentInitiationPolicy" ORDER BY "provider"`,
       prisma.$queryRaw`SELECT * FROM "PaymentFulfilmentReview" WHERE "releasedAt" IS NULL ORDER BY "createdAt" LIMIT 100`,
       prisma.$queryRaw`SELECT "kind", "provider", count(*)::int AS count FROM "PaymentSecurityEvent"
@@ -28,8 +29,10 @@ router.get('/', async (_req, res) => {
         AND "processingError" IS NULL GROUP BY provider, "eventType"`,
       prisma.$queryRaw`SELECT "tokens", "updatedAt", "expiresAt", CASE WHEN "key"=${bucket('provider', 'STRIPE').key} THEN 'STRIPE' ELSE 'PAYPAL' END AS provider
         FROM "AbuseBucket" WHERE "key" IN (${bucket('provider', 'STRIPE').key}, ${bucket('provider', 'PAYPAL').key})`,
+      // Verified Stripe receipts that could not reconcile (e.g. captured funds, unconfirmed order). Read-only.
+      listUnresolvedStripeReconciliation(),
     ]);
-    res.json({ policies, environmentEnabled: { STRIPE: config.PAYMENT_STRIPE_INITIATION_ENABLED, PAYPAL: config.PAYMENT_PAYPAL_INITIATION_ENABLED }, reviews, counts, providerOutcomes, providerBudgets });
+    res.json({ policies, environmentEnabled: { STRIPE: config.PAYMENT_STRIPE_INITIATION_ENABLED, PAYPAL: config.PAYMENT_PAYPAL_INITIATION_ENABLED }, reviews, counts, providerOutcomes, providerBudgets, reconciliation });
   } catch { res.status(503).json({ error: 'Security monitoring unavailable' }); }
 });
 router.post('/providers/:provider', async (req, res) => {
