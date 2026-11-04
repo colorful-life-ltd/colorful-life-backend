@@ -33,6 +33,8 @@ const configSchema = z.object({
   PAYMENT_RESOLUTION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   // Public self-registration. Closed by default so pre-launch environments cannot collect accounts.
   REGISTRATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
+  // HTTP first-Administrator registration; see config/adminBootstrap.ts. Never honoured in production.
+  ADMIN_BOOTSTRAP_HTTP_ENABLED: z.enum(["true", "false"]).optional(),
   PAYMENT_STRIPE_INITIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   PAYMENT_PAYPAL_INITIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   CLIENT_IP_MODE: z.enum(["direct", "proxy"]).optional(),

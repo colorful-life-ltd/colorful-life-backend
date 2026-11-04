@@ -42,6 +42,9 @@ export function validateProduction(c: {
         bad.push('SES_FROM_EMAIL');
     if ((c.PAYMENT_PAYPAL_INITIATION_ENABLED || c.PAYPAL_CLIENT_ID || c.PAYPAL_WEBHOOK_ID) && !(live?['https://api-m.paypal.com','https://api.paypal.com']:['https://api-m.sandbox.paypal.com','https://api.sandbox.paypal.com']).includes(c.PAYPAL_BASE_URL))
         bad.push('PAYPAL_BASE_URL');
+    // Production provisions the first Administrator only through the owner-run CLI.
+    if (live && env.ADMIN_BOOTSTRAP_HTTP_ENABLED === 'true')
+        bad.push('ADMIN_BOOTSTRAP_HTTP_ENABLED');
     if((c.STRIPE_SECRET_KEY&&!c.STRIPE_SECRET_KEY.startsWith(live?'sk_live_':'sk_test_')) || (c.PAYMENT_STRIPE_INITIATION_ENABLED&&(!c.STRIPE_SECRET_KEY||!c.STRIPE_WEBHOOK_SECRET)))bad.push('STRIPE_PROVIDER_CONFIGURATION');
     if (bad.length)
         throw new Error(`Unsafe production configuration: ${bad.join(', ')}`);

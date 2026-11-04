@@ -18,6 +18,9 @@ it('requires an explicit deployment environment',()=>assert.throws(()=>validateP
 it('staging explicitly permits test providers under production runtime hardening',()=>assert.doesNotThrow(()=>validateProduction({...valid,STRIPE_SECRET_KEY:'sk_test_synthetic',STRIPE_WEBHOOK_SECRET:'whsec_synthetic',PAYMENT_STRIPE_INITIATION_ENABLED:true,PAYMENT_PAYPAL_INITIATION_ENABLED:true,PAYPAL_BASE_URL:'https://api-m.sandbox.paypal.com'},{...env,DEPLOYMENT_ENVIRONMENT:'staging'})));
 it('staging rejects live payment credentials',()=>assert.throws(()=>validateProduction({...valid,STRIPE_SECRET_KEY:'sk_live_synthetic'},{...env,DEPLOYMENT_ENVIRONMENT:'staging'}),/STRIPE_PROVIDER_CONFIGURATION/));
 it('production rejects test payment credentials even with initiation disabled',()=>assert.throws(()=>validateProduction({...valid,STRIPE_SECRET_KEY:'sk_test_synthetic'},env),/STRIPE_PROVIDER_CONFIGURATION/));
+it('production refuses to start with HTTP first-Administrator registration enabled',()=>assert.throws(()=>validateProduction(valid,{...env,ADMIN_BOOTSTRAP_HTTP_ENABLED:'true'}),/ADMIN_BOOTSTRAP_HTTP_ENABLED/));
+it('production accepts the HTTP bootstrap explicitly disabled or unset',()=>{assert.doesNotThrow(()=>validateProduction(valid,{...env,ADMIN_BOOTSTRAP_HTTP_ENABLED:'false'}));assert.doesNotThrow(()=>validateProduction(valid,env));});
+it('staging may opt in to HTTP first-Administrator registration',()=>assert.doesNotThrow(()=>validateProduction(valid,{...env,DEPLOYMENT_ENVIRONMENT:'staging',ADMIN_BOOTSTRAP_HTTP_ENABLED:'true'})));
 it('rejects trivially repeated long JWT secrets',()=>assert.throws(()=>validateProduction({...valid,JWT_SECRET:'a'.repeat(64)},env),/JWT_SECRET/));
 
 // Exercise the real startup boundary, including schema defaults, without importing
@@ -29,6 +32,7 @@ for (const [name, override, expected] of [
     ['example sender', { SES_FROM_EMAIL: 'private-canary@example.com' }, 'SES_FROM_EMAIL'],
     ['weak JWT', { JWT_SECRET: 'private-canary' }, 'JWT_SECRET'],
     ['sandbox PayPal', { PAYPAL_CLIENT_ID: 'private-canary', PAYPAL_BASE_URL: 'https://api-m.sandbox.paypal.com' }, 'PAYPAL_BASE_URL'],
+    ['HTTP first-Administrator registration', { ADMIN_BOOTSTRAP_HTTP_ENABLED: 'true' }, 'ADMIN_BOOTSTRAP_HTTP_ENABLED'],
 ] as const) it(`real production startup rejects ${name} before connecting and sanitizes diagnostics`, async () => {
     const { spawnSync } = await import('node:child_process');
     const childEnv: NodeJS.ProcessEnv = {
