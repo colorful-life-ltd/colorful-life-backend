@@ -12,6 +12,8 @@ import { createOrReplaceEmailVerificationToken, verifyEmailVerificationToken } f
 import { InvalidOrExpiredVerificationTokenError } from "../domain/auth/emailVerificationErrors.js";
 import { sendVerificationEmail } from "../services/emailService.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
+import { emailCredentialReadiness } from "../services/sesRuntime.js";
+import { sendEmailUnavailable } from "../middleware/emailDeliveryReady.js";
 import { createOrReplacePasswordResetToken } from "../domain/auth/passwordResetService.js";
 import { resetPassword } from "../domain/auth/passwordResetService.js";
 import { InvalidOrExpiredPasswordResetTokenError } from "../domain/auth/passwordResetErrors.js";
@@ -215,7 +217,9 @@ export const resendVerification = async (req: Request, res: Response) => {
         try {
           await sendVerificationEmail({ recipientEmail: user.email, verificationUrl });
         } catch (emailError) {
+          // Never report success for a send that failed; the customer can safely retry.
           logOperationalError("Verification email delivery failed", emailError);
+          return sendEmailUnavailable(res);
         }
       }
     }
@@ -233,6 +237,13 @@ export const forgotPassword = async (req: Request, res: Response) => {
   if (!parseResult.success) return res.status(400).json({ error: parseResult.error.format() });
   const genericResponse = { message: "If an account exists, a password reset email has been sent" };
   try {
+    // Checked before the account lookup and answered identically, so availability cannot
+    // be used for enumeration. Skipping keeps any previously emailed reset link valid.
+    if (!(await emailCredentialReadiness("account")).ready) {
+      logOperationalError("Password reset email unavailable");
+      await waitForResponse();
+      return res.status(200).json(genericResponse);
+    }
     const user = await prisma.user.findUnique({
       where: { email: parseResult.data.email, deletedAt: null },
       select: { id: true, email: true },

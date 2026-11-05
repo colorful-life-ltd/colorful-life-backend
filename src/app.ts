@@ -33,6 +33,7 @@ import adminProductListingsRouter from "./routes/adminProductListings.js";
 import { createSitemapRouter } from "./routes/sitemap.js";
 import adminBootstrapRouter from "./routes/adminBootstrap.js";
 import type { ImageStorage } from "./infrastructure/imageStorage/imageStorage.js";
+import { emailCredentialReadiness } from "./services/sesRuntime.js";
 
 export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?: ImageStorage, categoryArtworkStorage?: ImageStorage) {
   const app = express();
@@ -76,6 +77,9 @@ app.use("/admin/orders", adminOrdersRouter);
   app.use(createSitemapRouter());
   app.get("/health", (_req, res) => { res.json({ status: "ok" }); });
   app.get('/ready',async(_req,res)=>{try{await prisma.$queryRaw`SELECT 1`;res.json({status:'ready'});}catch{res.status(503).json({status:'unavailable'});}});
+  // Signup email credential readiness for monitoring. Deliberately separate from /ready so an
+  // SES outage never fails API recovery/deploy health. Body carries no reason or configuration.
+  app.get('/ready/email',async(_req,res)=>{res.setHeader('Cache-Control','no-store');try{if((await emailCredentialReadiness('signup')).ready){res.json({status:'ready'});return;}}catch{/* unavailable */}res.status(503).json({status:'unavailable'});});
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
     logOperationalError('HTTP request rejected',error);
     if(res.headersSent){res.end();return;}

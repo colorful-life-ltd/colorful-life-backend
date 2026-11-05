@@ -7,6 +7,8 @@ import { z } from "zod";
 import { config as dotenvConfig } from "dotenv";
 import { isTestExecution, resolveDatabaseUrl } from "./testDatabase.js";
 import { parsePublicSiteOrigin } from "../domain/seo/publicSiteOrigin.js";
+import { SES_SOURCE_ARN_PATTERN } from "../services/sesCredentials.js";
+import { isAbsolute, normalize } from "node:path";
 
 // Load environment variables from .env if present
 dotenvConfig();
@@ -60,6 +62,12 @@ const configSchema = z.object({
     REFRESH_SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
     AWS_REGION: z.string().nonempty().default("eu-west-2"),
     SES_FROM_EMAIL: z.string().email().default("noreply@example.com"),
+    // Optional runtime SES session (see docs/operations/ses-runtime-credentials.md). When set, SES
+    // clients read the mounted, renewable record instead of process environment keys.
+    // Empty is treated as unset, so the test runner can blank inherited values.
+    SES_SESSION_DIRECTORY: z.preprocess(v => v === "" ? undefined : v, z.string().refine(v => isAbsolute(v) && normalize(v) === v && v !== "/",
+      "Expected a normalized absolute directory").optional()),
+    SES_SESSION_SOURCE_ARN: z.preprocess(v => v === "" ? undefined : v, z.string().regex(SES_SOURCE_ARN_PATTERN, "Expected an STS federated-user or assumed-role ARN").optional()),
     FRONTEND_URL: z.string().url().default("http://localhost:3000"),
     // Canonical public storefront origin for sitemap URLs. Deliberately separate from
     // FRONTEND_URL and never derived from the API host; the sitemap is disabled when unset.
@@ -75,6 +83,8 @@ const configSchema = z.object({
     CLOUDINARY_CLOUD_NAME: z.string().nonempty().optional(),
     CLOUDINARY_API_KEY: z.string().nonempty().optional(),
     CLOUDINARY_API_SECRET: z.string().nonempty().optional(),
+  }).refine(c => !c.SES_SESSION_DIRECTORY === !c.SES_SESSION_SOURCE_ARN, {
+    message: "SES_SESSION_DIRECTORY and SES_SESSION_SOURCE_ARN must be set together", path: ["SES_SESSION_SOURCE_ARN"],
   });
 
 const parsed = configSchema.safeParse({

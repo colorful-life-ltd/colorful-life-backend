@@ -1,6 +1,7 @@
 import { renderReturnAuthorization, returnAuthorizationSchema } from './returnAuthorization.js';
 import { testEmailMode } from '../../config/testEmail.js';
 import { SESClient, SendRawEmailCommand, GetSendQuotaCommand, GetIdentityVerificationAttributesCommand, GetAccountSendingEnabledCommand } from '@aws-sdk/client-ses';
+import { configuredSesCredentials } from '../../services/sesRuntime.js';
 import nodemailer from 'nodemailer';
 import { config } from '../../config/index.js';
 import { invoiceSchema, type Invoice } from './contract.js';
@@ -58,7 +59,7 @@ export function classifySesError(error: unknown): DeliveryRejected | null {
 export type SesReadinessClient = Pick<SESClient, 'send' | 'config'>;
 export async function checkSesReadiness(fromEmail: string, injected?: SesReadinessClient, signal = AbortSignal.timeout(10_000)) {
   if (testEmailMode() && (!injected || injected instanceof SESClient)) throw new Error('Real SES disabled in tests');
-  const client = injected ?? new SESClient({ region: config.AWS_REGION, maxAttempts: 1 });
+  const client = injected ?? new SESClient({ region: config.AWS_REGION, maxAttempts: 1, credentials: configuredSesCredentials() });
   try {
     const credentials = await client.config.credentials();
     if (!credentials.accessKeyId || !credentials.secretAccessKey) throw new Error('Missing credentials');
@@ -76,7 +77,7 @@ export const sesConfirmationTransport: ConfirmationTransport = {
   kind: 'ses',
   async send(message) {
     if (!(config.ORDER_CONFIRMATION_EMAIL_ENABLED || config.DISPATCH_CONFIRMATION_EMAIL_ENABLED || config.RETURN_AUTHORIZATION_EMAIL_ENABLED) || testEmailMode()) throw new DeliveryRejected(false, 'PROVIDER_REJECTED');
-    const client = new SESClient({ region: config.AWS_REGION, maxAttempts: 1 });
+    const client = new SESClient({ region: config.AWS_REGION, maxAttempts: 1, credentials: configuredSesCredentials() });
     try {
       const result = await client.send(new SendRawEmailCommand({ RawMessage: { Data: message } }), { abortSignal: AbortSignal.timeout(10_000) });
       if (!result.MessageId) throw new Error('Provider acceptance unknown');
