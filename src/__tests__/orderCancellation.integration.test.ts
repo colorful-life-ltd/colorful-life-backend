@@ -17,7 +17,7 @@ import { reconcileStripePaymentEvent } from "../domain/payments/stripeReconcilia
 import { recoverStripePayment } from "../domain/payments/stripePaymentRecoveryService.js";
 import { createPayment } from "./helpers/manualPayment.js";
 import { PaymentOrderCancelledError } from "../domain/payments/paymentErrors.js";
-import { createOrReusePayPalOrder, PayPalOrderAlreadyCompletedError } from "../domain/payments/paypalOrderService.js";
+import { createOrReusePayPalOrder, PayPalOrderAlreadyCompletedError } from "./fixtures/retiredPayPal/paypalOrderService.js";
 
 const receiptIds: string[] = [];
 const userIds: number[] = [];

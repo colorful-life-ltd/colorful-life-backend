@@ -12,11 +12,11 @@ import { cancelOrder, cancelOrderByAdmin } from "../domain/orders/orderCancellat
 import { OrderCancellationPaymentError } from "../domain/orders/orderCancellationErrors.js";
 import { expireOrderReservation } from "../domain/orders/orderExpiryService.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
-import { createOrReusePayPalOrder, PayPalOrderAlreadyCompletedError } from "../domain/payments/paypalOrderService.js";
-import { capturePayPalOrder, PayPalCaptureCancelledError, PayPalCaptureExpiredError, PayPalCaptureMismatchError, PayPalCaptureOwnershipError, type PayPalCaptureClient } from "../domain/payments/paypalCaptureService.js";
+import { createOrReusePayPalOrder, PayPalOrderAlreadyCompletedError } from "./fixtures/retiredPayPal/paypalOrderService.js";
+import { capturePayPalOrder, PayPalCaptureCancelledError, PayPalCaptureExpiredError, PayPalCaptureMismatchError, PayPalCaptureOwnershipError, type PayPalCaptureClient } from "./fixtures/retiredPayPal/paypalCaptureService.js";
 import { reconcilePayPalWebhookEvent, persistVerifiedPayPalWebhookEvent } from "../domain/payments/paypalReconciliationService.js";
 import { replayPendingPayPalWebhooks } from "../domain/payments/paypalWebhookReplayService.js";
-import { setPayPalCaptureClientForTests } from "../domain/payments/paypalCaptureService.js";
+import { setPayPalCaptureClientForTests } from "./fixtures/retiredPayPal/paypalCaptureService.js";
 import { setPayPalWebhookVerifierForTests } from "../controllers/paypalWebhookController.js";
 
 const users: number[] = [], orders: number[] = [], listings: number[] = [], products: number[] = [], receipts: string[] = [];
@@ -122,36 +122,33 @@ function replayProcess(paypalOrderId: string) {
 // Only provider I/O is faked. Transactions, authorization, constraints and lock
 // contention below use the guarded PostgreSQL test database.
 describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }, () => {
-  it("rejects PayPal capture over HTTP without provider I/O or financial/inventory mutations", async () => {
+  it("has no PayPal create or capture route: no provider I/O, financial or inventory mutation", async () => {
     const f = await fixture(), other = await user();
     let calls = 0;
     const restore = setPayPalCaptureClientForTests({ captureOrder: async () => {
       calls++;
-      assert.fail("Stripe-only HTTP capture must never call PayPal");
+      assert.fail("Removed PayPal routes must never call PayPal");
     } });
     const snapshot = async () => ({
       order: await prisma.order.findUniqueOrThrow({ where: { id: f.order.id }, include: {
-        payments: true, orderItems: true, paymentResolution: true,
+        payments: true, orderItems: true, paymentResolution: true, refunds: true,
         paymentAttempts: { include: { operations: true } }, financialEvidence: true,
       } }),
       listing: await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } }),
       movements: await prisma.inventoryMovement.findMany({ where: { listingId: f.listing.id }, orderBy: { id: "asc" } }),
     });
     const before = await snapshot();
-    const previous = config.PAYMENT_PAYPAL_INITIATION_ENABLED;
-    config.PAYMENT_PAYPAL_INITIATION_ENABLED = true;
     try {
-      for (const id of [f.owner.id, other.id, f.owner.id]) {
-        const response = await fetch(`${url}/orders/${f.order.id}/payments/paypal/capture`, { method: "POST", headers: {
+      for (const path of ["paypal", "paypal/capture"]) for (const id of [f.owner.id, other.id]) {
+        const response = await fetch(`${url}/orders/${f.order.id}/payments/${path}`, { method: "POST", headers: {
           "Idempotency-Key": randomUUID(), Authorization: `Bearer ${jwt.sign({ id }, config.JWT_SECRET)}`,
         } });
-        assert.equal(response.status, 503);
-        assert.deepEqual(await response.json(), { error: { code: "PAYPAL_INITIATION_DISABLED", message: "PayPal checkout is currently unavailable" } });
+        assert.equal(response.status, 404);
         assert.equal(calls, 0);
         assert.deepEqual(await snapshot(), before);
       }
       await inventory(f, 2);
-    } finally { config.PAYMENT_PAYPAL_INITIATION_ENABLED = previous; restore(); }
+    } finally { restore(); }
   });
 
   it("authorizes a second customer before exposing an in-flight direct-service capture", async () => {
@@ -295,7 +292,7 @@ describe("PayPal lifecycle security (#153)", { concurrency: 1, timeout: 30_000 }
 
   it("protects durable capture idempotency across independent service instances", async () => {
     const f = await fixture(), c = captureClient(f), entered = gate(), release = gate();
-    const worker = await import(`../domain/payments/paypalCaptureService.js?worker=${randomUUID()}`) as typeof import("../domain/payments/paypalCaptureService.js");
+    const worker = await import(`./fixtures/retiredPayPal/paypalCaptureService.js?worker=${randomUUID()}`) as typeof import("./fixtures/retiredPayPal/paypalCaptureService.js");
     const keys: string[] = []; const ledger = new Map<string, ReturnType<typeof c.client.captureOrder>>();
     const client: PayPalCaptureClient = { captureOrder: async (id, key) => {
       keys.push(key); entered.resolve(); await release.promise;

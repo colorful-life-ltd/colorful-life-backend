@@ -1,12 +1,15 @@
-import {logOperationalError} from "../../utils/operationalLog.js";
-import { admitFinancialOperation, policy } from "../security/paymentAbuse.js";
+// RETIRED: PayPal checkout is not part of the application. This copy of the former service
+// exists only so historical-compatibility tests can create PayPal records exactly as
+// production once did. It lives under __tests__, which the runtime image deletes.
+import {logOperationalError} from "../../../utils/operationalLog.js";
+import { admitFinancialOperation, policy } from "../../../domain/security/paymentAbuse.js";
 import { randomUUID } from "node:crypto";
-import { checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, PaymentResolutionUnavailableError } from "./paymentResolutionService.js";
+import { checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, PaymentResolutionUnavailableError } from "../../../domain/payments/paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
-import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
-import { prisma } from "../../prisma/runtime.js";
-import { config } from "../../config/index.js";
-import { replayPendingPayPalWebhooks } from "./paypalWebhookReplayService.js";
+import { OrderStatus, PaymentProvider, PaymentStatus } from "../../../generated/prisma-client/enums.js";
+import { prisma } from "../../../prisma/runtime.js";
+import { config } from "../../../config/index.js";
+import { replayPendingPayPalWebhooks } from "../../../domain/payments/paypalWebhookReplayService.js";
 
 export class PayPalOrderNotFoundError extends Error {}
 export class PayPalOrderOwnershipError extends Error {}

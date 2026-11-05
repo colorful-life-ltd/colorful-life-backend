@@ -11,8 +11,10 @@ import { prisma } from '../prisma/runtime.js';
 import { abuseContext, admitFinancialOperation, admitOrderCreation, bucket, consume, limits, stagingLimits, PaymentAbuseError } from '../domain/security/paymentAbuse.js';
 import { reviewOrder, updatePolicy, pruneSecurityState } from '../domain/security/paymentSecurityOperations.js';
 import { createOrReuseStripePaymentIntent, setStripePaymentClientForTests } from '../domain/payments/stripePaymentService.js';
-import { capturePayPalOrder } from '../domain/payments/paypalCaptureService.js';
+import { capturePayPalOrder } from './fixtures/retiredPayPal/paypalCaptureService.js';
 import { assertPaymentVerifiedForFulfilment, dispatchLegacyOrder, dispatchShipment } from '../domain/fulfilment/fulfilmentService.js';
+import { allowRetiredPayPalAdmissionForTests } from '../domain/security/paymentAbuse.js';
+let closeRetiredPayPal = () => {};
 
 const saved = { ...config };
 const users: number[] = [], orders: number[] = [], listings: number[] = [], products: number[] = [];
@@ -26,7 +28,9 @@ after(async () => { server.close(); await prisma.$disconnect(); });
 beforeEach(async () => {
   config.PAYMENT_ABUSE_LIMITS_JSON = undefined;
   config.PAYMENT_ABUSE_HMAC_SECRET = 'synthetic-issue194-shared-hmac-secret';
-  config.PAYMENT_STRIPE_INITIATION_ENABLED = config.PAYMENT_PAYPAL_INITIATION_ENABLED = true;
+  config.PAYMENT_STRIPE_INITIATION_ENABLED = true;
+  // Retired PayPal fixtures recreate historical records; this never opens PayPal at runtime.
+  closeRetiredPayPal = allowRetiredPayPalAdmissionForTests();
   config.PAYMENT_RESOLUTION_ENABLED = false;
   config.PAYMENT_CHALLENGE_ENABLED = false;
   await prisma.$executeRaw`DELETE FROM "AbuseBucket"`;
@@ -196,7 +200,7 @@ describe('initiation switches and safe recovery', { concurrency: 1 }, () => {
   });
   it('blocks a new PayPal capture before journalling and preserves pending stock ownership', async () => {
     const f = await order(); const payment = await prisma.payment.create({ data: { orderId: f.o.id, amount: 12.50, provider: 'PAYPAL', providerReference: 'ORDER-'+randomUUID() } });
-    config.PAYMENT_PAYPAL_INITIATION_ENABLED = false; let calls = 0;
+    closeRetiredPayPal(); let calls = 0;
     await assert.rejects(capturePayPalOrder(f.o.id, f.u.id, { captureOrder: async () => { calls++; throw new Error('must not call'); } }), PaymentAbuseError);
     assert.equal(calls, 0); assert.equal((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).captureIdempotencyKey, null);
     assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.o.id } })).status, 'PENDING');
@@ -234,7 +238,7 @@ describe('initiation switches and safe recovery', { concurrency: 1 }, () => {
   });
   it('processes verified Stripe success and refunds while both initiation switches are disabled', async () => {
     const f = await order(), sdk = stripe(); await createOrReuseStripePaymentIntent(f.o.id, f.u.id, sdk.client);
-    config.PAYMENT_STRIPE_INITIATION_ENABLED = config.PAYMENT_PAYPAL_INITIATION_ENABLED = false;
+    config.PAYMENT_STRIPE_INITIATION_ENABLED = false; closeRetiredPayPal();
     const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: f.o.id } });
     const { reconcileStripePaymentEvent } = await import('../domain/payments/stripeReconciliationService.js');
     const eventId = 'evt_'+randomUUID();
@@ -255,13 +259,13 @@ describe('initiation switches and safe recovery', { concurrency: 1 }, () => {
   it('keeps successful PayPal capture retrieval available with initiation disabled', async () => {
     const f = await order();
     await prisma.payment.create({ data: { orderId: f.o.id, amount: 12.50, provider: 'PAYPAL', providerReference: 'ORDER-'+randomUUID(), providerCaptureReference: 'CAP-'+randomUUID(), status: 'SUCCEEDED', paidAt: new Date() } });
-    config.PAYMENT_PAYPAL_INITIATION_ENABLED = false;
+    closeRetiredPayPal();
     const result = await capturePayPalOrder(f.o.id, f.u.id, { captureOrder: async () => { throw new Error('No provider POST allowed'); } });
     assert.ok(result.captureId);
   });
-  it('keeps PayPal customer order initiation unconditionally disabled', async () => {
+  it('has no PayPal customer order initiation route', async () => {
     const f = await order(); const response = await fetch(`${url}/orders/${f.o.id}/payments/paypal`, { method: 'POST', headers: auth(f.u) });
-    assert.equal(response.status, 503); assert.equal((await response.json()).error.code, 'PAYPAL_INITIATION_DISABLED');
+    assert.equal(response.status, 404); assert.equal(await prisma.payment.count({ where: { orderId: f.o.id } }), 0);
   });
 });
 
