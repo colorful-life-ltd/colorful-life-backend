@@ -9,9 +9,11 @@ import { config } from '../config/index.js';
 import { prisma } from '../prisma/runtime.js';
 import { stagingLimits } from '../domain/security/paymentAbuse.js';
 import { createRefreshSession } from '../domain/auth/refreshSessionService.js';
-import { createOrReusePayPalOrder } from '../domain/payments/paypalOrderService.js';
-import { capturePayPalOrder } from '../domain/payments/paypalCaptureService.js';
+import { createOrReusePayPalOrder } from './fixtures/retiredPayPal/paypalOrderService.js';
+import { capturePayPalOrder } from './fixtures/retiredPayPal/paypalCaptureService.js';
 import { validateAbuseStartup } from '../config/paymentAbuse.js';
+import { allowRetiredPayPalAdmissionForTests } from '../domain/security/paymentAbuse.js';
+let closeRetiredPayPal = () => {};
 
 const saved = { ...config }, proxy = app.get('trust proxy');
 let server: Server, url: string;
@@ -22,7 +24,8 @@ beforeEach(async () => {
   config.PAYMENT_ABUSE_HMAC_SECRET = 'synthetic-194-remediation-shared-secret';
   config.PAYMENT_ABUSE_LIMITS_JSON = undefined;
   config.PAYMENT_RESOLUTION_ENABLED = false;
-  config.PAYMENT_STRIPE_INITIATION_ENABLED = config.PAYMENT_PAYPAL_INITIATION_ENABLED = true;
+  config.PAYMENT_STRIPE_INITIATION_ENABLED = true;
+  closeRetiredPayPal(); closeRetiredPayPal = allowRetiredPayPalAdmissionForTests();
   await prisma.$executeRaw`DELETE FROM "AbuseBucket"`;
 });
 afterEach(async () => {
@@ -131,12 +134,12 @@ for (const [name, override, expected] of [
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', 'await import("./dist/config/index.js")'], { env, encoding: 'utf8' });
   assert.equal(result.status, 1); assert.ok(result.stderr.includes(expected)); assert.ok(!result.stderr.includes('sensitive-invalid-input'));
 });
-it('production imports default both provider switches off and only explicit flags enable them', () => {
+it('production imports default Stripe initiation off, only an explicit flag enables it, and no flag exists for PayPal', () => {
   for (const enable of [false, true]) {
     const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true',PAYPAL_BASE_URL:'https://api-m.paypal.com', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
     delete env.NODE_TEST_CONTEXT; delete env.PAYMENT_STRIPE_INITIATION_ENABLED; delete env.PAYMENT_PAYPAL_INITIATION_ENABLED;
     if (enable) { env.STRIPE_SECRET_KEY='sk_live_synthetic_never_used';env.STRIPE_WEBHOOK_SECRET='whsec_synthetic_never_used';env.PAYPAL_CLIENT_ID='synthetic-never-used'; env.PAYMENT_STRIPE_INITIATION_ENABLED = 'true'; env.PAYMENT_PAYPAL_INITIATION_ENABLED = 'true'; }
-    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `const {config}=await import('./dist/config/index.js');if(config.PAYMENT_STRIPE_INITIATION_ENABLED!==${enable}||config.PAYMENT_PAYPAL_INITIATION_ENABLED!==${enable})process.exit(2)`], { env, encoding: 'utf8' });
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `const {config}=await import('./dist/config/index.js');if(config.PAYMENT_STRIPE_INITIATION_ENABLED!==${enable}||'PAYMENT_PAYPAL_INITIATION_ENABLED' in config)process.exit(2)`], { env, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
   }
 });

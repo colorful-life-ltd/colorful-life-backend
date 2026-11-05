@@ -1,11 +1,14 @@
-import { admitFinancialOperation } from "../security/paymentAbuse.js";
-import { reconcilePayPalWebhookEvent } from "./paypalReconciliationService.js";
-import { checkPaymentAdmission, journalPayPalCapture, recordManagedFailure, PaymentResolutionUnavailableError } from "./paymentResolutionService.js";
+// RETIRED: PayPal checkout is not part of the application. This copy of the former service
+// exists only so historical-compatibility tests can create PayPal records exactly as
+// production once did. It lives under __tests__, which the runtime image deletes.
+import { admitFinancialOperation } from "../../../domain/security/paymentAbuse.js";
+import { reconcilePayPalWebhookEvent } from "../../../domain/payments/paypalReconciliationService.js";
+import { checkPaymentAdmission, journalPayPalCapture, recordManagedFailure, PaymentResolutionUnavailableError } from "../../../domain/payments/paymentResolutionService.js";
 import { Decimal } from "@prisma/client/runtime/client";
-import { OrderStatus, PaymentProvider, PaymentStatus } from "../../generated/prisma-client/enums.js";
-import { prisma } from "../../prisma/runtime.js";
-import { config } from "../../config/index.js";
-import { recordPayPalSuccess } from "./paypalPaymentOutcome.js";
+import { OrderStatus, PaymentProvider, PaymentStatus } from "../../../generated/prisma-client/enums.js";
+import { prisma } from "../../../prisma/runtime.js";
+import { config } from "../../../config/index.js";
+import { recordPayPalSuccess } from "../../../domain/payments/paypalPaymentOutcome.js";
 
 export class PayPalCaptureOrderNotFoundError extends Error {}
 export class PayPalCaptureOwnershipError extends Error {}

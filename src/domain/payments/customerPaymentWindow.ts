@@ -40,7 +40,7 @@ export type PaymentWindowInput = {
 export function presentCustomerPaymentWindow(input: PaymentWindowInput): CustomerPaymentWindow {
   const { order, payment, resolution: r, attempts, now } = input;
   const provider = payment?.provider ?? input.preferredProvider ?? "STRIPE";
-  const configured = provider === "PAYPAL" ? false : input.stripeConfigured;
+  const configured = provider === "PAYPAL" ? false /* retired provider: historical windows never reopen */ : input.stripeConfigured;
   const unavailableReason = provider === "PAYPAL" ? "PAYPAL_UNAVAILABLE" : "STRIPE_UNAVAILABLE";
   const managed = !!r && !r.historical && !r.quarantineReason;
   const unavailable = !managed && (input.managedEnabled || !!r);
@@ -106,9 +106,8 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
   const windows = new Map<number, CustomerPaymentWindow>();
   if (!orderIds.length) return windows;
   // Fetch policy with the existing clock read, preserving fixed queries per batch.
-  const [clock] = await tx.$queryRaw<Array<{ now: Date; enabled: boolean; paypalEnabled: boolean }>>`SELECT clock_timestamp() AS now,
-    COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='STRIPE'), false) AS enabled,
-    COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='PAYPAL'), false) AS "paypalEnabled"`;
+  const [clock] = await tx.$queryRaw<Array<{ now: Date; enabled: boolean }>>`SELECT clock_timestamp() AS now,
+    COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='STRIPE'), false) AS enabled`;
   const now = clock.now;
   const paypalConfigured = false;
   const preferredProvider = "STRIPE" as const;
@@ -147,7 +146,7 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
         attempts: order.paymentAttempts, hasUnresolvedInbox: unresolved.has(order.id),
         hasSuccessEvidence: order.financialEvidence.some(e => e.kind === "SUCCESS"), hasFinancialEvidence: order.financialEvidence.length > 0,
         admission, managedEnabled: config.PAYMENT_RESOLUTION_ENABLED, stripeConfigured: !!config.STRIPE_SECRET_KEY, paypalConfigured, preferredProvider,
-        newInitiationEnabled: (order.payments[0]?.provider ?? preferredProvider) === "PAYPAL" ? config.PAYMENT_PAYPAL_INITIATION_ENABLED && clock.paypalEnabled : config.PAYMENT_STRIPE_INITIATION_ENABLED && clock.enabled, now }));
+        newInitiationEnabled: (order.payments[0]?.provider ?? preferredProvider) === "PAYPAL" ? false : config.PAYMENT_STRIPE_INITIATION_ENABLED && clock.enabled, now }));
     }
   }
   return windows;

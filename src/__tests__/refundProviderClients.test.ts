@@ -1,30 +1,14 @@
 import assert from "node:assert/strict";
 import { afterEach,it,mock } from "node:test";
-import { randomUUID } from "node:crypto";
 import { config } from "../config/index.js";
 import { paypalRefundClient, paypalRefundParent } from "../domain/refunds/paypalRefundService.js";
-import { DefinitiveRefundRejection } from "../domain/refunds/refundLifecycleService.js";
 const old={id:config.PAYPAL_CLIENT_ID,secret:config.PAYPAL_CLIENT_SECRET,base:config.PAYPAL_BASE_URL};
 afterEach(()=>{mock.restoreAll();config.PAYPAL_CLIENT_ID=old.id;config.PAYPAL_CLIENT_SECRET=old.secret;config.PAYPAL_BASE_URL=old.base;});
 function setup(){config.PAYPAL_CLIENT_ID="offline-client";config.PAYPAL_CLIENT_SECRET="offline-secret";config.PAYPAL_BASE_URL="https://api-m.sandbox.paypal.com";}
-it("PayPal wire request asks for a representation and carries immutable local correlation",async()=>{
- setup();let calls=0;const key=randomUUID();
- mock.method(globalThis,"fetch",async(url:unknown,init?:RequestInit)=>{
-  calls++;assert.ok(init?.signal);if(calls===1){assert.equal(String(url),`${config.PAYPAL_BASE_URL}/v1/oauth2/token`);return new Response(JSON.stringify({access_token:"offline-token"}));}
-  assert.equal(String(url),`${config.PAYPAL_BASE_URL}/v2/payments/captures/CAP-1/refund`);assert.equal(init?.method,"POST");
-  const headers=init?.headers as Record<string,string>;assert.equal(headers.Prefer,"return=representation");assert.equal(headers["PayPal-Request-Id"],key);assert.equal(key.length,36);
-  assert.deepEqual(JSON.parse(String(init?.body)),{amount:{value:"10.00",currency_code:"GBP"},custom_id:"cl-refund-42"});
-  return new Response(JSON.stringify({id:"REF-1",status:"PENDING",amount:{value:"10.00",currency_code:"GBP"}}));
- });
- assert.equal((await paypalRefundClient().refundCapture("CAP-1",key,"10.00","GBP",42)).status,"PENDING");assert.equal(calls,2);
-});
-it("PayPal classifies only explicit initial format rejections as definitive",async()=>{
- setup();let calls=0;mock.method(globalThis,"fetch",async()=>{calls++;return calls%2===1?new Response(JSON.stringify({access_token:"offline-token"})):new Response(JSON.stringify({name:"INVALID_REQUEST",details:[{issue:"INVALID_STRING_LENGTH"}]}),{status:400});});
- await assert.rejects(paypalRefundClient().refundCapture("CAP",randomUUID(),"10.00","GBP",1),DefinitiveRefundRejection);assert.equal(calls,2);
-});
-it("PayPal unknown HTTP rejection remains ambiguous and makes no network retries",async()=>{
- setup();let calls=0;mock.method(globalThis,"fetch",async()=>{calls++;return calls%2===1?new Response(JSON.stringify({access_token:"offline-token"})):new Response(JSON.stringify({name:"UNPROCESSABLE_ENTITY",details:[{issue:"REFUND_FAILED"}]}),{status:422});});
- await assert.rejects(paypalRefundClient().refundCapture("CAP",randomUUID(),"10.00","GBP",1),error=>!(error instanceof DefinitiveRefundRejection));assert.equal(calls,2);
+it("the runtime PayPal client cannot submit a refund: retrieval of historical refunds only",async()=>{
+ setup();let calls=0;mock.method(globalThis,"fetch",async()=>{calls++;return new Response("{}");});
+ const client=paypalRefundClient();
+ assert.equal(client.refundCapture,undefined);assert.deepEqual(Object.keys(client),["retrieveRefund"]);assert.equal(calls,0);
 });
 it("PayPal GET uses a fixed endpoint and never follows external evidence links",async()=>{
  setup();let calls=0;mock.method(globalThis,"fetch",async(url:unknown,init?:RequestInit)=>{calls++;if(calls===1)return new Response(JSON.stringify({access_token:"offline-token"}));

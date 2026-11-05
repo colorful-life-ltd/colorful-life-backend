@@ -6,7 +6,7 @@ import { prisma } from '../prisma/runtime.js';
 import { config } from '../config/index.js';
 import { createOrder } from '../domain/orders/orderService.js';
 import { journalNewPayment, journalPayPalCapture } from '../domain/payments/paymentResolutionService.js';
-import { capturePayPalOrder, PayPalCaptureProviderError, PayPalCaptureMismatchError } from '../domain/payments/paypalCaptureService.js';
+import { capturePayPalOrder, PayPalCaptureProviderError, PayPalCaptureMismatchError } from './fixtures/retiredPayPal/paypalCaptureService.js';
 import { reconcilePayPalWebhookEvent } from '../domain/payments/paypalReconciliationService.js';
 import { resolvePayPalPaymentOutcome } from '../domain/payments/paypalResolutionService.js';
 import { runConfirmationBatch } from '../domain/orderConfirmation/worker.js';

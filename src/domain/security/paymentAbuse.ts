@@ -4,6 +4,7 @@ import { stagingLimits, parseAbuseLimits } from '../../config/paymentAbuse.js';
 export { stagingLimits } from '../../config/paymentAbuse.js';
 import type { Prisma } from '../../generated/prisma-client/client.js';
 import { config } from '../../config/index.js';
+import { isTestExecution } from '../../config/testDatabase.js';
 
 export type Provider = 'STRIPE' | 'PAYPAL';
 type Context = { network: string; accountId?: number; challengeVerified?: boolean };
@@ -46,8 +47,19 @@ export async function consume(tx: Prisma.TransactionClient, input: Bucket[]): Pr
     if (!changed.length) throw new PaymentAbuseError('CHECKOUT_RATE_LIMITED', 429, Math.ceil(b.seconds / b.capacity));
   }
 }
+// Open by default only inside automated test processes (replacing the former test-environment
+// PAYMENT_PAYPAL_INITIATION_ENABLED=true), so retired fixtures can recreate historical records.
+// A deployed process is never a test execution, so PayPal admission is permanently closed there.
+let retiredPayPalAdmissionForTests = isTestExecution(process.env);
+export function allowRetiredPayPalAdmissionForTests(): () => void {
+  if (!isTestExecution(process.env)) throw new Error('Retired PayPal admission is test-only');
+  retiredPayPalAdmissionForTests = true;
+  return () => { retiredPayPalAdmissionForTests = false; };
+}
 export async function policy(tx: Prisma.TransactionClient, provider: Provider) {
-  const envEnabled = provider === 'STRIPE' ? config.PAYMENT_STRIPE_INITIATION_ENABLED : config.PAYMENT_PAYPAL_INITIATION_ENABLED;
+  // PayPal is retired: no environment setting can admit it. Only retired-PayPal test fixtures,
+  // which recreate historical records, may open it, and only inside automated tests.
+  const envEnabled = provider === 'STRIPE' ? config.PAYMENT_STRIPE_INITIATION_ENABLED : retiredPayPalAdmissionForTests;
   // SHARE conflicts with operator policy UPDATE, allowing already admitted calls to complete.
   const rows = await tx.$queryRaw<Array<{ enabled: boolean; capacity: number | null }>>`SELECT "enabled", "capacity" FROM "PaymentInitiationPolicy" WHERE "provider"=${provider} FOR SHARE`;
   if (!envEnabled || !rows[0]?.enabled) throw new PaymentAbuseError('PAYMENT_INITIATION_DISABLED', 503);

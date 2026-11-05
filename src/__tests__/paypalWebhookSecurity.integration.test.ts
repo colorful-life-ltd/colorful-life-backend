@@ -7,7 +7,7 @@ import app from '../app.js';
 import { prisma } from '../prisma/runtime.js';
 import { config } from '../config/index.js';
 import { createOrder } from '../domain/orders/orderService.js';
-import { createOrReusePayPalRefund } from '../domain/refunds/paypalRefundService.js';
+import { createOrReusePayPalRefund } from './fixtures/retiredPayPal/paypalRefundInitiation.js';
 import { paypalWebhookHandler } from '../controllers/paypalWebhookController.js';
 import { PAYPAL_WEBHOOK_VERIFICATION_TIMEOUT_MS } from '../domain/payments/paypalWebhookVerification.js';
 

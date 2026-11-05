@@ -4,7 +4,7 @@ import { reconcileExternalRefund } from "../domain/refunds/refundReconciliationS
 import { RefundCapacityExceededError } from "../domain/refunds/refundCapacityService.js";
 import { Request, Response } from "express";
 import { createRefund, getOrderRefunds } from "../domain/refunds/refundService.js";
-import { PayPalRefundProviderError, PayPalRefundValidationError } from "../domain/refunds/paypalRefundService.js";
+import { PayPalRefundProviderError } from "../domain/refunds/paypalRefundService.js";
 import { createOrReuseStripeRefund, StripeRefundProviderError, StripeRefundValidationError } from "../domain/refunds/stripeRefundService.js";
 import { prisma } from "../prisma/runtime.js";
 import { PaymentProvider } from "../generated/prisma-client/enums.js";
@@ -42,6 +42,7 @@ export const createRefundHandler = async (req: Request, res: Response) => {
   try {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId }, select: { orderId: true, provider: true } });
     if (!payment || payment.orderId !== orderId) return res.status(404).json({ error: "Payment not found for order" });
+    // Historical PayPal payments stay readable and reconcilable, but no new PayPal refund can start.
     if (payment.provider === PaymentProvider.PAYPAL) {
       return res.status(503).json({ error: { code: "PAYPAL_INITIATION_DISABLED", message: "PayPal transactions are not supported" } });
     }
@@ -98,7 +99,6 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     ) {
       return res.status(409).json({ error: err.message });
     }
-    if (err instanceof PayPalRefundValidationError) return res.status(409).json({ error: "PayPal refund request is not valid" });
     if (err instanceof PayPalRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
     if (err instanceof StripeRefundValidationError) return res.status(409).json({ error: "Stripe refund request is not valid" });
     if (err instanceof StripeRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
