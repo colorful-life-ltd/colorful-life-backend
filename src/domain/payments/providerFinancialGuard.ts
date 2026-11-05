@@ -15,10 +15,8 @@ async function unpaidProof(tx: Prisma.TransactionClient, attempt: Attempt, payme
     || !attempt.amount.eq(payment.amount) || attempt.currency !== payment.currency
     || !attempt.operations.length || attempt.operations.some(op => op.state !== 'RESULT_RECORDED' || op.historical)
     || data.providerReference !== attempt.providerReference || data.amount !== attempt.amount.toFixed(2) || data.currency !== attempt.currency) return null;
-  if (payment.provider === 'STRIPE') {
-    if (data.providerStatus !== 'canceled' || data.amountReceived !== 0 || data.amountCapturable !== 0) return null;
-  } else if (data.outcome !== 'DEFINITIVELY_DECLINED' || !attempt.providerCaptureReference
-    || data.providerCaptureReference !== attempt.providerCaptureReference) return null;
+  // Only Stripe evidence can prove an attempt unpaid; a retired provider never can.
+  if (payment.provider !== 'STRIPE' || data.providerStatus !== 'canceled' || data.amountReceived !== 0 || data.amountCapturable !== 0) return null;
   if (await tx.financialEvidence.count({ where: { kind: 'SUCCESS', operation: { attemptId: attempt.id } } })) return null;
   return proof;
 }
@@ -53,11 +51,14 @@ export type ProviderFinancialHold = 'REFUND' | 'DISPUTE' | 'REVERSAL' | 'PAYMENT
 /** Caller holds Order then Payment. Only locally bound IDs establish ownership. No provider calls. */
 export async function providerFinancialHold(tx: Prisma.TransactionClient, payment: Payment): Promise<ProviderFinancialHold | null> {
   if (payment.provider === 'MANUAL') return null;
+  // A residual payment from a retired provider stays held for manual review until the
+  // provider contract migration proves no such records exist.
+  if (payment.provider !== 'STRIPE') return 'PAYMENT';
   const [refund] = await tx.$queryRaw<Array<{ id: number }>>`SELECT e.id FROM "PaymentWebhookEvent" e
     WHERE e.provider=${payment.provider}::"PaymentProvider" AND e.evidence->>'kind'='refund'
-    AND (e.evidence->>'parentReference'=${payment.provider === 'STRIPE' ? payment.providerReference : payment.providerCaptureReference}
+    AND (e.evidence->>'parentReference'=${payment.providerReference}
       OR EXISTS(SELECT 1 FROM "PaymentAttempt" a WHERE a."paymentId"=${payment.id} AND a.provider=e.provider
-        AND e.evidence->>'parentReference'=CASE WHEN e.provider='STRIPE' THEN a."providerReference" ELSE a."providerCaptureReference" END))
+        AND e.evidence->>'parentReference'=a."providerReference"))
     AND (e."processedAt" IS NULL OR e."processingError" IN ('REFUND_UNCORRELATED','REFUND_CORRELATION_MISMATCH','REFUND_EVIDENCE_INCOMPLETE')) LIMIT 1`;
   if (refund) return 'REFUND';
   const attempts = await tx.paymentAttempt.findMany({ where: { paymentId: payment.id, provider: payment.provider },

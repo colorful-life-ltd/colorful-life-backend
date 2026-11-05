@@ -9,10 +9,11 @@ describe("payment provider persistence foundation", () => {
   after(async () => { if (eventIds.length) await prisma.paymentWebhookEvent.deleteMany({ where: { id: { in: eventIds } } }); });
 
   it("exposes asynchronous provider and lifecycle enum values", () => {
-    assert.deepEqual(Object.values(PaymentProvider), ["MANUAL", "STRIPE"]);
+    // The last value is deprecated and retained only for rollback compatibility (docs/operations/paypal-removal.md).
+    assert.deepEqual(Object.values(PaymentProvider).slice(0, 2), ["MANUAL", "STRIPE"]);
     assert.equal(PaymentStatus.PROCESSING, "PROCESSING");
     assert.equal(PaymentStatus.CANCELED, "CANCELED");
-    assert.deepEqual(Object.values(RefundProvider), ["MANUAL", "STRIPE"]);
+    assert.deepEqual(Object.values(RefundProvider).slice(0, 2), ["MANUAL", "STRIPE"]);
   });
 
   it("deduplicates webhook event IDs per provider", async () => {

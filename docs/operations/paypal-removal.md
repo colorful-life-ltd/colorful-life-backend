@@ -1,78 +1,103 @@
-# PayPal removal
+# PayPal removal (expand / deploy / contract)
 
-Stripe is the only payment provider. PayPal was used only in Sandbox. This change removes
-PayPal from the Backend completely: code, routes, workers, configuration, tests, docs and
-database structures. Stripe payments, refunds, webhooks, order lifecycle and inventory
-behaviour are unchanged.
+Stripe is the only payment provider. PayPal was used only in Sandbox. The application code is
+removed completely in this release. The database is changed in two phases so that rolling back
+to the previous application image always stays safe.
 
-## Removed
+| Phase | What | Where | Destructive? | Rollback to previous image |
+| --- | --- | --- | --- | --- |
+| 1. Compatibility (this release, #235) | Application code only. **No schema or data change** (no migration) | — | No | **Safe**: the previous image's full suite passes (rehearsed in CI) |
+| 2. Contract (later, separately approved) | Remove `PAYPAL` enum values, PayPal review columns, PayPal constraints, policy row, capture trigger/function and the PayPal branch of the release guard | `prisma/contract/remove_paypal.sql` (prepared, **not applied**) | Yes | **Breaks** the pre-#235 image (see evidence) |
 
-- **Payment code:** PayPal webhook route and verification, webhook replay worker,
-  reconciliation, resolution, finality, risk events, payment outcome and webhook review
-  services, PayPal refund client, and the Admin PayPal webhook-review routes. Create/capture
-  and refund submission were already removed by #224/#234.
-- **Shared code branches:** the PayPal branches in the payment window, abuse admission,
-  provider financial holds, payment resolution, refund lifecycle/reconciliation/webhook
-  evidence, verified-payment and return-eligibility predicates, Admin payment security,
-  production validation and operational metrics.
-- **Configuration:** `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL`,
-  `PAYPAL_WEBHOOK_ID`. Supplying them has no effect (unknown keys are ignored).
-- **Schema** (migration `20261106120000_remove_paypal`):
-  - `PAYPAL` from the `PaymentProvider` and `RefundProvider` enums (both types are recreated);
-  - the `paypal_capture_admission` trigger and its function;
-  - the PayPal branch of `payment_runtime_release_guard` (the rest of the function is
-    byte-identical to the live definition);
-  - PayPal from the `Refund`, `PaymentInitiationPolicy` and `PaymentAdmission` provider
-    constraints, and the `PAYPAL` policy row (configuration, not financial data);
-  - the PayPal-only `PaymentWebhookEvent.reviewDetails` / `reviewedAt` columns and their index.
-- PayPal-only tests, fixtures, the PayPal payment-window contract fixture and PayPal docs.
+## Phase 1 — this release
 
-## Deliberately kept
+### Application (removed)
+- PayPal webhook route and verification, webhook replay worker, reconciliation, resolution,
+  finality, risk events, payment outcome and webhook review (service and Admin routes), and the
+  PayPal refund client. Create/capture and refund submission were removed in #224/#234.
+- PayPal branches in shared code: payment window, abuse admission, provider financial holds,
+  payment resolution, refund lifecycle/reconciliation/webhook evidence, verified-payment and
+  return eligibility, Admin payment security, production validation, metrics.
+- `PAYPAL_*` configuration (ignored if still supplied), PayPal tests, fixtures and docs.
 
-- **`PayPalSweepAge` / `PayPalInboxAge` metrics, emitted as constant 0.** Infra's `monitor.py`
-  thresholds and two CloudWatch alarms still expect them, and alert when a metric is
-  missing. Remove them here after Infra drops them.
-- **Inert JSON-key checks** (`evidence->>'paypalOrderId'`) inside the shared Stripe trigger
-  functions `payment_foundation_validate` and `payment_runtime_inbox_guard`. They can
-  never match once no PayPal evidence exists, and rewriting live Stripe financial guards
-  for cosmetic reasons is not worth the risk. They can be removed in a later migration.
-- Historical migrations and migration-history fixtures (immutable).
-- Guard tests asserting that a stale `PAYMENT_PAYPAL_INITIATION_ENABLED` has no effect,
-  while Infra bootstraps still emit it.
+### Residual PayPal rows fail closed
+Until Phase 2, a database may still contain PayPal records (Sandbox does). The Prisma schema
+therefore keeps `PAYPAL` and the review columns as **deprecated** fields so such rows stay
+readable, and every financial path treats an unsupported provider conservatively:
+- the payment window offers no action (`OTHER_PROVIDER`);
+- `POST /orders/:id/refunds` refuses with 409 `PAYMENT_PROVIDER_UNSUPPORTED`, writing nothing;
+- `providerFinancialHold` returns `PAYMENT` (fulfilment, cancellation and refunds stay held);
+- unpaid proof is never accepted, return eligibility requires Stripe or manual payment, invoices
+  require Stripe, and payment resolution places the order on `SAFETY_HOLD`.
 
-## The migration is fail-closed — evidence before data
+### Why Phase 1 has no migration
+The new code runs on the existing schema unchanged: Prisma tolerates the retained enum value and
+columns, and the release guard's `'PAYPAL'` literal stays valid while the value exists. An earlier
+draft also dropped the PayPal capture trigger and disabled the PayPal policy row. Neither is
+reachable by the previous image's runtime, but its full suite showed both change its observable
+behaviour (4 of 2249 tests), so both moved to the contract step. Phase 1 therefore needs no
+migration-gate approval, and rollback cannot be affected by the schema.
 
-The migration **never deletes payment, refund, webhook or evidence data**. Its first step
-aborts the whole transaction, changing nothing, if any PayPal record exists in `Payment`,
-`Refund`, `PaymentAttempt`, `FinancialEvidence`, `PaymentWebhookEvent` (including review
-data), `PaymentAdmission` or `PaymentSecurityEvent`. The error names the tables found.
+### Deployment order
+1. Deploy the new API/Worker image (no migration to approve or apply).
+2. Rollback to the previous image (`9bc8757`, main after #234) is safe without reversing the
+   migration. This is rehearsed on every CI run: `scripts/rehearse-previous-image.py` builds the
+   previous release from git with its own locked dependencies and Prisma client, migrates an owned
+   PostgreSQL 16 cluster with this revision, then runs the previous build's Stripe payment webhook,
+   refund webhook and Worker metrics/readiness tests against it.
 
-## Deployment order (owner-approved; nothing here is executed)
+Sandbox can receive this release before its recreation: residual PayPal rows fail closed.
 
-The new code cannot read a `PAYPAL` row (its Prisma client no longer has the value), so the
-migration must be applied **before** the new API/Worker image runs against a database.
+## Phase 2 — contract migration (not part of #235)
 
-1. **Production evidence first.** Through the approved SELECT-only path (Infra PR #55 templates),
-   confirm zero rows with provider `PAYPAL` in the seven tables above, and zero
-   `PaymentWebhookEvent` rows with `reviewDetails` or `reviewedAt` set. Record the result.
-   If anything is found, stop: those are financial records and need a separate decision.
-2. **Sandbox:** it contains PayPal records, so the migration will refuse there. Complete the
-   approved disposable Sandbox recreation (`docs/operations/prelaunch-sandbox-disposal.md`)
-   from a catalogue-only snapshot first, or keep the Sandbox on the previous release.
-3. **Migration approval.** Approve the new migration checksum through the existing Infra
-   migration gate, then apply it with the API and Worker stopped (or restart both immediately
-   afterwards so no pooled connection keeps a plan for the dropped types).
-4. **Deploy** the new API/Worker image.
-5. **Rollback** to the previous image is schema-compatible: it only ever wrote `STRIPE`/`MANUAL`
-   and does not read the dropped review columns outside the removed PayPal review route.
-   The migration itself is not reversed.
+`prisma/contract/remove_paypal.sql` is prepared and tested (it is applied inside a rolled-back
+transaction by `paypalRemoval.integration.test.ts`) but **must not** be moved into
+`prisma/migrations` until all prerequisites hold:
 
-## Infra follow-up (for Sol)
+1. The Phase 1 release is deployed, and the rollback baseline is a release that no longer needs
+   `PAYPAL` (i.e. #235 or later). Rehearse with
+   `python3 scripts/rehearse-previous-image.py --previous <that release> --apply-contract`.
+   Against the pre-#235 image this negative control fails (107 of 184 focused tests:
+   `PaymentWebhookEvent.reviewDetails` missing, `invalid input value for enum "PaymentProvider": "PAYPAL"`).
+2. Production evidence via the approved SELECT-only path (Infra PR #55 templates): zero rows with
+   provider `PAYPAL` in `Payment`, `Refund`, `PaymentAttempt`, `FinancialEvidence`,
+   `PaymentWebhookEvent`, `PaymentAdmission`, `PaymentSecurityEvent`, and zero
+   `PaymentWebhookEvent` rows with `reviewDetails`/`reviewedAt` set.
+3. Sandbox recreated from a catalogue-only snapshot (it contains PayPal records), or kept on the
+   previous release.
+4. In the contract PR: move the file to a new, later-dated `prisma/migrations/<timestamp>_remove_paypal`,
+   remove the deprecated `PAYPAL` values and review fields from `schema.prisma`, regenerate the
+   client, add the migration to `scripts/rehearse-database.py`, and approve its checksum.
 
-- Remove `PAYPAL_*` from the runtime bundles and the `secret-bootstrap.mjs` /
-  `restricted-bootstrap.mjs` allowlists, the PayPal webhook Nginx routes and limits, and the
-  browser-Sandbox PayPal routes (Infra #58 handoff, now unblocked).
-- Remove the `PayPalSweepAge` / `PayPalInboxAge` thresholds and alarms, then tell the Backend
-  owner so the constant metrics can be dropped.
-- After the migration, delete the PayPal app/webhook in the PayPal dashboard and the stored
-  PayPal secrets (owner action).
+**Fail-closed:** the contract migration never deletes payment, refund, webhook or evidence data.
+It aborts the whole transaction, changing nothing, if any PayPal record exists in the tables above,
+naming them. It only deletes the PayPal policy row (configuration).
+
+## Deliberately kept (both phases)
+- `PayPalSweepAge` / `PayPalInboxAge` emitted as constant 0 until Infra removes the monitor
+  thresholds and CloudWatch alarms that expect them.
+- Inert `evidence->>'paypalOrderId'` JSON checks in the shared Stripe trigger functions
+  `payment_foundation_validate` and `payment_runtime_inbox_guard` (cannot match without PayPal
+  evidence; rewriting live Stripe financial guards for cosmetics is not worth the risk).
+- Guard tests asserting a stale `PAYMENT_PAYPAL_INITIATION_ENABLED` has no effect.
+
+## Merge and rebase dependencies (not resolved here)
+- **#218** (Stripe refund rejections): no migration. It edits `refundLifecycleService.ts`,
+  `refundReconciliationService.ts` and `refundProviderSafety.integration.test.ts`, which #235 also
+  edits (PayPal branches and PayPal test cases removed). Whichever merges second needs a rebase;
+  #218's own refund logic should be kept, dropping only PayPal-specific code it may reintroduce.
+- **#219** (Stripe refund failure after success): adds migration
+  `20261028120000_stripe_refund_failure_after_success`, which now sorts **before** migrations
+  already on main (73–75), and edits
+  `scripts/rehearse-database.py`'s migration-position guard. It must be rebased onto main with its
+  migration renamed to a timestamp after the newest migration on main (it has never been applied,
+  so renaming is checksum-safe), and the rehearsal guard updated for the resulting positions. #235
+  adds no migration, so it does not conflict with #219's migration history; the future contract
+  migration must be dated after whatever #219 lands as.
+
+## Infra follow-up (Sol)
+- Remove `PAYPAL_*` from runtime bundles and bootstrap allowlists, the PayPal webhook Nginx routes
+  and limits, and browser-Sandbox PayPal routes (Infra #58 handoff).
+- Remove the `PayPalSweepAge` / `PayPalInboxAge` thresholds and alarms; then the Backend drops the
+  constant metrics.
+- After Phase 2: delete the PayPal dashboard app and stored PayPal secrets (owner action).

@@ -103,3 +103,5 @@ jobs:
         run: python3 scripts/rehearse-database.py --returns-upgrade --skip-application-tests
       - name: Rehearse single-Admin constraint upgrade with existing accounts
         run: python3 scripts/rehearse-database.py --single-admin-upgrade --skip-application-tests
+      - name: Rehearse rollback compatibility (previous release image on this schema)
+        run: python3 scripts/rehearse-previous-image.py

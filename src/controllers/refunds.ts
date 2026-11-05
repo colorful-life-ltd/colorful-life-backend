@@ -46,6 +46,8 @@ export const createRefundHandler = async (req: Request, res: Response) => {
       const refund = await createOrReuseStripeRefund(orderId, paymentId, amount, reason, user.id, undefined, refundId, req.get("Idempotency-Key"));
       return res.status(refund.status === "PROCESSING" ? 202 : refundId ? 200 : 201).json(refundProjection(refund));
     }
+    // Residual payments from a retired provider are never refundable through this API.
+    if (payment.provider !== PaymentProvider.MANUAL) return res.status(409).json({ error: { code: "PAYMENT_PROVIDER_UNSUPPORTED", message: "This payment provider is not supported" } });
     if (refundId !== undefined) return res.status(400).json({ error: "refundId is only valid for provider refunds" });
     if (providerReference === undefined) return res.status(400).json({ error: "Refund provider reference cannot be empty" });
     const result = await createRefund(

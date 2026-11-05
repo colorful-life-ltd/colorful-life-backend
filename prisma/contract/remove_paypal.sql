@@ -1,8 +1,10 @@
--- Remove PayPal: Stripe is the only payment provider.
--- FAIL-CLOSED: this migration never deletes payment, refund, webhook or evidence data.
--- It aborts (and changes nothing) unless the database contains zero PayPal records.
--- Owner evidence required before applying to any persistent database: see
--- docs/operations/paypal-removal.md (Production SELECT-only check; Sandbox recreation).
+-- PayPal CONTRACT migration — PREPARED, NOT APPLIED. Do not move into prisma/migrations until
+-- docs/operations/paypal-removal.md "Phase 2" prerequisites are met: the compatibility release is
+-- deployed, a compatible rollback baseline that no longer needs PAYPAL exists, and owner
+-- evidence shows zero PayPal records. It is destructive: it removes PAYPAL enum values and the
+-- PayPal review columns, which the pre-#235 image still reads.
+-- FAIL-CLOSED: it never deletes payment, refund, webhook or evidence data. It aborts (changing
+-- nothing) unless the database contains zero PayPal records.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 
@@ -24,8 +26,8 @@ BEGIN
 END $$;
 
 -- PayPal-only capture fence.
-DROP TRIGGER paypal_capture_admission ON "PaymentOperation";
-DROP FUNCTION paypal_capture_admission_guard();
+DROP TRIGGER IF EXISTS paypal_capture_admission ON "PaymentOperation";
+DROP FUNCTION IF EXISTS paypal_capture_admission_guard();
 
 -- Release guard: identical to the live definition except the PayPal predicates.
 CREATE OR REPLACE FUNCTION public.payment_runtime_release_guard()

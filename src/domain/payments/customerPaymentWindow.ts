@@ -1,10 +1,11 @@
 import { Prisma as PrismaSql } from "../../generated/prisma-client/client.js";
 import type { Order, Payment, PaymentAttempt, PaymentOperation, PaymentResolution, Prisma } from "../../generated/prisma-client/client.js";
+import type { PaymentProvider } from "../../generated/prisma-client/enums.js";
 import { config } from "../../config/index.js";
 
 export type CustomerPaymentWindow = {
   version: 1;
-  provider: "STRIPE" | "MANUAL";
+  provider: PaymentProvider;
   evaluatedAt: string;
   mode: "LEGACY" | "MANAGED" | "UNAVAILABLE";
   state: "INITIAL_PAYMENT" | "CHECKOUT_RESUMABLE" | "PROCESSING" | "OUTCOME_UNRESOLVED" | "RETRY_AVAILABLE" | "RETRY_REQUIRES_PROVIDER_CHECK" | "PAID" | "NOT_PAYABLE";
