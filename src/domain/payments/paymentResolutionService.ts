@@ -41,7 +41,7 @@ export async function checkPaymentAdmission(tx: Prisma.TransactionClient, orderI
   const [inbox] = await tx.$queryRaw<Array<{ unresolved: boolean }>>`
     SELECT EXISTS (SELECT 1 FROM "PaymentWebhookEvent" w WHERE (w."processedAt" IS NULL OR w."processingError" IS NOT NULL)
       AND ((w.provider <> 'STRIPE' AND w.evidence->>'orderId'=${String(orderId)}) OR EXISTS (SELECT 1 FROM "PaymentAttempt" a WHERE a."orderId"=${orderId} AND a.provider=w.provider
-        AND (w.evidence->>'paymentIntentId'=a."providerReference" OR w.evidence->>'paypalOrderId'=a."providerReference" OR w.evidence->>'captureId'=a."providerCaptureReference")))) AS unresolved`;
+        AND (w.evidence->>'paymentIntentId'=a."providerReference")))) AS unresolved`;
   if (inbox.unresolved) {
     await tx.$queryRaw`SELECT id FROM "Payment" WHERE "orderId"=${orderId} FOR UPDATE`;
     const payment = await tx.payment.findUnique({ where: { orderId } });
@@ -51,7 +51,7 @@ export async function checkPaymentAdmission(tx: Prisma.TransactionClient, orderI
     const [remaining] = await tx.$queryRaw<Array<{ unresolved: boolean }>>`
       SELECT EXISTS (SELECT 1 FROM "PaymentWebhookEvent" w WHERE (w."processedAt" IS NULL OR w."processingError" IS NOT NULL)
         AND ((w.provider <> 'STRIPE' AND w.evidence->>'orderId'=${String(orderId)}) OR EXISTS (SELECT 1 FROM "PaymentAttempt" a WHERE a."orderId"=${orderId} AND a.provider=w.provider
-          AND (w.evidence->>'paymentIntentId'=a."providerReference" OR w.evidence->>'paypalOrderId'=a."providerReference" OR w.evidence->>'captureId'=a."providerCaptureReference")))
+          AND (w.evidence->>'paymentIntentId'=a."providerReference")))
         AND NOT EXISTS (SELECT 1 FROM "OperationalAudit" a WHERE a."orderId"=${orderId} AND a.kind='PROVIDER_RECEIPT_FINANCIAL_RESOLVED'
           AND a.details->>'receiptId'=w.id::text AND a.details->>'paymentId'=${String(payment.id)})) AS unresolved`;
     if (remaining.unresolved) throw new PaymentResolutionUnavailableError();
@@ -65,7 +65,7 @@ export async function checkPaymentAdmission(tx: Prisma.TransactionClient, orderI
 async function journal(tx: Prisma.TransactionClient, attemptId: number, type: "CREATE" | "CONFIRM" | "CAPTURE" | "TERMINATE" | "RETRIEVE", deadline?: Date) {
   const now = await databaseNow(tx);
   const attempt = await tx.paymentAttempt.findUniqueOrThrow({ where: { id: attemptId } });
-  const key = type === "CREATE" ? attempt.creationKey! : attempt.provider === "PAYPAL" && type === "CAPTURE" ? randomUUID() : `resolution-${randomUUID()}`;
+  const key = type === "CREATE" ? attempt.creationKey! : `resolution-${randomUUID()}`;
   const op = await tx.paymentOperation.create({ data: { attemptId, type, operationKey: key,
     requestHash: createHash("sha256").update(JSON.stringify({ attemptId, type, key, provider: attempt.provider, orderId: attempt.orderId, amount: attempt.amount.toFixed(2), currency: attempt.currency, providerReference: attempt.providerReference })).digest("hex"),
     admittedAt: now, admissionDeadline: deadline } });
@@ -97,30 +97,20 @@ export async function guardPendingCreation(tx: Prisma.TransactionClient, payment
     throw new PaymentResolutionUnavailableError();
   }
 }
-export async function journalPayPalCapture(tx: Prisma.TransactionClient, payment: Payment) {
-  const r = await checkPaymentAdmission(tx, payment.orderId);
-  if (!r) return null;
-  const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, providerReference: payment.providerReference, historical: false }, orderBy: { id: "desc" } });
-  if (!attempt || attempt.finalityEvidenceId || attempt.successEvidenceId) throw new PaymentResolutionUnavailableError();
-  if (payment.captureIdempotencyKey) throw new PaymentResolutionUnavailableError();
-  // Never resend an uncertain capture, even from another backend instance or after key expiry.
-  if (await tx.paymentOperation.findFirst({ where: { attemptId: attempt.id, type: "CAPTURE" } })) throw new PaymentResolutionUnavailableError();
-  return journal(tx, attempt.id, "CAPTURE", r.retryDeadline ?? r.initialPaymentDeadline);
-}
 /** Financial success is monotonic; inventory confirmation is handled by the caller. */
-export async function recordManagedSuccess(tx: Prisma.TransactionClient, payment: Payment, reference: string, captureId?: string, receiptId?: number) {
+export async function recordManagedSuccess(tx: Prisma.TransactionClient, payment: Payment, reference: string) {
   const r = await managedResolution(tx, payment.orderId);
   const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, historical: false }, orderBy: { id: "desc" } });
   if (!r || !attempt) return;
   await bindManagedProvider(tx, payment.id, reference);
   if (!attempt.successEvidenceId) {
-    const operation = await tx.paymentOperation.findFirst({ where: { attemptId: attempt.id, type: payment.provider === "PAYPAL" ? "CAPTURE" : "CONFIRM" }, orderBy: { id: "asc" } });
+    const operation = await tx.paymentOperation.findFirst({ where: { attemptId: attempt.id, type: "CONFIRM" }, orderBy: { id: "asc" } });
     if (!operation) throw new PaymentResolutionUnavailableError();
     const evidence = await tx.financialEvidence.create({ data: { orderId: payment.orderId, provider: payment.provider,
-      evidenceKey: `success:${attempt.id}:${captureId ?? reference}`, kind: "SUCCESS", operationId: operation.id,
-      webhookEventId: receiptId, verifiedAt: await databaseNow(tx), normalized: { providerReference: reference,
-        ...(captureId ? { providerCaptureReference: captureId } : {}), amount: payment.amount.toFixed(2), currency: payment.currency } } });
-    await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { successEvidenceId: evidence.id, ...(captureId ? { providerCaptureReference: captureId } : {}) } });
+      evidenceKey: `success:${attempt.id}:${reference}`, kind: "SUCCESS", operationId: operation.id,
+      verifiedAt: await databaseNow(tx), normalized: { providerReference: reference,
+        amount: payment.amount.toFixed(2), currency: payment.currency } } });
+    await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { successEvidenceId: evidence.id } });
   }
   if (r.reservationDisposition === "RELEASED") return; // Preserve late evidence; never reacquire released stock.
   await tx.paymentResolution.update({ where: { orderId: payment.orderId }, data: { state: "PAID" } });
@@ -133,7 +123,7 @@ export async function recordManagedFailure(tx: Prisma.TransactionClient, payment
   if (order.status !== "PENDING" || await tx.financialEvidence.findFirst({ where: { orderId: payment.orderId, kind: "SUCCESS" } })) return;
   const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: payment.id, historical: false }, orderBy: { id: "desc" } });
   if (!attempt || (attempt.providerReference && attempt.providerReference !== reference)) return;
-  const operation = await tx.paymentOperation.findFirst({ where: { attemptId: attempt.id, type: payment.provider === "PAYPAL" ? "CAPTURE" : "CONFIRM",
+  const operation = await tx.paymentOperation.findFirst({ where: { attemptId: attempt.id, type: "CONFIRM",
     state: { in: ["POTENTIALLY_DISPATCHED", "UNKNOWN", "RESULT_RECORDED"] }, admissionDeadline: r.initialPaymentDeadline }, orderBy: { id: "asc" } });
   if (!operation) return;
   if (operation.state === "RESULT_RECORDED") {

@@ -16,9 +16,6 @@ import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import { createOrReuseStripePaymentIntent, StripePaymentNotPayableError, StripePaymentExpiredError, StripePaymentProviderError, type StripePaymentClient } from "../domain/payments/stripePaymentService.js";
 import { reconcileStripePaymentEvent, type StripePaymentIntentEvent } from "../domain/payments/stripeReconciliationService.js";
 import { recoverStripePayment } from "../domain/payments/stripePaymentRecoveryService.js";
-import { createOrReusePayPalOrder } from "./fixtures/retiredPayPal/paypalOrderService.js";
-import { capturePayPalOrder } from "./fixtures/retiredPayPal/paypalCaptureService.js";
-import { reconcilePayPalWebhookEvent } from "../domain/payments/paypalReconciliationService.js";
 import { createPayment } from "./helpers/manualPayment.js";
 import { PaymentOrderCancelledError } from "../domain/payments/paymentErrors.js";
 import { PaymentStatus, PaymentProvider } from "../generated/prisma-client/enums.js";
@@ -221,7 +218,7 @@ describe("payment-safe customer cancellation and expiry", () => {
     }
   });
 
-  for (const provider of ["STRIPE", "PAYPAL", "MANUAL"] as const) {
+  for (const provider of ["STRIPE", "MANUAL"] as const) {
     it(`serializes expiry with ${provider} initiation using real lock waits`, async () => {
       const f = await fixture(); let calls = 0;
       // Advance only expiry's explicit asOf argument: both decisions are eligible
@@ -229,9 +226,7 @@ describe("payment-safe customer cancellation and expiry", () => {
       const asOf = new Date(f.order.reservationExpiresAt!.getTime() + 1);
       const initiate = () => provider === "MANUAL"
         ? createPayment(f.order.id, { providerReference: randomUUID() })
-        : provider === "PAYPAL"
-          ? createOrReusePayPalOrder(f.order.id, f.owner.id, { createOrder: async () => { calls++; return { id: `PP_${randomUUID()}` }; } })
-          : createOrReuseStripePaymentIntent(f.order.id, f.owner.id, { paymentIntents: { create: async (input: {amount:number; currency:string; metadata:Record<string,string>}) => { calls++; return { ...input, id: `pi_${randomUUID()}`, client_secret: "local", status: "requires_payment_method" }; } } } as unknown as StripePaymentClient);
+        : createOrReuseStripePaymentIntent(f.order.id, f.owner.id, { paymentIntents: { create: async (input: {amount:number; currency:string; metadata:Record<string,string>}) => { calls++; return { ...input, id: `pi_${randomUUID()}`, client_secret: "local", status: "requires_payment_method" }; } } } as unknown as StripePaymentClient);
       const results = await contend(f.order.id, [() => expireOrderReservation(f.order.id, asOf), initiate]);
       assert.equal(results[0].status, "fulfilled");
       const order = await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } });
@@ -311,24 +306,6 @@ describe("payment-safe customer cancellation and expiry", () => {
     }
   });
 
-  it("retains PayPal inventory during provider I/O and consumes it once on verified completion", async () => {
-    const f = await fixture(); const entered = gate(), release = gate(); const reference = `PP_${randomUUID()}`;
-    const initiation = createOrReusePayPalOrder(f.order.id, f.owner.id, { createOrder: async () => { entered.resolve(); await release.promise; return { id: reference }; } });
-    try { await entered.promise; await elapsed(f); await assert.rejects(cancelOrder(f.owner.id, f.order.id, "OTHER"), OrderCancellationPaymentError); assert.equal(await expireOrderReservation(f.order.id), null); }
-    finally { release.resolve(); await initiation; }
-    const id = `PP_evt_${randomUUID()}`; events.push(id);
-    const completion = { id, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: reference, captureId: `CAP_${randomUUID()}`, amount: f.order.totalAmount.toFixed(2), currency: "GBP" };
-    assert.deepEqual(await reconcilePayPalWebhookEvent(completion), { duplicate: false, handled: true });
-    const paid = await prisma.payment.findUniqueOrThrow({ where: { orderId: f.order.id } });
-    assert.equal(paid.status, "SUCCEEDED"); assert.ok(paid.paidAt);
-    assert.equal(paid.providerCaptureReference, completion.captureId);
-    assert.deepEqual(await reconcilePayPalWebhookEvent(completion), { duplicate: true, handled: true });
-    const replayed = await prisma.payment.findUniqueOrThrow({ where: { id: paid.id } });
-    assert.equal(replayed.status, "SUCCEEDED"); assert.equal(replayed.paidAt?.getTime(), paid.paidAt.getTime());
-    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CONFIRMED");
-    assert.equal(await expireOrderReservation(f.order.id), null); await assert.rejects(cancelOrder(f.owner.id, f.order.id, "OTHER"), OrderCancellationPaymentError);
-    await inventory(f, 8, 0, 1); // PP-1 converts once; cancellation/expiry cannot release it again.
-  });
 
   it("preserves seller cancellation's no-payment boundary and exactly-once release", async () => {
     const f = await fixture(); const admin = await user("ADMIN");
@@ -337,49 +314,5 @@ describe("payment-safe customer cancellation and expiry", () => {
     assert.equal(results.filter((r) => r.status === "fulfilled").length, 1); await inventory(f, 10, 0);
   });
 
-  it("records cancelled-order PayPal webhook success durably without resurrecting historical inventory", async () => {
-    const f = await fixture(); const p = await payment(f, "PROCESSING", "PAYPAL");
-    // Legacy cancelled order: seed only the historical state; current cancellation would reject.
-    await prisma.order.update({ where: { id: f.order.id }, data: { status: "CANCELLED", reservationExpiresAt: null } });
-    await prisma.productListing.update({ where: { id: f.offers[0].id }, data: { reservedStock: 0 } });
-    const id = `PP_evt_${randomUUID()}`; events.push(id);
-    const e = { id, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: p.providerReference, captureId: `CAP_${randomUUID()}`, amount: f.order.totalAmount.toFixed(2), currency: "GBP" };
-    assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: false, handled: true });
-    const paid = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
-    assert.equal(paid.status, "SUCCEEDED"); assert.ok(paid.paidAt);
-    assert.equal(paid.providerCaptureReference, e.captureId);
-    assert.deepEqual(await reconcilePayPalWebhookEvent(e), { duplicate: true, handled: true });
-    const replayed = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
-    assert.equal(replayed.status, "SUCCEEDED"); assert.equal(replayed.paidAt?.getTime(), paid.paidAt.getTime());
-    const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: "PAYPAL", providerEventId: id } } });
-    assert.match(receipt.processingError!, /cancelled order requires refund\/reconciliation/);
-    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CANCELLED"); await inventory(f, 10, 0);
-  });
 
-  it("records cancellation that predates PayPal capture completion without rewriting its lifecycle", async () => {
-    const f = await fixture(); const p = await payment(f, "PENDING", "PAYPAL");
-    const entered = gate(), release = gate(); const captureId = `CAP_${randomUUID()}`; events.push(`capture:${captureId}`);
-    const capture = capturePayPalOrder(f.order.id, f.owner.id, { captureOrder: async () => {
-      entered.resolve(); await release.promise;
-      return { id: p.providerReference, status: "COMPLETED", purchase_units: [{ payments: { captures: [{ id: captureId, status: "COMPLETED", amount: { value: f.order.totalAmount.toFixed(2), currency_code: "GBP" } }] } }] };
-    } });
-    try {
-      await entered.promise;
-      // Simulate historical/out-of-band cancellation; #154 ordinary cancellation cannot do this.
-      await prisma.order.update({ where: { id: f.order.id }, data: { status: "CANCELLED", reservationExpiresAt: null } });
-      await prisma.productListing.update({ where: { id: f.offers[0].id }, data: { reservedStock: 0 } });
-    } finally { release.resolve(); await capture; }
-    const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: "PAYPAL", providerEventId: `capture:${captureId}` } } });
-    assert.match(receipt.processingError!, /cancelled order requires refund\/reconciliation/);
-    const paid = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
-    assert.equal(paid.status, "SUCCEEDED"); assert.ok(paid.paidAt);
-    assert.equal(paid.providerCaptureReference, captureId);
-    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CANCELLED");
-    const replayId = `PP_evt_${randomUUID()}`; events.push(replayId);
-    assert.deepEqual(await reconcilePayPalWebhookEvent({ id: replayId, eventType: "PAYMENT.CAPTURE.COMPLETED", paypalOrderId: p.providerReference, captureId, amount: f.order.totalAmount.toFixed(2), currency: "GBP" }), { duplicate: false, handled: true });
-    const replayed = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } });
-    assert.equal(replayed.status, "SUCCEEDED"); assert.equal(replayed.paidAt?.getTime(), paid.paidAt.getTime());
-    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, "CANCELLED");
-    await inventory(f, 10, 0);
-  });
 });

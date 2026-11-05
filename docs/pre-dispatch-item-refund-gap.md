@@ -1,5 +1,7 @@
 # Separate gap: pre-dispatch item/quantity cancellation and refund requests
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 Owner policy confirmed 29 October 2026: Return Management starts only after confirmed dispatch. Paid pre-dispatch orders use the existing cancellation/refund/support process, and should support selected order items/quantities or the whole order. Unpaid orders must not initiate payment refunds.
 
 Read-only inspection of current Backend/Admin/Frontend main found:

@@ -11,7 +11,7 @@ owned=Path(tempfile.mkdtemp(prefix='colorful-aws-rehearsal-'))
 password=secrets.token_hex(24)
 pw=owned/'owner-password';pw.write_text(password);pw.chmod(0o600)
 with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
-env={k:v for k,v in os.environ.items() if not k.startswith(('DB_','DATABASE_','TEST_DATABASE_','PG','AWS_','PAYPAL_','STRIPE_')) and k not in ['NODE_OPTIONS','NODE_TEST_CONTEXT','NODE_ENV']}
+env={k:v for k,v in os.environ.items() if not k.startswith(('DB_','DATABASE_','TEST_DATABASE_','PG','AWS_','STRIPE_')) and k not in ['NODE_OPTIONS','NODE_TEST_CONTEXT','NODE_ENV']}
 env.update(PGHOST='127.0.0.1',PGPORT=str(port),PGUSER='rehearsal_bootstrap',PGPASSWORD=password)
 commands=[]
 def run(command,extra=None):

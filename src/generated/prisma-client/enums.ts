@@ -49,8 +49,7 @@ export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus]
 
 export const PaymentProvider = {
   MANUAL: 'MANUAL',
-  STRIPE: 'STRIPE',
-  PAYPAL: 'PAYPAL'
+  STRIPE: 'STRIPE'
 } as const
 
 export type PaymentProvider = (typeof PaymentProvider)[keyof typeof PaymentProvider]
@@ -69,8 +68,7 @@ export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus]
 
 export const RefundProvider = {
   MANUAL: 'MANUAL',
-  STRIPE: 'STRIPE',
-  PAYPAL: 'PAYPAL'
+  STRIPE: 'STRIPE'
 } as const
 
 export type RefundProvider = (typeof RefundProvider)[keyof typeof RefundProvider]

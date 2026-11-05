@@ -42,7 +42,6 @@ enum OrderStatus {
 enum PaymentProvider {
   MANUAL
   STRIPE
-  PAYPAL
 }
 
 enum PaymentStatus {
@@ -56,7 +55,6 @@ enum PaymentStatus {
 enum RefundProvider {
   MANUAL
   STRIPE
-  PAYPAL
 }
 
 enum RefundStatus {
@@ -624,11 +622,7 @@ model PaymentWebhookEvent {
   processingError String?
   evidence        Json?
   financialEvidence FinancialEvidence[]
-  // Operational review only; never payment finality or inventory release authority.
-  reviewDetails   Json?
-  reviewedAt      DateTime?       @db.Timestamptz(3)
 
-  @@index([provider, reviewedAt, id])
   @@unique([provider, providerEventId])
   @@index([receivedAt])
   @@index([provider, processedAt, id])

@@ -1,5 +1,7 @@
 # Issue #180: transactional emails and commercial invoices
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 ## Status and activation controls
 
 **NOT DEPLOYED. No new production email sending is enabled automatically.**

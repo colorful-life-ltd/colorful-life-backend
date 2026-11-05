@@ -17,7 +17,6 @@ import { reconcileStripePaymentEvent } from "../domain/payments/stripeReconcilia
 import { recoverStripePayment } from "../domain/payments/stripePaymentRecoveryService.js";
 import { createPayment } from "./helpers/manualPayment.js";
 import { PaymentOrderCancelledError } from "../domain/payments/paymentErrors.js";
-import { createOrReusePayPalOrder, PayPalOrderAlreadyCompletedError } from "./fixtures/retiredPayPal/paypalOrderService.js";
 
 const receiptIds: string[] = [];
 const userIds: number[] = [];
@@ -267,7 +266,6 @@ describe("payment-safe seller cancellation", () => {
     await cancelOrderByAdmin(order.id, "OUT_OF_STOCK", admin.id);
     await assert.rejects(createOrReuseStripePaymentIntent(order.id, owner.id), StripePaymentNotPayableError);
     await assert.rejects(createPayment(order.id, { providerReference: randomUUID() }), PaymentOrderCancelledError);
-    await assert.rejects(createOrReusePayPalOrder(order.id, owner.id), PayPalOrderAlreadyCompletedError);
     const result = await reconcileStripePaymentEvent(outcome(order.id, "pi_unknown"));
     assert.equal(result.handled, false);
     assert.equal(await prisma.payment.count({ where: { orderId: order.id } }), 0);

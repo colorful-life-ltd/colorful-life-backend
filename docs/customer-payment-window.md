@@ -1,5 +1,7 @@
 # Customer payment window — Issue #177
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 `paymentWindow` is an additive, typed read model for Stripe customer checkout. Use its capabilities instead of deriving permission from `reservationExpiresAt` or `payment.status`. PayPal initiation remains disabled by #175. No admission, retry, expiry, worker, webhook, capture, refund, or stock-release policy is changed.
 
 ## Responses and compatibility

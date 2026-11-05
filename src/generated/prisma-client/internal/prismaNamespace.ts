@@ -5009,9 +5009,7 @@ export const PaymentWebhookEventScalarFieldEnum = {
   receivedAt: 'receivedAt',
   processedAt: 'processedAt',
   processingError: 'processingError',
-  evidence: 'evidence',
-  reviewDetails: 'reviewDetails',
-  reviewedAt: 'reviewedAt'
+  evidence: 'evidence'
 } as const
 
 export type PaymentWebhookEventScalarFieldEnum = (typeof PaymentWebhookEventScalarFieldEnum)[keyof typeof PaymentWebhookEventScalarFieldEnum]

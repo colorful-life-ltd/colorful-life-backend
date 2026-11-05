@@ -8,7 +8,7 @@ import { databaseNow } from "../payments/paymentResolutionService.js";
 import { reserveRefundCapacity, finalizeRefundCapacity, releaseRefundCapacity } from "./refundCapacityService.js";
 import { RefundOrderNotFoundError, RefundPaymentNotFoundError, RefundPaymentNotRefundableError } from "./refundErrors.js";
 
-export type ExternalRefundProvider = "STRIPE" | "PAYPAL";
+export type ExternalRefundProvider = "STRIPE";
 export class RefundIntentError extends Error {
   constructor(public readonly code: string, public readonly httpStatus=409, public readonly refundId?: number, public readonly refundStatus?: string,
     public readonly clientRequestKey?: string) { super(code); }
@@ -88,11 +88,11 @@ export async function prepareExternalRefund(input:{orderId:number;paymentId:numb
       throw new RefundIntentError("REFUND_REQUEST_KEY_RETIRED", 409, undefined, undefined, input.clientRequestKey);
     }
     if(payment.status!=="SUCCEEDED")throw new RefundPaymentNotRefundableError(payment.id);
-    const parent=input.provider==="STRIPE"?payment.providerReference:payment.providerCaptureReference;
+    const parent=payment.providerReference;
     if(payment.provider!==input.provider || !parent || parent.startsWith("pending:"))throw new RefundIntentError("PROVIDER_PAYMENT_UNAVAILABLE");
     await assertNoUnresolvedRefund(tx,payment.id,input.clientRequestKey);
     await reserveRefundCapacity(payment.id,amount,tx,input.clientRequestKey);
-    const key=randomUUID(); // Also fits PayPal's conservative UUID request-id guidance.
+    const key=randomUUID();
     const refund=await tx.refund.create({data:{orderId:input.orderId,paymentId:payment.id,amount,currency:payment.currency,
       provider:input.provider,status:"PROCESSING",providerReference:`pending:${key}`,refundIdempotencyKey:key,
       clientRequestKey:input.clientRequestKey!,providerPaymentReference:parent,submissionStartedAt:await databaseNow(tx),
@@ -120,8 +120,6 @@ export async function retainUnresolved(refundId:number,code:string,review=false,
     if(refund.status!=="PROCESSING" && !review)return refund;
     // A delayed incomplete POST must not replace an identity already established by a webhook.
     const candidate=evidence && typeof evidence==="object"&&!Array.isArray(evidence)?(evidence as Prisma.InputJsonObject).reference:undefined;
-    if(refund.provider==="PAYPAL"&&typeof candidate==="string"&&!refund.providerReference.startsWith("pending:")&&refund.providerReference!==candidate)
-      return tx.refund.update({where:{id:refundId},data:{resolutionCode:"PROVIDER_EVIDENCE_MISMATCH",reviewRequired:true,reviewEvidence:{issue:"PROVIDER_EVIDENCE_MISMATCH"}}});
     return tx.refund.update({where:{id:refundId},data:{resolutionCode:code,...(review?{reviewRequired:true}:{}),...(evidence?{reviewEvidence:evidence}:review?{reviewEvidence:{issue:code}}:{})}});
   });
 }
