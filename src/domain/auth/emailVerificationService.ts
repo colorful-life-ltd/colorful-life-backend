@@ -28,12 +28,14 @@ async function createOrReplaceEmailVerificationTokenInTransaction(
 
   const rawToken = randomBytes(32).toString("hex");
   const expiresAt = new Date(now.getTime() + TOKEN_LIFETIME_MS);
+  // Read in the same transaction so a definitively failed send can restore exactly this row.
+  const previous = await tx.emailVerificationToken.findUnique({ where: { userId }, select: { tokenHash: true, expiresAt: true, createdAt: true } });
   await tx.emailVerificationToken.upsert({
     where: { userId },
     create: { userId, tokenHash: hashEmailVerificationToken(rawToken), expiresAt },
     update: { tokenHash: hashEmailVerificationToken(rawToken), expiresAt, createdAt: now },
   });
-  return { created: true as const, rawToken, expiresAt };
+  return { created: true as const, rawToken, expiresAt, previous };
 }
 
 export async function createOrReplaceEmailVerificationToken(
@@ -45,6 +47,21 @@ export async function createOrReplaceEmailVerificationToken(
   return prisma.$transaction((transaction) =>
     createOrReplaceEmailVerificationTokenInTransaction(transaction, userId, now),
   );
+}
+
+/**
+ * Undo a replacement whose email provably was not accepted, so the previously emailed link
+ * keeps working. Conditional on the replacement still being current: a newer link from a
+ * concurrent resend, or a verification that consumed it, is never overwritten.
+ */
+export async function restoreReplacedEmailVerificationToken(
+  userId: number,
+  replacementRawToken: string,
+  previous: { tokenHash: string; expiresAt: Date; createdAt: Date } | null,
+) {
+  const where = { userId, tokenHash: hashEmailVerificationToken(replacementRawToken) };
+  if (previous) await prisma.emailVerificationToken.updateMany({ where, data: previous });
+  else await prisma.emailVerificationToken.deleteMany({ where });
 }
 
 export async function verifyEmailVerificationToken(rawToken: string, decisionTime = new Date()) {
