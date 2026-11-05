@@ -69,6 +69,10 @@ timezone, lifetime beyond the 36 h STS maximum, record over 16 KiB),
   nothing is sent with expired credentials.
 - Concurrent requests coalesce onto one resolution and always sign with one
   complete tuple (tested with rotations mid-flight).
+- Invariant (mocked-clock tests): a request is signed only while the credential has at
+  least 5 minutes of real lifetime left, including inside the 60 s re-use interval,
+  because the reported expiry is never later than the real one and the SDK refreshes
+  5 minutes before the reported expiry.
 - The provider error is named `CredentialsProviderError`, so durable email jobs
   (order/dispatch/return) classify it as a proven pre-send failure and retry
   after renewal instead of marking acceptance uncertain.
@@ -83,7 +87,7 @@ guarantee; every send is still treated as fallible.
 | Flow | Credentials unavailable | Send fails after readiness |
 | --- | --- | --- |
 | `POST /auth/signup` | 503 `REGISTRATION_TEMPORARILY_UNAVAILABLE`, `Retry-After: 300`, checked after the registration switch and **before** abuse protection or any account/token write. Same answer for existing emails (no enumeration). | 201; unverified account and token kept; customer can resend. Duplicate signup remains 409. |
-| `POST /auth/resend-verification` | 503 `EMAIL_DELIVERY_UNAVAILABLE`; existing token untouched. | 503 `EMAIL_DELIVERY_UNAVAILABLE` (no longer reports "has been sent"); retry is safe. |
+| `POST /auth/resend-verification` | 503 `EMAIL_DELIVERY_UNAVAILABLE`; existing token untouched. | 503 `EMAIL_DELIVERY_UNAVAILABLE` (no longer reports "has been sent"). If SES provably did not accept the message (credentials unavailable, connection not established, throttled, rejected) the previous link is restored, or the undeliverable token removed, unless a newer link was issued meanwhile. On an ambiguous failure (timeout/reset) the new link is kept because it may still be delivered. No automatic resend. |
 | `PATCH /users/me/email` | 503 `EMAIL_DELIVERY_UNAVAILABLE`; address unchanged. | unchanged: 200, change committed, resend available. |
 | `POST /auth/forgot-password` | generic 200 after the usual 2 s padding, checked before account lookup; **no token replaced**, so a previously emailed link stays valid. | unchanged generic 200. |
 | Login, refresh, verify-email, reset-password | unaffected | — |

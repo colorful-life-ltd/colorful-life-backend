@@ -12,7 +12,8 @@ import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { setPasswordResetEmailSenderForTests, setVerificationEmailSenderForTests, type PasswordResetEmail, type VerificationEmail } from "../services/emailService.js";
 import { setEmailCredentialReadinessForTests } from "../services/sesRuntime.js";
-import { SES_SESSION_FILE_NAME, resetSesCredentialObservationForTests, type SesCredentialProblem } from "../services/sesCredentials.js";
+import { SES_SESSION_FILE_NAME, SesCredentialsUnavailableError, resetSesCredentialObservationForTests, type SesCredentialProblem } from "../services/sesCredentials.js";
+import { createOrReplaceEmailVerificationToken, hashEmailVerificationToken } from "../domain/auth/emailVerificationService.js";
 
 // Synthetic only: no real SES, credentials or Production access.
 const SOURCE = "arn:aws:sts::000000000000:federated-user/colorful-production-mail";
@@ -192,6 +193,76 @@ describe("verification resend", () => {
     assert.equal(body.error.code, "EMAIL_DELIVERY_UNAVAILABLE");
     assert.equal(JSON.stringify(body).includes("has been sent"), false);
     assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified, false);
+  });
+});
+
+describe("verification resend token consistency", () => {
+  const verify = (token: string) => post("/auth/verify-email", { token });
+  // Definitive failures: SES provably did not accept the message.
+  const definitive = [
+    ["credentials unavailable", () => new SesCredentialsUnavailableError("expired")],
+    ["message rejected", () => Object.assign(new Error("synthetic"), { name: "MessageRejected" })],
+    ["connection not established", () => Object.assign(new Error("synthetic"), { code: "ECONNREFUSED" })],
+  ] as const;
+  for (const [label, failure] of definitive) it(`keeps the previously emailed link valid when the send definitively fails (${label})`, async () => {
+    const user = await makeUser(false);
+    const prior = await createOrReplaceEmailVerificationToken(user.id);
+    assert.ok(prior.created);
+    const before = await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } });
+    let attempts = 0; verificationSender(async () => { attempts++; throw failure(); });
+    const response = await post("/auth/resend-verification", {}, bearer(user));
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error.code, "EMAIL_DELIVERY_UNAVAILABLE");
+    assert.equal(attempts, 1, "no automatic resend");
+    assert.deepEqual(await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } }), before);
+    assert.equal((await verify(prior.rawToken)).status, 200);
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified, true);
+  });
+
+  it("leaves no undeliverable token behind when there was no previous link", async () => {
+    const user = await makeUser(false);
+    verificationSender(async () => { throw new SesCredentialsUnavailableError("missing"); });
+    assert.equal((await post("/auth/resend-verification", {}, bearer(user))).status, 503);
+    assert.equal(await prisma.emailVerificationToken.findUnique({ where: { userId: user.id } }), null);
+    while (restores.length) restores.pop()!();
+    const sent: VerificationEmail[] = []; verificationSender(async email => { sent.push(email); });
+    assert.equal((await post("/auth/resend-verification", {}, bearer(user))).status, 200);
+    assert.equal(sent.length, 1);
+    assert.equal((await verify(new URL(sent[0].verificationUrl).searchParams.get("token")!)).status, 200);
+  });
+
+  it("keeps the new link when acceptance is ambiguous, so a possibly delivered email still works", async () => {
+    const user = await makeUser(false);
+    const prior = await createOrReplaceEmailVerificationToken(user.id);
+    assert.ok(prior.created);
+    let attempted: VerificationEmail | undefined;
+    verificationSender(async email => { attempted = email; throw Object.assign(new Error("synthetic"), { name: "TimeoutError" }); });
+    assert.equal((await post("/auth/resend-verification", {}, bearer(user))).status, 503);
+    const current = await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } });
+    const attemptedToken = new URL(attempted!.verificationUrl).searchParams.get("token")!;
+    assert.equal(current.tokenHash, hashEmailVerificationToken(attemptedToken));
+    assert.equal((await verify(attemptedToken)).status, 200);
+  });
+
+  it("never overwrites a newer link issued by a concurrent resend", async () => {
+    const user = await makeUser(false);
+    await createOrReplaceEmailVerificationToken(user.id);
+    let release!: () => void; const gate = new Promise<void>(r => { release = r; });
+    let entered!: () => void; const inFlight = new Promise<void>(r => { entered = r; });
+    const delivered: VerificationEmail[] = [];
+    let call = 0;
+    verificationSender(async email => {
+      if (++call === 1) { entered(); await gate; throw new SesCredentialsUnavailableError("expired"); }
+      delivered.push(email);
+    });
+    const first = post("/auth/resend-verification", {}, bearer(user));
+    await inFlight;
+    assert.equal((await post("/auth/resend-verification", {}, bearer(user))).status, 200);
+    release();
+    assert.equal((await first).status, 503);
+    const newer = new URL(delivered[0].verificationUrl).searchParams.get("token")!;
+    assert.equal((await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } })).tokenHash, hashEmailVerificationToken(newer));
+    assert.equal((await verify(newer)).status, 200);
   });
 });
 

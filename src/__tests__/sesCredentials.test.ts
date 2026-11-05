@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it, mock } from "node:test";
 import { chmodSync, mkdtempSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -305,5 +305,86 @@ describe("SES session configuration", () => {
       });
       assert.equal(child.status, 0, child.stderr);
     } finally { rmSync(cwd, { recursive: true, force: true }); }
+  });
+});
+
+describe("SES SDK signing never uses expired or near-expiry cached credentials (mocked clock)", () => {
+  const MIN = 60_000;
+  type Signed = { keyId: string; token: string; at: number };
+  const amzDate = (v: string) => Date.parse(v.replace(/^(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z$/, "$1-$2-$3T$4:$5:$6Z"));
+  function client() {
+    const signed: Signed[] = [];
+    // Production defaults: Date.now clock and the 60 s re-read interval.
+    const c = new SESClient({ region: "eu-west-2", maxAttempts: 1, credentials: sesSessionCredentialProvider(source), requestHandler: { handle: async (request: { headers: Record<string, string> }) => {
+      signed.push({ keyId: /Credential=([^/]+)\//.exec(request.headers.authorization ?? "")?.[1] ?? "", token: request.headers["x-amz-security-token"] ?? "", at: amzDate(request.headers["x-amz-date"] ?? "") });
+      throw Object.assign(new Error("synthetic transport refusal"), { name: "SyntheticTransportRefusal" });
+    } } as any });
+    const send = () => c.send(new SendRawEmailCommand({ RawMessage: { Data: Buffer.from("synthetic") } })).then(() => "sent", (e: Error) => e.name);
+    return { c, signed, send };
+  }
+  const expiries = new Map<string, number>();
+  function installTagged(tag: string, expiresAt: number) { expiries.set(keyOf(tag), expiresAt); install(session(tag, expiresAt)); }
+  function assertInvariant(signed: Signed[]) {
+    for (const s of signed) {
+      assert.equal(s.token, `TOKENMARKER-${s.keyId.slice(4, 8)}`, "complete tuple");
+      assert.ok(expiries.get(s.keyId)! - s.at >= 5 * MIN, `signed with ${(expiries.get(s.keyId)! - s.at) / 1000}s of real lifetime left`);
+    }
+  }
+  beforeEach(() => { expiries.clear(); mock.timers.enable({ apis: ["Date"], now: T0 }); });
+  afterEach(() => mock.timers.reset());
+
+  it("stops signing before the 5-minute margin even while a cached identity is inside its 60 s interval", async () => {
+    installTagged("EXPA", T0 + 5 * MIN + 30_000);
+    const { c, signed, send } = client();
+    try {
+      assert.equal(await send(), "SyntheticTransportRefusal");          // T+0: resolves A
+      mock.timers.tick(20_000); assert.equal(await send(), "SyntheticTransportRefusal"); // cached, 310 s left
+      mock.timers.tick(11_000);                                           // 299 s left: inside the interval
+      assert.equal(await send(), "CredentialsProviderError");
+      for (let i = 0; i < 6; i++) { mock.timers.tick(10_000); assert.equal(await send(), "CredentialsProviderError"); }
+      assert.equal(signed.length, 2); assertInvariant(signed);
+      // Renewal recovers without a restart.
+      installTagged("EXPB", Date.now() + 60 * MIN);
+      assert.equal(await send(), "SyntheticTransportRefusal");
+      assert.equal(signed.at(-1)!.keyId, keyOf("EXPB")); assertInvariant(signed);
+    } finally { c.destroy(); }
+  });
+
+  it("uses a superseded session for at most the 60 s interval, and only while it is still valid", async () => {
+    installTagged("ROTA", T0 + 2 * 60 * MIN);
+    const { c, signed, send } = client();
+    try {
+      await send();
+      mock.timers.tick(10_000); installTagged("ROTB", T0 + 3 * 60 * MIN);
+      for (let t = 10_000; t < 120_000; t += 5_000) { await send(); mock.timers.tick(5_000); }
+      const lastA = Math.max(...signed.filter(s => s.keyId === keyOf("ROTA")).map(s => s.at));
+      assert.ok(lastA - T0 <= 60_000, "stale session bounded by the re-read interval");
+      assert.equal(signed.at(-1)!.keyId, keyOf("ROTB"));
+      assertInvariant(signed);
+    } finally { c.destroy(); }
+  });
+
+  it("fails closed when a cached valid session is replaced by a near-expiry one", async () => {
+    installTagged("ROTA", T0 + 2 * 60 * MIN);
+    const { c, signed, send } = client();
+    try {
+      await send();
+      installTagged("ROTC", T0 + 4 * MIN);   // renewal produced an unusable session
+      mock.timers.tick(61_000);
+      assert.equal(await send(), "CredentialsProviderError");
+      assert.equal(signed.length, 1); assertInvariant(signed);
+    } finally { c.destroy(); }
+  });
+
+  it("concurrent requests at the refresh boundary all refuse an expiring session and never sign", async () => {
+    installTagged("ROTA", T0 + 5 * MIN + 61_000);
+    const { c, signed, send } = client();
+    try {
+      await send();
+      mock.timers.tick(62_000);               // interval elapsed and real lifetime now < 5 min
+      const outcomes = await Promise.all(Array.from({ length: 20 }, () => send()));
+      assert.deepEqual(new Set(outcomes), new Set(["CredentialsProviderError"]));
+      assert.equal(signed.length, 1); assertInvariant(signed);
+    } finally { c.destroy(); }
   });
 });
