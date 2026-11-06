@@ -27,16 +27,16 @@ router.get('/', async (_req, res) => {
       prisma.$queryRaw`SELECT provider, "eventType", count(*)::int AS count FROM "PaymentWebhookEvent"
         WHERE "receivedAt" > clock_timestamp() - interval '10 minutes' AND "processedAt" IS NOT NULL
         AND "processingError" IS NULL GROUP BY provider, "eventType"`,
-      prisma.$queryRaw`SELECT "tokens", "updatedAt", "expiresAt", CASE WHEN "key"=${bucket('provider', 'STRIPE').key} THEN 'STRIPE' ELSE 'PAYPAL' END AS provider
-        FROM "AbuseBucket" WHERE "key" IN (${bucket('provider', 'STRIPE').key}, ${bucket('provider', 'PAYPAL').key})`,
+      prisma.$queryRaw`SELECT "tokens", "updatedAt", "expiresAt", 'STRIPE' AS provider
+        FROM "AbuseBucket" WHERE "key"=${bucket('provider', 'STRIPE').key}`,
       // Verified Stripe receipts that could not reconcile (e.g. captured funds, unconfirmed order). Read-only.
       listUnresolvedStripeReconciliation(),
     ]);
-    res.json({ policies, environmentEnabled: { STRIPE: config.PAYMENT_STRIPE_INITIATION_ENABLED, PAYPAL: false }, reviews, counts, providerOutcomes, providerBudgets, reconciliation });
+    res.json({ policies, environmentEnabled: { STRIPE: config.PAYMENT_STRIPE_INITIATION_ENABLED }, reviews, counts, providerOutcomes, providerBudgets, reconciliation });
   } catch { res.status(503).json({ error: 'Security monitoring unavailable' }); }
 });
 router.post('/providers/:provider', async (req, res) => {
-  // Stripe is the only payment provider; a retired PayPal policy cannot be written.
+  // Stripe is the only payment provider.
   const provider = z.enum(['STRIPE']).safeParse(req.params.provider);
   const input = z.object({ enabled: z.boolean(), capacity: z.number().int().min(1).max(1000000).nullable(), note }).strict().safeParse(req.body);
   if (!provider.success || !input.success) return res.status(400).json({ error: 'Invalid policy' });

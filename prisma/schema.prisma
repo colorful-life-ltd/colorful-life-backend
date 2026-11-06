@@ -42,6 +42,9 @@ enum OrderStatus {
 enum PaymentProvider {
   MANUAL
   STRIPE
+  /// DEPRECATED: PayPal is removed from the application. Retained only for rollback
+  /// compatibility with the previous image; dropped by the PayPal contract migration
+  /// (prisma/contract/remove_paypal.sql) after a compatible rollback baseline exists.
   PAYPAL
 }
 
@@ -56,6 +59,9 @@ enum PaymentStatus {
 enum RefundProvider {
   MANUAL
   STRIPE
+  /// DEPRECATED: PayPal is removed from the application. Retained only for rollback
+  /// compatibility with the previous image; dropped by the PayPal contract migration
+  /// (prisma/contract/remove_paypal.sql) after a compatible rollback baseline exists.
   PAYPAL
 }
 
@@ -624,14 +630,16 @@ model PaymentWebhookEvent {
   processingError String?
   evidence        Json?
   financialEvidence FinancialEvidence[]
-  // Operational review only; never payment finality or inventory release authority.
+  /// DEPRECATED (PayPal review metadata): unused by the application; retained for rollback
+  /// compatibility and dropped by the PayPal contract migration.
   reviewDetails   Json?
+  /// DEPRECATED: see reviewDetails.
   reviewedAt      DateTime?       @db.Timestamptz(3)
 
-  @@index([provider, reviewedAt, id])
   @@unique([provider, providerEventId])
   @@index([receivedAt])
   @@index([provider, processedAt, id])
+  @@index([provider, reviewedAt, id])
 }
 
 model Refund {

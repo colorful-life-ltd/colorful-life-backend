@@ -91,7 +91,6 @@ router.post(
 // Payment routes
 router.post("/:orderId/payments", authMiddleware, createPaymentHandler);
 router.post("/:orderId/payments/stripe", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), createStripePaymentIntentHandler);
-// PayPal create/capture routes were removed: Stripe is the only customer payment provider.
 router.post("/:orderId/payments/stripe/reconcile", authMiddleware, requireVerifiedEmail, checkoutProtection("recovery"), recoverStripePaymentHandler);
 router.get("/:orderId/payments", authMiddleware, listPaymentsHandler);
 router.post("/:orderId/refunds", authMiddleware, createRefundHandler);

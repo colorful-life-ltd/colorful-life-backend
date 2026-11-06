@@ -1,5 +1,7 @@
 # Return Management V1 — review and release notes
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 ## Confirmed eligibility policy
 
 Owner confirmed: Return Management begins only after confirmed dispatch on a paid order. Before dispatch, paid orders use the existing cancellation/refund/support process; unpaid orders never initiate payment refunds. Admission is enforced by Backend as well as UI. The missing selected-item/quantity pre-dispatch refund workflow is documented as a separate gap in Backend `docs/pre-dispatch-item-refund-gap.md`; this PR does not add it.

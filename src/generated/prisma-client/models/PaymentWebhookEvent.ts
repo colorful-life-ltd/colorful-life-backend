@@ -651,7 +651,14 @@ export type $PaymentWebhookEventPayload<ExtArgs extends runtime.Types.Extensions
     processedAt: Date | null
     processingError: string | null
     evidence: runtime.JsonValue | null
+    /**
+     * DEPRECATED (PayPal review metadata): unused by the application; retained for rollback
+     * compatibility and dropped by the PayPal contract migration.
+     */
     reviewDetails: runtime.JsonValue | null
+    /**
+     * DEPRECATED: see reviewDetails.
+     */
     reviewedAt: Date | null
   }, ExtArgs["result"]["paymentWebhookEvent"]>
   composites: {}

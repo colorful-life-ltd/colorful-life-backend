@@ -5,7 +5,6 @@ import {prisma} from './prisma/runtime.js';
 import {assertEmailStartupReady} from './domain/orderConfirmation/readiness.js';
 import {startOrderConfirmationWorker} from './domain/orderConfirmation/worker.js';
 import {startPaymentResolutionWorker} from './domain/payments/stripeResolutionService.js';
-import {startPayPalWebhookReplayWorker} from './domain/payments/paypalWebhookReplayService.js';
 import {startCartReconciliationWorker} from './domain/cart/cartProvenanceService.js';
 import {operationalMetrics} from './operations/metrics.js';
 import {logOperationalError} from './utils/operationalLog.js';
@@ -13,7 +12,7 @@ if(!config.BACKGROUND_WORKERS_ENABLED)throw new Error('Worker entrypoint require
 await assertEmailStartupReady();
 await assertFinancialSchemaReady();
 let stopping=false,probeHealthy=false;
-const stops=[startCartReconciliationWorker(),startPayPalWebhookReplayWorker(),startPaymentResolutionWorker(),startOrderConfirmationWorker()];
+const stops=[startCartReconciliationWorker(),startPaymentResolutionWorker(),startOrderConfirmationWorker()];
 let pending=Promise.resolve();
 let probing=false;
 const probe=()=>{if(probing||stopping)return;probing=true;pending=operationalMetrics().then(()=>{probeHealthy=true;}).catch(()=>{probeHealthy=false;logOperationalError('Worker monitoring failed');}).finally(()=>{probing=false;});};

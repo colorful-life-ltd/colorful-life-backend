@@ -1,5 +1,7 @@
 # Issue #156 Phase 2A: fail-closed data foundation
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 No checkout, provider, admission, cancellation, expiry, confirmation, inventory mutation or webhook-replay behavior changes. Existing Payment remains the compatibility aggregate. This phase provides storage and structural guards only, not runtime provider authentication/finality verification.
 
 ## Non-negotiable Phase 2A release gate

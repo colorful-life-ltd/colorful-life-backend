@@ -9,16 +9,17 @@ describe("payment provider persistence foundation", () => {
   after(async () => { if (eventIds.length) await prisma.paymentWebhookEvent.deleteMany({ where: { id: { in: eventIds } } }); });
 
   it("exposes asynchronous provider and lifecycle enum values", () => {
-    assert.deepEqual([PaymentProvider.MANUAL, PaymentProvider.STRIPE, PaymentProvider.PAYPAL], ["MANUAL", "STRIPE", "PAYPAL"]);
+    // The last value is deprecated and retained only for rollback compatibility (docs/operations/paypal-removal.md).
+    assert.deepEqual(Object.values(PaymentProvider).slice(0, 2), ["MANUAL", "STRIPE"]);
     assert.equal(PaymentStatus.PROCESSING, "PROCESSING");
     assert.equal(PaymentStatus.CANCELED, "CANCELED");
-    assert.equal(RefundProvider.STRIPE, "STRIPE"); assert.equal(RefundProvider.PAYPAL, "PAYPAL");
+    assert.deepEqual(Object.values(RefundProvider).slice(0, 2), ["MANUAL", "STRIPE"]);
   });
 
   it("deduplicates webhook event IDs per provider", async () => {
     const eventId = `foundation-${randomUUID()}`;
     const first = await prisma.paymentWebhookEvent.create({ data: { provider: PaymentProvider.STRIPE, providerEventId: eventId, eventType: "payment_intent.succeeded" } }); eventIds.push(first.id);
     await assert.rejects(() => prisma.paymentWebhookEvent.create({ data: { provider: PaymentProvider.STRIPE, providerEventId: eventId, eventType: "payment_intent.succeeded" } }));
-    const otherProvider = await prisma.paymentWebhookEvent.create({ data: { provider: PaymentProvider.PAYPAL, providerEventId: eventId, eventType: "PAYMENT.CAPTURE.COMPLETED" } }); eventIds.push(otherProvider.id);
+    const otherProvider = await prisma.paymentWebhookEvent.create({ data: { provider: PaymentProvider.MANUAL, providerEventId: eventId, eventType: "manual.recorded" } }); eventIds.push(otherProvider.id);
   });
 });

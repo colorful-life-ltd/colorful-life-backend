@@ -1,5 +1,7 @@
 # Refund provider safety — Issue #169
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 ## Scope and baseline
 
 Branch `issue-169-refund-provider-safety`, baseline `c38b73c295d0127b6502e8e678b72ba3a120b07f` (main including #167 / PR #168). Builds on [#52](https://github.com/colorful-life-ltd/colorful-life-backend/issues/52), retaining Refund as the intent/accounting aggregate. [#169](https://github.com/colorful-life-ltd/colorful-life-backend/issues/169) covers provider financial safety, not returns, restocking, paid-order cancellation or automatic refunds. No inventory, order-state, payment-principal or payment-status writes are introduced.

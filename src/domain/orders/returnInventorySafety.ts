@@ -94,5 +94,5 @@ export async function assertReturnInventoryEligible(tx: Prisma.TransactionClient
 export function hasConfirmedReturnDispatch(order: {status:string;dispatchedAt:Date|null}) { return ['DISPATCHED','COMPLETED','RETURNED'].includes(order.status) && !!order.dispatchedAt; }
 export async function assertNewReturnAdmission(tx: Prisma.TransactionClient, orderId:number) {
  const order=await tx.order.findUnique({where:{id:orderId},include:{payments:true}});
- if(!order||!hasConfirmedReturnDispatch(order)||!order.payments.some(p=>p.status==='SUCCEEDED'&&!!p.paidAt&&p.currency==='GBP'&&p.amount.equals(order.totalAmount)&&(p.provider!=='PAYPAL'||!!p.providerCaptureReference?.trim()&&!!p.providerReference&&!p.providerReference.startsWith('pending:'))))throw new OrderReturnEligibilityError();
+ if(!order||!hasConfirmedReturnDispatch(order)||!order.payments.some(p=>p.status==='SUCCEEDED'&&!!p.paidAt&&p.currency==='GBP'&&p.amount.equals(order.totalAmount)&&['STRIPE','MANUAL'].includes(p.provider)))throw new OrderReturnEligibilityError();
 }

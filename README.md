@@ -24,7 +24,6 @@ CI (`.github/workflows/backend.yml`) runs on pull requests and `main`. `sandbox-
 - **Zod**
 - **JWT authentication**
 - **Stripe**
-- **PayPal**
 - **Node.js Test Runner**
 
 Planned production infrastructure:
@@ -363,8 +362,7 @@ inside `offers[]`. Used Condition Photos remain inside the exact Used offer.
 
 Supported payment providers:
 
-- Stripe
-- PayPal
+- Stripe (the only external payment provider)
 - Manual payments
 
 Payment processing includes:
@@ -383,7 +381,6 @@ Payment processing includes:
 - Return management
 - Partial refunds
 - Stripe refunds
-- PayPal refunds
 - Manual refunds
 - Refund-capacity reservation
 - Concurrent refund protection
@@ -415,7 +412,7 @@ PENDING
        ↓
 Reserve Inventory
        ↓
-Stripe / PayPal
+Stripe
        ↓
 Provider Payment
        ↓
@@ -492,8 +489,7 @@ Payment providers are represented internally rather than selected by arbitrary c
 ```text
 Payment
 ├── MANUAL
-├── STRIPE
-└── PAYPAL
+└── STRIPE
 ```
 
 The backend derives authoritative payment information from the persisted order.
@@ -519,7 +515,7 @@ Derive Amount from Order
    ↓
 Create / Reuse Provider Payment
    ↓
-Stripe / PayPal
+Stripe
    ↓
 Provider Webhook
    ↓
@@ -730,14 +726,14 @@ Atomically reserve capacity
        ↓
 Commit DB transaction
        ↓
-Call Stripe / PayPal
+Call Stripe
        ↓
 Provider response / webhook
        ↓
 Final reconciliation
 ```
 
-The client does not choose whether a refund goes through Stripe or PayPal.
+The client does not choose the refund provider.
 
 The backend uses the provider stored on the original payment.
 
@@ -782,20 +778,10 @@ The frontend will use only Stripe's publishable credentials and transient paymen
 
 ---
 
-## PayPal Integration
+## PayPal
 
-PayPal support includes:
-
-- PayPal Order creation
-- Payment capture
-- Payment reconciliation
-- Webhook handling
-- Refund creation
-- Refund-capacity protection
-- Idempotency
-- Provider identity tracking
-
-Additional real PayPal Sandbox webhook verification is planned after the backend is available through its public HTTPS sandbox endpoint.
+PayPal support has been removed. Stripe is the only external payment provider; see
+`docs/operations/paypal-removal.md`.
 
 ---
 
@@ -1050,7 +1036,7 @@ npm test -- dist/__tests__/cataloguePresentation.integration.test.js
 
 The guarded test launcher supplies a fresh synthetic payment-abuse HMAC secret
 shared by its child processes, finite high-throughput fixture budgets, and enabled
-Stripe/PayPal initiation switches for tests using injected provider clients. No
+Stripe initiation switch for tests using injected provider clients. No
 payment-abuse environment exports are needed. Challenge, reconciliation, tracking
 and email switches are disabled unless a focused test explicitly changes them.
 Abuse-specific tests restore restrictive limits and exercise real enforcement.
@@ -1092,7 +1078,6 @@ Database
 JWT
 Email delivery
 Stripe
-PayPal
 Application port / runtime configuration
 ```
 
@@ -1104,7 +1089,6 @@ Never commit:
 .env
 Stripe secret keys
 Stripe webhook signing secrets
-PayPal client secrets
 database credentials
 JWT secrets
 AWS credentials
@@ -1144,7 +1128,6 @@ Planned environments:
 sandbox-api.colorful-life.co.uk
 → Sandbox backend
 → Stripe Sandbox
-→ PayPal Sandbox
 → Sandbox database
 ```
 
@@ -1152,7 +1135,6 @@ sandbox-api.colorful-life.co.uk
 api.colorful-life.co.uk
 → Production backend
 → Stripe Live
-→ PayPal Live
 → Production database
 ```
 
@@ -1181,7 +1163,7 @@ Home
 → Cart
 → Account / Address
 → Checkout
-→ Stripe / PayPal
+→ Stripe
 → Order Confirmation
 → My Orders
 ```
@@ -1189,8 +1171,6 @@ Home
 ### Deployment
 
 Production deployment will follow once the customer storefront can exercise the backend as a genuine end-to-end commerce application.
-
-Real public PayPal Sandbox webhook verification will be completed against the deployed sandbox backend before production payment activation.
 
 ---
 
@@ -1220,10 +1200,8 @@ Next:
 - Customer authentication UI
 - Cart and checkout
 - Stripe checkout integration
-- PayPal checkout integration
 - Customer order history
 - Sandbox deployment
-- Public PayPal Sandbox webhook verification
 - Production deployment
 
 ## Order and dispatch confirmation email and commercial invoice
@@ -1362,7 +1340,7 @@ See [the Issue #208 remediation matrix, API changes and deployment safeguards](d
 
 ## Local HTTP-only Admin PR #42 smoke launcher
 
-`start:local-http` is a separate local-only entry point. It reuses the existing Express app and its authentication/authorization without importing `index.ts` or starting workers. Normal `npm start` behaviour is unchanged. **Do not use `npm start` for this smoke test**: it starts cart reconciliation and PayPal webhook replay workers.
+`start:local-http` is a separate local-only entry point. It reuses the existing Express app and its authentication/authorization without importing `index.ts` or starting workers. Normal `npm start` behaviour is unchanged. **Do not use `npm start` for this smoke test**: it starts the cart reconciliation and payment resolution workers.
 
 The launcher fails closed before listening unless the effective connection is `colorful_life` on the approved PostgreSQL 18 Windows cluster (system identifier `7668309425915929176`). Accepted hosts are literal `127.0.0.1`, `localhost`, `[::1]` or the current Windows WSL adapter `172.27.32.1`, on port 5432. A read-only connection verifies the actual database, version and cluster identity. Host/database/options query overrides and alternate schemas are rejected. If the cluster is replaced, review the launcher pin rather than bypassing it.
 

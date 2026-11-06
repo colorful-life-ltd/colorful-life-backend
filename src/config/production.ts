@@ -5,13 +5,10 @@ export function validateProduction(c: {
     FRONTEND_URL: string;
     SES_FROM_EMAIL: string;
     PAYMENT_RESOLUTION_ENABLED: boolean;
-    PAYPAL_BASE_URL: string;
     CORS_ALLOWED_ORIGINS: string;
     STRIPE_SECRET_KEY?: string;
     STRIPE_WEBHOOK_SECRET?: string;
     PAYMENT_STRIPE_INITIATION_ENABLED?: boolean;
-    PAYPAL_CLIENT_ID?: string;
-    PAYPAL_WEBHOOK_ID?: string;
 }, env: NodeJS.ProcessEnv) {
     if (env.NODE_ENV !== 'production')
         return;
@@ -39,8 +36,6 @@ export function validateProduction(c: {
         bad.push('CORS_ALLOWED_ORIGINS');
     if (/@(example\.(com|org|net)|localhost|.*\.invalid)$/i.test(c.SES_FROM_EMAIL))
         bad.push('SES_FROM_EMAIL');
-    if ((c.PAYPAL_CLIENT_ID || c.PAYPAL_WEBHOOK_ID) && !(live?['https://api-m.paypal.com','https://api.paypal.com']:['https://api-m.sandbox.paypal.com','https://api.sandbox.paypal.com']).includes(c.PAYPAL_BASE_URL))
-        bad.push('PAYPAL_BASE_URL');
     // Production provisions the first Administrator only through the owner-run CLI.
     if (live && env.ADMIN_BOOTSTRAP_HTTP_ENABLED === 'true')
         bad.push('ADMIN_BOOTSTRAP_HTTP_ENABLED');

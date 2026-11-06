@@ -24,21 +24,21 @@ before(async () => { server = app.listen(0, '127.0.0.1'); await new Promise<void
     port: number;
 }).port}`; });
 after(async () => { await new Promise<void>(r => server.close(() => r())); await prisma.$disconnect(); });
-async function fixture(provider: 'STRIPE' | 'PAYPAL' = 'STRIPE', paid = true) {
+async function fixture(provider: 'STRIPE' = 'STRIPE', paid = true) {
     const admin = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: 'synthetic', role: 'ADMIN', emailVerified: true } });
     const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash('Correct1!', 4), emailVerified: true, addresses: { create: { recipientName: 'Synthetic', line1: '1 Test Street', city: 'London', postcode: 'SW1A 1AA', countryCode: 'GB', isDefaultBilling: true } } } });
     const product = await prisma.legoProduct.create({ data: { setNumber: randomUUID(), title: 'Synthetic', theme: 'TEST', ageRecommendation: '8+', pieceCount: 1 } });
     const listing = await prisma.productListing.create({ data: { legoProductId: product.id, condition: 'NEW', originalPrice: 20, currentStock: 10 } });
     const order = await createOrder(user.id, { shippingMethod: 'STANDARD', items: [{ productListingId: listing.id, quantity: 1 }] }, randomUUID());
-    const payment = paid ? await prisma.payment.create({ data: { orderId: order.id, provider, providerReference: `provider_${randomUUID()}`, providerCaptureReference: provider === 'PAYPAL' ? `capture_${randomUUID()}` : null, status: 'SUCCEEDED', paidAt: new Date(), amount: order.totalAmount } }) : null;
+    const payment = paid ? await prisma.payment.create({ data: { orderId: order.id, provider, providerReference: `provider_${randomUUID()}`, providerCaptureReference: null, status: 'SUCCEEDED', paidAt: new Date(), amount: order.totalAmount } }) : null;
     if (paid)
         await confirmOrder(admin.id, order.id);
     return { admin, user, listing, order, payment };
 }
 async function event(f: Awaited<ReturnType<typeof fixture>>, amount: string, status: 'SUCCEEDED' | 'FAILED' | 'PENDING' = 'SUCCEEDED', reference = randomUUID(), id = randomUUID()) {
-    return reconcileRefundWebhook({ version: 2, kind: 'refund', id, provider: f.payment!.provider as 'STRIPE' | 'PAYPAL', eventType: 'synthetic.verified-refund', reference, parentReference: f.payment!.provider === 'STRIPE' ? f.payment!.providerReference : f.payment!.providerCaptureReference!, amount, currency: 'GBP', status });
+    return reconcileRefundWebhook({ version: 2, kind: 'refund', id, provider: f.payment!.provider as 'STRIPE', eventType: 'synthetic.verified-refund', reference, parentReference: f.payment!.providerReference, amount, currency: 'GBP', status });
 }
-for (const provider of ['STRIPE', 'PAYPAL'] as const) {
+for (const provider of ['STRIPE'] as const) {
     it(`${provider}: external full refund prevents fulfilment, accounts once and retains provider-origin identity`, async () => {
         const f = await fixture(provider);
         const reference = randomUUID(), id = randomUUID();
@@ -410,10 +410,10 @@ it('HTTP rejects unsupported delivery fallback before reservation and keeps publ
  const allowed=await fetch(base+'/health',{headers:{Origin:'http://localhost:5173'}});assert.equal(allowed.headers.get('access-control-allow-origin'),'http://localhost:5173');
  const denied=await fetch(base+'/health',{headers:{Origin:'https://untrusted.invalid'}});assert.equal(denied.headers.get('access-control-allow-origin'),null);
 });
-for(const provider of ['STRIPE','PAYPAL'] as const)it(`${provider}: historical provider refund evidence holds the owning order without attributing it to a new attempt`,async()=>{
- const f=await fixture(provider);const oldReference=`old_${randomUUID()}`,oldCapture=`oldcap_${randomUUID()}`;
- await prisma.paymentAttempt.create({data:{orderId:f.order.id,paymentId:f.payment!.id,provider,amount:f.order.totalAmount,currency:'GBP',historical:true,providerReference:oldReference,...(provider==='PAYPAL'?{providerCaptureReference:oldCapture}:{})}});
- await reconcileRefundWebhook({version:2,kind:'refund',provider,id:randomUUID(),eventType:'synthetic.verified-refund',reference:randomUUID(),parentReference:provider==='STRIPE'?oldReference:oldCapture,amount:'5',currency:'GBP',status:'SUCCEEDED'});
+for(const provider of ['STRIPE'] as const)it(`${provider}: historical provider refund evidence holds the owning order without attributing it to a new attempt`,async()=>{
+ const f=await fixture(provider);const oldReference=`old_${randomUUID()}`;
+ await prisma.paymentAttempt.create({data:{orderId:f.order.id,paymentId:f.payment!.id,provider,amount:f.order.totalAmount,currency:'GBP',historical:true,providerReference:oldReference,}});
+ await reconcileRefundWebhook({version:2,kind:'refund',provider,id:randomUUID(),eventType:'synthetic.verified-refund',reference:randomUUID(),parentReference:oldReference,amount:'5',currency:'GBP',status:'SUCCEEDED'});
  await assert.rejects(startPreparing(f.admin.id,f.order.id),/refund evidence/);
  assert.equal(await prisma.refund.count({where:{paymentId:f.payment!.id}}),0);assert.equal((await prisma.payment.findUniqueOrThrow({where:{id:f.payment!.id}})).refundedAmount.toString(),'0');
 });

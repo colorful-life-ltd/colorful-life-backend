@@ -1,10 +1,11 @@
 import { Prisma as PrismaSql } from "../../generated/prisma-client/client.js";
 import type { Order, Payment, PaymentAttempt, PaymentOperation, PaymentResolution, Prisma } from "../../generated/prisma-client/client.js";
+import type { PaymentProvider } from "../../generated/prisma-client/enums.js";
 import { config } from "../../config/index.js";
 
 export type CustomerPaymentWindow = {
   version: 1;
-  provider: "STRIPE" | "PAYPAL" | "MANUAL";
+  provider: PaymentProvider;
   evaluatedAt: string;
   mode: "LEGACY" | "MANAGED" | "UNAVAILABLE";
   state: "INITIAL_PAYMENT" | "CHECKOUT_RESUMABLE" | "PROCESSING" | "OUTCOME_UNRESOLVED" | "RETRY_AVAILABLE" | "RETRY_REQUIRES_PROVIDER_CHECK" | "PAID" | "NOT_PAYABLE";
@@ -13,7 +14,7 @@ export type CustomerPaymentWindow = {
   retryDeadline: string | null;
   resumeEligibility: "ELIGIBLE" | "INELIGIBLE" | "REQUIRES_PROVIDER_CHECK";
   initiationEligibility: "ELIGIBLE" | "INELIGIBLE" | "REQUIRES_PROVIDER_CHECK";
-  reason: "EXISTING_CHECKOUT_OPEN" | "INITIAL_WINDOW_OPEN" | "AWAITING_PAYMENT_OUTCOME" | "PAYMENT_OUTCOME_UNRESOLVED" | "PROVIDER_CHECK_REQUIRED" | "VERIFIED_UNPAID_RETRY" | "PAYMENT_SUCCEEDED" | "ORDER_NOT_PENDING" | "WINDOW_CLOSED" | "ADMISSION_UNAVAILABLE" | "STRIPE_UNAVAILABLE" | "PAYPAL_UNAVAILABLE" | "INVALID_AMOUNT" | "OTHER_PROVIDER";
+  reason: "EXISTING_CHECKOUT_OPEN" | "INITIAL_WINDOW_OPEN" | "AWAITING_PAYMENT_OUTCOME" | "PAYMENT_OUTCOME_UNRESOLVED" | "PROVIDER_CHECK_REQUIRED" | "VERIFIED_UNPAID_RETRY" | "PAYMENT_SUCCEEDED" | "ORDER_NOT_PENDING" | "WINDOW_CLOSED" | "ADMISSION_UNAVAILABLE" | "STRIPE_UNAVAILABLE" | "INVALID_AMOUNT" | "OTHER_PROVIDER";
 };
 
 type Attempt = Pick<PaymentAttempt, "paymentId" | "providerReference" | "historical" | "finalityEvidenceId" | "successEvidenceId"> & {
@@ -30,8 +31,7 @@ export type PaymentWindowInput = {
   admission: "OPEN" | "CLOSED" | "UNAVAILABLE";
   managedEnabled: boolean;
   stripeConfigured: boolean;
-  paypalConfigured?: boolean;
-  preferredProvider?: "STRIPE" | "PAYPAL";
+  preferredProvider?: "STRIPE";
   newInitiationEnabled?: boolean;
   now: Date;
 };
@@ -40,8 +40,8 @@ export type PaymentWindowInput = {
 export function presentCustomerPaymentWindow(input: PaymentWindowInput): CustomerPaymentWindow {
   const { order, payment, resolution: r, attempts, now } = input;
   const provider = payment?.provider ?? input.preferredProvider ?? "STRIPE";
-  const configured = provider === "PAYPAL" ? false /* retired provider: historical windows never reopen */ : input.stripeConfigured;
-  const unavailableReason = provider === "PAYPAL" ? "PAYPAL_UNAVAILABLE" : "STRIPE_UNAVAILABLE";
+  const configured = input.stripeConfigured;
+  const unavailableReason = "STRIPE_UNAVAILABLE";
   const managed = !!r && !r.historical && !r.quarantineReason;
   const unavailable = !managed && (input.managedEnabled || !!r);
   const deadline = managed ? r.retryDeadline ?? r.initialPaymentDeadline : unavailable ? null : order.reservationExpiresAt;
@@ -109,7 +109,6 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
   const [clock] = await tx.$queryRaw<Array<{ now: Date; enabled: boolean }>>`SELECT clock_timestamp() AS now,
     COALESCE((SELECT "enabled" FROM "PaymentInitiationPolicy" WHERE "provider"='STRIPE'), false) AS enabled`;
   const now = clock.now;
-  const paypalConfigured = false;
   const preferredProvider = "STRIPE" as const;
   for (let offset = 0; offset < orderIds.length; offset += PAYMENT_WINDOW_BATCH_SIZE) {
     const orders = await tx.order.findMany({ where: { userId, id: { in: orderIds.slice(offset, offset + PAYMENT_WINDOW_BATCH_SIZE) } }, select: paymentWindowSelect });
@@ -123,13 +122,9 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
         WHERE (w."processedAt" IS NULL OR w."processingError" IS NOT NULL)
         AND ((w.provider <> 'STRIPE' AND w.evidence->>'orderId'=o.id::text) OR EXISTS (
           SELECT 1 FROM "PaymentAttempt" a WHERE a."orderId"=o.id AND a.provider=w.provider
-          AND (w.evidence->>'paymentIntentId'=a."providerReference"
-            OR w.evidence->>'paypalOrderId'=a."providerReference"
-            OR w.evidence->>'captureId'=a."providerCaptureReference")) OR EXISTS (
+          AND w.evidence->>'paymentIntentId'=a."providerReference") OR EXISTS (
           SELECT 1 FROM "Payment" p WHERE p."orderId"=o.id AND p.provider=w.provider
-          AND (w.evidence->>'paymentIntentId'=p."providerReference"
-            OR w.evidence->>'paypalOrderId'=p."providerReference"
-            OR w.evidence->>'captureId'=p."providerCaptureReference"))))`);
+          AND w.evidence->>'paymentIntentId'=p."providerReference")))`);
     const unresolved = new Set(inbox.map(row => row.id));
     for (const order of orders) {
       const r = order.paymentResolution;
@@ -145,8 +140,8 @@ export async function readCustomerPaymentWindows(tx: Prisma.TransactionClient, u
       windows.set(order.id, presentCustomerPaymentWindow({ order, payment: order.payments[0] ?? null, resolution: r,
         attempts: order.paymentAttempts, hasUnresolvedInbox: unresolved.has(order.id),
         hasSuccessEvidence: order.financialEvidence.some(e => e.kind === "SUCCESS"), hasFinancialEvidence: order.financialEvidence.length > 0,
-        admission, managedEnabled: config.PAYMENT_RESOLUTION_ENABLED, stripeConfigured: !!config.STRIPE_SECRET_KEY, paypalConfigured, preferredProvider,
-        newInitiationEnabled: (order.payments[0]?.provider ?? preferredProvider) === "PAYPAL" ? false : config.PAYMENT_STRIPE_INITIATION_ENABLED && clock.enabled, now }));
+        admission, managedEnabled: config.PAYMENT_RESOLUTION_ENABLED, stripeConfigured: !!config.STRIPE_SECRET_KEY, preferredProvider,
+        newInitiationEnabled: config.PAYMENT_STRIPE_INITIATION_ENABLED && clock.enabled, now }));
     }
   }
   return windows;

@@ -4,7 +4,6 @@ import { config } from "../../config/index.js";
 import { prisma } from "../../prisma/runtime.js";
 import { applyRefundObservationInTransaction, type RefundObservation, lockRefund, RefundIntentError, refundWithContext, retainUnresolved } from "./refundLifecycleService.js";
 import { stripeRefundClient, stripeRefundObservation, stripeRefundMetadataMatches } from "./stripeRefundService.js";
-import { paypalRefundClient, paypalRefundObservation, paypalRefundParent } from "./paypalRefundService.js";
 
 async function boundedRead<T>(work:()=>Promise<T>):Promise<T>{
   let timer:ReturnType<typeof setTimeout>|undefined;
@@ -41,14 +40,8 @@ export async function reconcileExternalRefund(orderId:number,refundId:number){
           return corroborate(refundId,{...stripeRefundObservation(response),source:"GET"},claim.refund.reviewRevision);
         });
       }
-      const client=paypalRefundClient();if(!client.retrieveRefund)throw new Error();
-      return await boundedRead(async()=>{
-        const response=await client.retrieveRefund!(claim.reference!);
-        const parent=paypalRefundParent(response);
-        if(response.id!==claim.reference||!parent||response.custom_id&&response.custom_id!==`cl-refund-${refundId}`)
-          return retainUnresolved(refundId,'PROVIDER_EVIDENCE_MISMATCH',true,refundConflictEvidence('PROVIDER_EVIDENCE_MISMATCH','GET',{observedReference:response.id,observedAmount:response.amount?.value,observedCurrency:response.amount?.currency_code,observedParent:parent}));
-        return corroborate(refundId,{...paypalRefundObservation(response,parent),source:"GET"},claim.refund.reviewRevision);
-      });
+      // Stripe is the only external refund provider; anything else stays unresolved for review.
+      return retainUnresolved(refundId,'RECONCILIATION_UNAVAILABLE');
     }catch{return retainUnresolved(refundId,'RECONCILIATION_UNAVAILABLE');}
   });
 }

@@ -31,7 +31,7 @@ export async function reviewOrder(actorId: number, orderId: number, action: 'HOL
   });
 }
 export async function updatePolicy(actorId: number, provider: Provider, enabled: boolean, capacity: number | null, note: string) {
-  if (!['STRIPE', 'PAYPAL'].includes(provider) || typeof enabled !== 'boolean'
+  if (provider !== 'STRIPE' || typeof enabled !== 'boolean'
     || (capacity !== null && (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > 1000000))
     || note.trim().length < 10 || note.length > 500) throw new PaymentSecurityOperationError('INVALID_POLICY', 400);
   return prisma.$transaction(async tx => {

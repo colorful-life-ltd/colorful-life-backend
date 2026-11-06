@@ -4,7 +4,6 @@ import { reconcileExternalRefund } from "../domain/refunds/refundReconciliationS
 import { RefundCapacityExceededError } from "../domain/refunds/refundCapacityService.js";
 import { Request, Response } from "express";
 import { createRefund, getOrderRefunds } from "../domain/refunds/refundService.js";
-import { PayPalRefundProviderError } from "../domain/refunds/paypalRefundService.js";
 import { createOrReuseStripeRefund, StripeRefundProviderError, StripeRefundValidationError } from "../domain/refunds/stripeRefundService.js";
 import { prisma } from "../prisma/runtime.js";
 import { PaymentProvider } from "../generated/prisma-client/enums.js";
@@ -42,16 +41,14 @@ export const createRefundHandler = async (req: Request, res: Response) => {
   try {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId }, select: { orderId: true, provider: true } });
     if (!payment || payment.orderId !== orderId) return res.status(404).json({ error: "Payment not found for order" });
-    // Historical PayPal payments stay readable and reconcilable, but no new PayPal refund can start.
-    if (payment.provider === PaymentProvider.PAYPAL) {
-      return res.status(503).json({ error: { code: "PAYPAL_INITIATION_DISABLED", message: "PayPal transactions are not supported" } });
-    }
     if (payment.provider === PaymentProvider.STRIPE) {
       if (providerReference !== undefined) return res.status(400).json({ error: "providerReference is only valid for manual refunds" });
       const refund = await createOrReuseStripeRefund(orderId, paymentId, amount, reason, user.id, undefined, refundId, req.get("Idempotency-Key"));
       return res.status(refund.status === "PROCESSING" ? 202 : refundId ? 200 : 201).json(refundProjection(refund));
     }
-    if (refundId !== undefined) return res.status(400).json({ error: "refundId is only valid for PayPal refunds" });
+    // Residual payments from a retired provider are never refundable through this API.
+    if (payment.provider !== PaymentProvider.MANUAL) return res.status(409).json({ error: { code: "PAYMENT_PROVIDER_UNSUPPORTED", message: "This payment provider is not supported" } });
+    if (refundId !== undefined) return res.status(400).json({ error: "refundId is only valid for provider refunds" });
     if (providerReference === undefined) return res.status(400).json({ error: "Refund provider reference cannot be empty" });
     const result = await createRefund(
       orderId,
@@ -99,7 +96,6 @@ export const createRefundHandler = async (req: Request, res: Response) => {
     ) {
       return res.status(409).json({ error: err.message });
     }
-    if (err instanceof PayPalRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
     if (err instanceof StripeRefundValidationError) return res.status(409).json({ error: "Stripe refund request is not valid" });
     if (err instanceof StripeRefundProviderError) return res.status(503).json({ error: "Payment service unavailable" });
     logOperationalError("Create refund failed; inspect existing intent before retry", err);

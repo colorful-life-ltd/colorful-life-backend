@@ -75,12 +75,6 @@ const configSchema = z.object({
     IDEAL_POSTCODES_API_KEY: z.string().nonempty().optional(),
     STRIPE_SECRET_KEY: z.string().nonempty().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().nonempty().optional(),
-    // Historical PayPal reconciliation only (webhook verification, order/refund lookups).
-    // PayPal checkout and refund initiation are removed; no setting can reopen them.
-    PAYPAL_CLIENT_ID: z.string().nonempty().optional(),
-    PAYPAL_CLIENT_SECRET: z.string().nonempty().optional(),
-  PAYPAL_BASE_URL: z.string().url().default("https://api-m.sandbox.paypal.com"),
-    PAYPAL_WEBHOOK_ID: z.string().optional(),
     CLOUDINARY_CLOUD_NAME: z.string().nonempty().optional(),
     CLOUDINARY_API_KEY: z.string().nonempty().optional(),
     CLOUDINARY_API_SECRET: z.string().nonempty().optional(),

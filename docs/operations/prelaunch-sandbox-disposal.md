@@ -1,5 +1,7 @@
 # Pre-launch data policy and Sandbox disposal
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 Production RDS in eu-west-2 is authoritative for real catalogue, prices, images and opening inventory. The EC2 Sandbox database is a disposable copy. It must remain operational until Return V1 and Stripe testing finish. No Sandbox customers, orders, payments, refunds, returns, sessions, inventory movements or counters may be transferred to Production. Production is outside the cleanup target and must remain untouched. Disposing of Sandbox does not attest that Production is free of test data: a separately scoped, read-only Production launch audit must confirm that before public launch; any required Production remediation needs its own approval.
 
 Stripe is the only supported customer payment provider. PayPal creation, capture and new-refund HTTP endpoints reject new operations even if old Sandbox flags/credentials remain configured. Return V1 authorization, receipt, inspection and completion do not initiate refunds. Any financial refund remains a separate deliberate operation. Return authorization emails remain disabled by default.
