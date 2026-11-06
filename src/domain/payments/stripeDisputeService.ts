@@ -1,5 +1,14 @@
 import type Stripe from 'stripe';
+import type { Prisma } from '../../generated/prisma-client/client.js';
 import { prisma } from '../../prisma/runtime.js';
+/** A verified formal dispute exists for this intent. Stripe refuses refunds on disputed payments; inquiries
+ * (`warning_*`) can still be resolved by refunding. A receipt without a status is treated as formal. */
+export async function hasFormalStripeDispute(tx: Prisma.TransactionClient, paymentIntentId: string) {
+    const [row] = await tx.$queryRaw<Array<{ id: number }>> `SELECT id FROM "PaymentWebhookEvent" WHERE provider='STRIPE'
+      AND evidence->>'kind'='stripe-dispute' AND evidence->>'paymentIntentId'=${paymentIntentId}
+      AND left(COALESCE(evidence->>'status',''),8)<>'warning_' LIMIT 1`;
+    return !!row;
+}
 /** Called only after Stripe signature verification. A dispute never rewrites money. */
 export async function retainStripeDispute(eventId: string, eventType: string, dispute: Stripe.Dispute) {
     const paymentIntentId = typeof dispute.payment_intent === 'string' ? dispute.payment_intent : dispute.payment_intent?.id;

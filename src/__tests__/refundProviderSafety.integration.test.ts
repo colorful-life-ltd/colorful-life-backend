@@ -178,7 +178,8 @@ it("manual GET fallback is disabled by default and never resubmits a legacy refu
  assert.equal(config.REFUND_RECONCILIATION_ENABLED,false);const f=await fixture();let posts=0;
  const pending=await stripe(f,{createRefund:async()=>{posts++;throw new Error("lost");}});
  await assert.rejects(reconcileExternalRefund(f.order.id,pending.id),RefundIntentError);config.REFUND_RECONCILIATION_ENABLED=true;
- const result=await reconcileExternalRefund(f.order.id,pending.id);assert.equal(result.resolutionCode,"MANUAL_REVIEW_REQUIRED");assert.equal(posts,1);assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+ // A lost Stripe response is now located by its metadata; without a provider read it stays unresolved.
+ const result=await reconcileExternalRefund(f.order.id,pending.id);assert.equal(result.status,"PROCESSING");assert.equal(result.resolutionCode,"RECONCILIATION_UNAVAILABLE");assert.equal(posts,1);assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
 });
 it("manual reconciliation GET attempts are durably capped at eight even concurrently",async()=>{
  const f=await fixture(),reference=`re_${randomUUID()}`;let gets=0;const c:StripeRefundClient={createRefund:async()=>stripeResponse(f,reference,"pending"),retrieveRefund:async()=>{gets++;throw new Error("outage");}};
@@ -280,3 +281,154 @@ it("uncorrelated verified refund evidence for the exact provider parent blocks n
 
 for(const environment of ["live","sandbox"]){
 }
+// G1: a Stripe refusal releases reserved capacity only when it is definitive AND a complete lookup corroborates it.
+const refusal=(code:string,statusCode=400)=>new Stripe.errors.StripeInvalidRequestError({message:"private",type:"invalid_request_error",code,statusCode});
+const listed=(data:any[],has_more=false)=>({data,has_more});
+const localRefundId=(input:Stripe.RefundCreateParams)=>String((input.metadata as Record<string,string>).local_refund_id);
+/** A complete Stripe.Refund list entry, as refunds.list returns it. */
+function listedRefund(paymentIntent:unknown,overrides:Record<string,unknown>={}):Record<string,unknown>{
+ return {id:`re_${randomUUID()}`,object:"refund",amount:1000,currency:"gbp",created:1767225600,status:"succeeded",payment_intent:paymentIntent,metadata:{},...overrides};
+}
+function without(entry:Record<string,unknown>,key:string){const copy={...entry};delete copy[key];return copy;}
+function ours(f:Fixture,localId:string,status="succeeded",orderId=String(f.order.id)){return listedRefund(f.payment.providerReference,{status,metadata:{local_refund_id:localId,order_id:orderId}});}
+it("documented Stripe refusals with a complete empty lookup fail once and release capacity",async()=>{
+ for(const code of ["refund_disputed_payment","amount_too_large","amount_too_small"]){
+  const f=await fixture(),key=randomUUID();let posts=0,lists=0;
+  const c:StripeRefundClient={createRefund:async()=>{posts++;throw refusal(code);},listRefunds:async pi=>{lists++;assert.equal(pi,f.payment.providerReference);return listed([ours(f,"999999999")]);}};
+  const failed=await stripe(f,c,key);
+  assert.equal(failed.status,"FAILED");assert.equal((failed.providerOutcome as any).rejectionCode,code);assert.equal(lists,1);
+  assert.equal((await stripe(f,c,key)).id,failed.id);assert.equal(posts,1);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+ }
+});
+it("a definitive refusal is never failed on an unavailable, incomplete or malformed lookup",async()=>{
+ const lookups:Array<StripeRefundClient["listRefunds"]>=[undefined,async()=>{throw new Error("network");},async()=>listed([],true),async()=>({} as any),async()=>null as any];
+ for(const listRefunds of lookups){
+  const f=await fixture();const result=await stripe(f,{createRefund:async()=>{throw refusal("refund_disputed_payment");},...(listRefunds?{listRefunds}:{})});
+  assert.equal(result.status,"PROCESSING");assert.equal(result.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED");assert.equal(result.reviewRequired,false);
+  assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+ }
+});
+// Every listed entry must be classifiable before a lookup counts as complete evidence of absence.
+// Each case breaks exactly one part of an otherwise complete refund object.
+function malformedEntries(pi:string):Array<[string,unknown]>{
+ const ok=listedRefund(pi);
+ return [["null",null],["empty object",{}],["array",[]],["string","re_123"],["truncated (id and payment_intent only)",{id:"re_synthetic",payment_intent:pi}],
+  ...["object","id","amount","currency","created","status","payment_intent","metadata"].map(key=>[`missing ${key}`,without(ok,key)] as [string,unknown]),
+  ["not a refund object",{...ok,object:"charge"}],["empty id",{...ok,id:""}],["zero amount",{...ok,amount:0}],["string amount",{...ok,amount:"1000"}],
+  ["empty currency",{...ok,currency:""}],["string created",{...ok,created:"1767225600"}],["null status",{...ok,status:null}],
+  ["other intent",{...ok,payment_intent:"pi_other"}],["null intent",{...ok,payment_intent:null}],
+  ["string metadata",{...ok,metadata:"local_refund_id=1"}],["array metadata",{...ok,metadata:[]}],["numeric local id",{...ok,metadata:{local_refund_id:1}}],
+  ["empty local id",{...ok,metadata:{local_refund_id:""}}],["non-canonical local id",{...ok,metadata:{local_refund_id:" 1"}}],["null local id",{...ok,metadata:{local_refund_id:null}}]];
+}
+const malformedLabels=malformedEntries("pi_label").map(([label])=>label);
+/** Complete refunds of the same intent that provably are not this local refund: explicit null, empty or
+ * foreign metadata (including an expanded payment_intent). */
+function unrelatedEntries(f:Fixture){
+ const pi=f.payment.providerReference;
+ return [listedRefund(pi,{metadata:null}),listedRefund(pi),listedRefund(pi,{metadata:{order_id:"5"}}),
+  listedRefund({id:pi},{metadata:{local_refund_id:"999999999",order_id:String(f.order.id)}})];
+}
+it("a definitive refusal is never failed when any listed entry is null, empty or malformed",async()=>{
+ for(const [i,label] of malformedLabels.entries())for(const withUnrelated of [false,true]){
+  const f=await fixture();const entry=malformedEntries(f.payment.providerReference!)[i][1];
+  const list=withUnrelated?[...unrelatedEntries(f),entry]:[entry];
+  const result=await stripe(f,{createRefund:async()=>{throw refusal("refund_disputed_payment");},listRefunds:async()=>listed(list)});
+  assert.equal(result.status,"PROCESSING",label);assert.equal(result.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED",label);
+  assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"},label);
+ }
+});
+it("a truncated refund object (only id and payment_intent) never corroborates absence on either path",async()=>{
+ const f=await fixture();const truncated=()=>({id:"re_synthetic",payment_intent:f.payment.providerReference});
+ let list:unknown[]=[truncated()];
+ const c:StripeRefundClient={createRefund:async()=>{throw refusal("refund_disputed_payment");},listRefunds:async()=>listed(list)};
+ const pending=await stripe(f,c);
+ assert.equal(pending.status,"PROCESSING");assert.equal(pending.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED");assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+ const restore=setStripeRefundClientForTests(c);config.REFUND_RECONCILIATION_ENABLED=true;
+ try{
+  for(const data of [[truncated()],[...unrelatedEntries(f),truncated()]]){
+   list=data;const kept=await reconcileExternalRefund(f.order.id,pending.id);
+   assert.equal(kept.status,"PROCESSING");assert.equal(kept.resolutionCode,"RECONCILIATION_UNAVAILABLE");assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+  }
+ }finally{restore();}
+});
+it("legitimate unrelated refunds, including null metadata, still corroborate a definitive refusal",async()=>{
+ const f=await fixture();
+ const failed=await stripe(f,{createRefund:async()=>{throw refusal("amount_too_large");},listRefunds:async()=>listed(unrelatedEntries(f))});
+ assert.equal(failed.status,"FAILED");assert.equal((failed.providerOutcome as any).rejectionCode,"amount_too_large");assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+});
+it("reconciliation keeps an uncorroborated refusal unresolved while any listed entry is malformed",async()=>{
+ for(const [i,label] of malformedLabels.entries()){
+  const f=await fixture();let list:unknown[]|null=null;
+  const c:StripeRefundClient={createRefund:async()=>{throw refusal("refund_disputed_payment");},listRefunds:async()=>{if(!list)throw new Error("network");return listed(list);}};
+  const pending=await stripe(f,c);assert.equal(pending.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED",label);
+  const restore=setStripeRefundClientForTests(c);config.REFUND_RECONCILIATION_ENABLED=true;
+  try{
+   list=[...unrelatedEntries(f),malformedEntries(f.payment.providerReference!)[i][1]];
+   const kept=await reconcileExternalRefund(f.order.id,pending.id);
+   assert.equal(kept.status,"PROCESSING",label);assert.equal(kept.resolutionCode,"RECONCILIATION_UNAVAILABLE",label);
+   assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"},label);
+   list=unrelatedEntries(f);const failed=await reconcileExternalRefund(f.order.id,pending.id);
+   assert.equal(failed.status,"FAILED",label);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"},label);
+  }finally{restore();}
+ }
+});
+it("a refusal contradicted by our own provider refund adopts it; a partial correlation requires review",async()=>{
+ const f=await fixture();let localId="";
+ const adopted=await stripe(f,{createRefund:async input=>{localId=localRefundId(input);throw refusal("amount_too_large");},listRefunds:async()=>listed([ours(f,localId)])});
+ assert.equal(adopted.status,"SUCCEEDED");assert.match(adopted.providerReference,/^re_/);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"10"});
+ const g=await fixture();let gId="";
+ const review=await stripe(g,{createRefund:async input=>{gId=localRefundId(input);throw refusal("amount_too_large");},listRefunds:async()=>listed([ours(g,gId,"succeeded","1")])});
+ assert.equal(review.status,"PROCESSING");assert.equal(review.reviewRequired,true);assert.equal(review.resolutionCode,"PROVIDER_EVIDENCE_MISMATCH");assert.deepEqual(await amounts(g),{reserved:"10",refunded:"0"});
+});
+it("ambiguous, retryable and unclassified Stripe outcomes stay unresolved without any lookup",async()=>{
+ const errors:Array<[unknown,string]>=[
+  [new Stripe.errors.StripeConnectionError({message:"reset",type:"api_error"}),"PROVIDER_OUTCOME_UNKNOWN"],
+  [new Stripe.errors.StripeAPIError({message:"server",type:"api_error",statusCode:500}),"PROVIDER_OUTCOME_UNKNOWN"],
+  [new Stripe.errors.StripeIdempotencyError({message:"in use",type:"idempotency_error",code:"idempotency_key_in_use",statusCode:409}),"PROVIDER_OUTCOME_UNKNOWN"],
+  [new Stripe.errors.StripeRateLimitError({message:"lock",type:"invalid_request_error",code:"lock_timeout",statusCode:429}),"PROVIDER_RETRY_LATER"],
+  [refusal("charge_already_refunded"),"PROVIDER_OUTCOME_UNKNOWN"],
+  [new Stripe.errors.StripeCardError({message:"card",type:"card_error",code:"refund_disputed_payment",statusCode:402}),"PROVIDER_OUTCOME_UNKNOWN"],
+  [new Error("timeout"),"PROVIDER_OUTCOME_UNKNOWN"]];
+ for(const [error,code] of errors){
+  const f=await fixture();let lists=0;
+  const result=await stripe(f,{createRefund:async()=>{throw error;},listRefunds:async()=>{lists++;return listed([]);}});
+  assert.equal(result.status,"PROCESSING");assert.equal(result.resolutionCode,code);assert.equal(lists,0);assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+ }
+});
+it("reconciliation adopts a lost-response Stripe refund by its metadata and never fails it on absence",async()=>{
+ const f=await fixture();let posts=0,localId="",found=false;
+ const c:StripeRefundClient={createRefund:async input=>{posts++;localId=localRefundId(input);throw new Error("lost");},
+  listRefunds:async()=>listed(found?[ours(f,localId)]:[ours(f,"1")])};
+ const pending=await stripe(f,c);restores.push(setStripeRefundClientForTests(c));config.REFUND_RECONCILIATION_ENABLED=true;
+ const absent=await reconcileExternalRefund(f.order.id,pending.id);
+ assert.equal(absent.status,"PROCESSING");assert.equal(absent.resolutionCode,"PROVIDER_REFUND_NOT_FOUND");assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+ found=true;const done=await reconcileExternalRefund(f.order.id,pending.id);
+ assert.equal(done.status,"SUCCEEDED");assert.equal(posts,1);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"10"});
+});
+it("reconciliation completes an uncorroborated definitive refusal only with a complete empty lookup",async()=>{
+ const f=await fixture();let complete=false;
+ const c:StripeRefundClient={createRefund:async()=>{throw refusal("refund_disputed_payment");},listRefunds:async()=>{if(!complete)throw new Error("network");return listed([]);}};
+ const pending=await stripe(f,c);assert.equal(pending.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED");
+ restores.push(setStripeRefundClientForTests(c));config.REFUND_RECONCILIATION_ENABLED=true;
+ assert.equal((await reconcileExternalRefund(f.order.id,pending.id)).status,"PROCESSING");assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+ complete=true;const failed=await reconcileExternalRefund(f.order.id,pending.id);
+ assert.equal(failed.status,"FAILED");assert.equal((failed.providerOutcome as any).rejectionCode,"refund_disputed_payment");assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+});
+async function disputeReceipt(f:Fixture,status:string){await prisma.paymentWebhookEvent.create({data:{provider:"STRIPE",providerEventId:`evt_${randomUUID()}`,eventType:"charge.dispute.created",
+ processedAt:new Date(),processingError:"STRIPE_DISPUTE_REVIEW_REQUIRED",evidence:{kind:"stripe-dispute",version:1,disputeId:`dp_${randomUUID()}`,paymentIntentId:f.payment.providerReference,status,amount:10000,currency:"gbp"}}});}
+it("a formal Stripe dispute refuses new refunds before reserving capacity; inquiries stay refundable",async()=>{
+ const f=await fixture();await disputeReceipt(f,"needs_response");let posts=0;
+ await assert.rejects(stripe(f,{createRefund:async()=>{posts++;return stripeResponse(f);}}),(e:unknown)=>e instanceof RefundIntentError&&e.code==="PAYMENT_DISPUTED");
+ assert.equal(posts,0);assert.equal(await prisma.refund.count({where:{paymentId:f.payment.id}}),0);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+ const g=await fixture();await disputeReceipt(g,"warning_needs_response");
+ assert.equal((await stripe(g,{createRefund:async()=>stripeResponse(g)})).status,"SUCCEEDED");
+});
+it("concurrent Stripe refund requests with different keys never exceed capacity",async()=>{
+ const f=await fixture();const entered=deferred(),gate=deferred();
+ const first=stripe(f,{createRefund:async()=>{entered.resolve();await gate.promise;return stripeResponse(f);}},randomUUID(),10);
+ await entered.promise;
+ await assert.rejects(stripe(f,{createRefund:async()=>stripeResponse(f)},randomUUID(),95),(e:unknown)=>e instanceof RefundIntentError&&e.code==="REFUND_UNRESOLVED");
+ gate.resolve();assert.equal((await first).status,"SUCCEEDED");assert.deepEqual(await amounts(f),{reserved:"0",refunded:"10"});
+ await assert.rejects(stripe(f,{createRefund:async()=>stripeResponse(f)},randomUUID(),95));
+ assert.deepEqual(await amounts(f),{reserved:"0",refunded:"10"});
+});
