@@ -3,7 +3,9 @@ import { prisma } from "../../prisma/runtime.js";
 type RefundTransaction = { $queryRaw: typeof prisma.$queryRaw; payment: typeof prisma.payment };
 
 export class RefundCapacityInvalidAmountError extends Error {}
-export class RefundCapacityExceededError extends Error {}
+export class RefundCapacityExceededError extends Error {
+  constructor(public readonly availableRefundAmount?: string, public readonly clientRequestKey?: string) { super("Refund capacity exceeded"); }
+}
 export class RefundCapacityNotReservedError extends Error {}
 
 function parseAmount(value: Decimal | number): Decimal {
@@ -12,12 +14,18 @@ function parseAmount(value: Decimal | number): Decimal {
   return result;
 }
 
-export async function reserveRefundCapacity(paymentId: number, requestedAmount: Decimal | number, tx?: RefundTransaction): Promise<void> {
+export async function reserveRefundCapacity(paymentId: number, requestedAmount: Decimal | number, tx?: RefundTransaction, clientRequestKey?: string): Promise<void> {
   const requested = parseAmount(requestedAmount);
   const work = async (tx: RefundTransaction) => {
     const rows = await tx.$queryRaw<Array<{ id: number; amount: Decimal; refundedAmount: Decimal; reservedRefundAmount: Decimal }>>`SELECT "id", "amount", "refundedAmount", "reservedRefundAmount" FROM "Payment" WHERE "id" = ${paymentId} FOR UPDATE`;
     const payment = rows[0];
-    if (!payment || new Decimal(payment.refundedAmount).add(payment.reservedRefundAmount).add(requested).gt(payment.amount)) throw new RefundCapacityExceededError();
+    if (!payment || new Decimal(payment.refundedAmount).add(payment.reservedRefundAmount).add(requested).gt(payment.amount)) {
+      const remaining = payment
+        ? new Decimal(payment.amount).sub(payment.refundedAmount).sub(payment.reservedRefundAmount)
+        : undefined;
+      const available = remaining ? (remaining.isNegative() ? "0.00" : remaining.toFixed(2)) : undefined;
+      throw new RefundCapacityExceededError(available, clientRequestKey);
+    }
     await tx.payment.update({ where: { id: paymentId }, data: { reservedRefundAmount: { increment: requested } } });
   };
   if (tx) await work(tx); else await prisma.$transaction(work);

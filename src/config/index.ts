@@ -7,6 +7,8 @@ import { z } from "zod";
 import { config as dotenvConfig } from "dotenv";
 import { isTestExecution, resolveDatabaseUrl } from "./testDatabase.js";
 import { parsePublicSiteOrigin } from "../domain/seo/publicSiteOrigin.js";
+import { SES_SOURCE_ARN_PATTERN } from "../services/sesCredentials.js";
+import { isAbsolute, normalize } from "node:path";
 
 // Load environment variables from .env if present
 dotenvConfig();
@@ -19,6 +21,8 @@ export const emailConfigurationLoadedAt = Date.now();
 const configSchema = z.object({
   CORS_ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
   BACKGROUND_WORKERS_ENABLED: z.enum(["true","false"]).default("true").transform(v=>v==="true"),
+  RETURN_AUTHORIZATION_EMAIL_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
+  RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM: z.string().optional(),
   DISPATCH_CONFIRMATION_EMAIL_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   // Email cutoff validation is worker-local; invalid cutoffs must not terminate the API.
   DISPATCH_CONFIRMATION_EMAIL_ACTIVE_FROM: z.string().optional(),
@@ -31,8 +35,9 @@ const configSchema = z.object({
   PAYMENT_RESOLUTION_ENABLED: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   // Public self-registration. Closed by default so pre-launch environments cannot collect accounts.
   REGISTRATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
+  // HTTP first-Administrator registration; see config/adminBootstrap.ts. Never honoured in production.
+  ADMIN_BOOTSTRAP_HTTP_ENABLED: z.enum(["true", "false"]).optional(),
   PAYMENT_STRIPE_INITIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
-  PAYMENT_PAYPAL_INITIATION_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   CLIENT_IP_MODE: z.enum(["direct", "proxy"]).optional(),
   PAYMENT_ABUSE_HMAC_SECRET: z.string().min(32).optional(),
   PAYMENT_ABUSE_LIMITS_JSON: z.string().optional(),
@@ -56,6 +61,12 @@ const configSchema = z.object({
     REFRESH_SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
     AWS_REGION: z.string().nonempty().default("eu-west-2"),
     SES_FROM_EMAIL: z.string().email().default("noreply@example.com"),
+    // Optional runtime SES session (see docs/operations/ses-runtime-credentials.md). When set, SES
+    // clients read the mounted, renewable record instead of process environment keys.
+    // Empty is treated as unset, so the test runner can blank inherited values.
+    SES_SESSION_DIRECTORY: z.preprocess(v => v === "" ? undefined : v, z.string().refine(v => isAbsolute(v) && normalize(v) === v && v !== "/",
+      "Expected a normalized absolute directory").optional()),
+    SES_SESSION_SOURCE_ARN: z.preprocess(v => v === "" ? undefined : v, z.string().regex(SES_SOURCE_ARN_PATTERN, "Expected an STS federated-user or assumed-role ARN").optional()),
     FRONTEND_URL: z.string().url().default("http://localhost:3000"),
     // Canonical public storefront origin for sitemap URLs. Deliberately separate from
     // FRONTEND_URL and never derived from the API host; the sitemap is disabled when unset.
@@ -64,13 +75,11 @@ const configSchema = z.object({
     IDEAL_POSTCODES_API_KEY: z.string().nonempty().optional(),
     STRIPE_SECRET_KEY: z.string().nonempty().optional(),
     STRIPE_WEBHOOK_SECRET: z.string().nonempty().optional(),
-    PAYPAL_CLIENT_ID: z.string().nonempty().optional(),
-    PAYPAL_CLIENT_SECRET: z.string().nonempty().optional(),
-  PAYPAL_BASE_URL: z.string().url().default("https://api-m.sandbox.paypal.com"),
-    PAYPAL_WEBHOOK_ID: z.string().optional(),
     CLOUDINARY_CLOUD_NAME: z.string().nonempty().optional(),
     CLOUDINARY_API_KEY: z.string().nonempty().optional(),
     CLOUDINARY_API_SECRET: z.string().nonempty().optional(),
+  }).refine(c => !c.SES_SESSION_DIRECTORY === !c.SES_SESSION_SOURCE_ARN, {
+    message: "SES_SESSION_DIRECTORY and SES_SESSION_SOURCE_ARN must be set together", path: ["SES_SESSION_SOURCE_ARN"],
   });
 
 const parsed = configSchema.safeParse({

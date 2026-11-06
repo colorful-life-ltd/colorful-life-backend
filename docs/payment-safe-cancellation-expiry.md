@@ -1,5 +1,7 @@
 # Payment-safe customer cancellation and reservation expiry — Issue #154
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 ## Production rollout limitation
 
 **Any existing Payment record blocks ordinary cancellation and reservation expiry. Unresolved attempts can retain stock indefinitely, including abandoned attempts and provider failures. Production rollout requires a safe payment-resolution and reservation-release process. Never delete payment records or release inventory solely because a local timeout elapsed.**

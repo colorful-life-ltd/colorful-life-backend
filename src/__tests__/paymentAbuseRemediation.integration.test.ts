@@ -9,8 +9,6 @@ import { config } from '../config/index.js';
 import { prisma } from '../prisma/runtime.js';
 import { stagingLimits } from '../domain/security/paymentAbuse.js';
 import { createRefreshSession } from '../domain/auth/refreshSessionService.js';
-import { createOrReusePayPalOrder } from '../domain/payments/paypalOrderService.js';
-import { capturePayPalOrder } from '../domain/payments/paypalCaptureService.js';
 import { validateAbuseStartup } from '../config/paymentAbuse.js';
 
 const saved = { ...config }, proxy = app.get('trust proxy');
@@ -22,7 +20,7 @@ beforeEach(async () => {
   config.PAYMENT_ABUSE_HMAC_SECRET = 'synthetic-194-remediation-shared-secret';
   config.PAYMENT_ABUSE_LIMITS_JSON = undefined;
   config.PAYMENT_RESOLUTION_ENABLED = false;
-  config.PAYMENT_STRIPE_INITIATION_ENABLED = config.PAYMENT_PAYPAL_INITIATION_ENABLED = true;
+  config.PAYMENT_STRIPE_INITIATION_ENABLED = true;
   await prisma.$executeRaw`DELETE FROM "AbuseBucket"`;
 });
 afterEach(async () => {
@@ -82,23 +80,6 @@ it('concurrent refreshes still rotate once without double-spending session allow
   assert.deepEqual(results.map(r => r.status).sort(), [200, 401]);
   assert.equal((await prisma.$queryRaw<any[]>`SELECT * FROM "AbuseBucket"`).length, 1);
 });
-it('PayPal create and capture are one progressive attempt while operation caps and capture idempotency remain independent', async () => {
-  const u = await user(); overrides({ challengeAfter: [1, 900] });
-  async function order() {
-    const o = await prisma.order.create({ data: { userId: u.id, totalAmount: 12.50, reservationExpiresAt: new Date(Date.now()+1800000), billingRecipientName: 'Test', billingLine1: '1 Test St', billingCity: 'London', billingPostcode: 'T1', billingCountryCode: 'GB', deliveryRecipientName: 'Test', deliveryLine1: '1 Test St', deliveryCity: 'London', deliveryPostcode: 'T1', deliveryCountryCode: 'GB' } }); orders.push(o.id); return o;
-  }
-  const o = await order(); let creates = 0, captures = 0;
-  await createOrReusePayPalOrder(o.id, u.id, { createOrder: async () => { creates++; return { id: 'PP-'+randomUUID() }; } });
-  const client = { captureOrder: async (id: string) => { captures++; return { id, status: 'COMPLETED', purchase_units: [{ payments: { captures: [{ id: 'CAP-'+randomUUID(), status: 'COMPLETED', amount: { value: '12.50', currency_code: 'GBP' } }] } }] }; } };
-  const first = await capturePayPalOrder(o.id, u.id, client); assert.equal((await capturePayPalOrder(o.id, u.id, client)).captureId, first.captureId);
-  assert.equal(creates, 1); assert.equal(captures, 1);
-  const [count] = await prisma.$queryRaw<any[]>`SELECT count(*)::int AS operations, count(DISTINCT "attemptIdentity")::int AS attempts FROM "PaymentAdmission" WHERE "orderId"=${o.id}`;
-  assert.deepEqual(count, { operations: 2, attempts: 1 });
-  assert.equal((await prisma.payment.findUniqueOrThrow({ where: { orderId: o.id } })).status, 'SUCCEEDED');
-  const next = await order();
-  await assert.rejects(createOrReusePayPalOrder(next.id, u.id, { createOrder: async () => { throw new Error('Must not call'); } }), (e: any) => e.code === 'CHECKOUT_CHALLENGE_REQUIRED');
-  assert.equal(await prisma.payment.count({ where: { orderId: next.id } }), 0);
-});
 it('new foreign keys match Prisma CASCADE updates and deletes', async () => {
   const rows = await prisma.$queryRaw<any[]>`SELECT conname, confupdtype::text AS confupdtype, confdeltype::text AS confdeltype FROM pg_constraint WHERE conname IN ('PaymentAdmission_orderId_fkey','PaymentFulfilmentReview_orderId_fkey')`;
   assert.equal(rows.length, 2); for (const row of rows) { assert.equal(row.confupdtype, 'c'); assert.equal(row.confdeltype, 'c'); }
@@ -114,7 +95,7 @@ it('accepts explicit direct/proxy deployment modes and valid staging overrides',
   validateAbuseStartup(valid, 'production'); validateAbuseStartup({ ...valid, CLIENT_IP_MODE: 'proxy', TRUSTED_PROXY_CIDRS: '10.0.0.0/16', PAYMENT_ABUSE_LIMITS_JSON: '{"provider":[100,900]}' }, 'production');
 });
 it('actual production config import exits before serving requests on missing abuse configuration without leaking values', () => {
-  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true',PAYPAL_BASE_URL:'https://api-m.paypal.com', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
+  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
   delete env.PAYMENT_ABUSE_HMAC_SECRET; delete env.NODE_TEST_CONTEXT;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', 'await import("./dist/config/index.js")'], { env, encoding: 'utf8' });
   assert.equal(result.status, 1); assert.match(result.stderr, /PAYMENT_ABUSE_HMAC_SECRET/);
@@ -125,18 +106,18 @@ for (const [name, override, expected] of [
   ['missing proxy mode', { CLIENT_IP_MODE: undefined }, 'CLIENT_IP_MODE'],
   ['proxy without trusted ranges', { CLIENT_IP_MODE: 'proxy', TRUSTED_PROXY_CIDRS: undefined }, 'TRUSTED_PROXY_CIDRS'],
 ] as const) it(`production import fails fast for ${name} with sanitized output`, () => {
-  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true',PAYPAL_BASE_URL:'https://api-m.paypal.com', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct', ...override };
+  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct', ...override };
   delete env.NODE_TEST_CONTEXT;
   for (const [key, value] of Object.entries(env)) if (value === undefined) delete env[key];
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', 'await import("./dist/config/index.js")'], { env, encoding: 'utf8' });
   assert.equal(result.status, 1); assert.ok(result.stderr.includes(expected)); assert.ok(!result.stderr.includes('sensitive-invalid-input'));
 });
-it('production imports default both provider switches off and only explicit flags enable them', () => {
+it('production imports default Stripe initiation off, only an explicit flag enables it, and no flag exists for PayPal', () => {
   for (const enable of [false, true]) {
-    const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true',PAYPAL_BASE_URL:'https://api-m.paypal.com', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
+    const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT:'production', STRIPE_SECRET_KEY:'sk_live_synthetic_never_used', JWT_SECRET:'a09e462f543750f8a1774512f9926a3c49265a850924163f8092620956ade87e9', FRONTEND_URL:'https://shop.colorful-life.co.uk',CORS_ALLOWED_ORIGINS:'https://shop.colorful-life.co.uk',SES_FROM_EMAIL:'no-reply@colorful-life.co.uk',PAYMENT_RESOLUTION_ENABLED:'true', DATABASE_URL: 'postgresql://unused@127.0.0.1:1/never_connect', CLIENT_IP_MODE: 'direct' };
     delete env.NODE_TEST_CONTEXT; delete env.PAYMENT_STRIPE_INITIATION_ENABLED; delete env.PAYMENT_PAYPAL_INITIATION_ENABLED;
-    if (enable) { env.STRIPE_SECRET_KEY='sk_live_synthetic_never_used';env.STRIPE_WEBHOOK_SECRET='whsec_synthetic_never_used';env.PAYPAL_CLIENT_ID='synthetic-never-used'; env.PAYMENT_STRIPE_INITIATION_ENABLED = 'true'; env.PAYMENT_PAYPAL_INITIATION_ENABLED = 'true'; }
-    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `const {config}=await import('./dist/config/index.js');if(config.PAYMENT_STRIPE_INITIATION_ENABLED!==${enable}||config.PAYMENT_PAYPAL_INITIATION_ENABLED!==${enable})process.exit(2)`], { env, encoding: 'utf8' });
+    if (enable) { env.STRIPE_SECRET_KEY='sk_live_synthetic_never_used';env.STRIPE_WEBHOOK_SECRET='whsec_synthetic_never_used';env.PAYMENT_STRIPE_INITIATION_ENABLED = 'true'; env.PAYMENT_PAYPAL_INITIATION_ENABLED = 'true'; }
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `const {config}=await import('./dist/config/index.js');if(config.PAYMENT_STRIPE_INITIATION_ENABLED!==${enable}||'PAYMENT_PAYPAL_INITIATION_ENABLED' in config)process.exit(2)`], { env, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
   }
 });

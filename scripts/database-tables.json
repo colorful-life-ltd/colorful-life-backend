@@ -23,6 +23,7 @@
   "Payment",
   "PaymentWebhookEvent",
   "Refund",
+  "RetiredRefundRequestKey",
   "OrderItem",
   "OrderReturn",
   "Purchase",
@@ -51,5 +52,7 @@
   "PaymentSecurityEvent",
   "PaymentFulfilmentReview",
   "PaymentChallengeUse",
-  "OperationalAudit"
+  "OperationalAudit",
+  "ReturnCase",
+  "ReturnSubmission"
 ]

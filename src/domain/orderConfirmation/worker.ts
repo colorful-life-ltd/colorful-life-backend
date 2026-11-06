@@ -1,3 +1,4 @@
+import { returnAuthorizationSchema } from './returnAuthorization.js';
 import { isConfirmationPayment } from './verifiedPayment.js';
 import { dispatchSchema } from './dispatch.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -7,7 +8,7 @@ import { config } from '../../config/index.js';
 import { prisma } from '../../prisma/runtime.js';
 import type { OrderConfirmationJob, Prisma } from '../../generated/prisma-client/client.js';
 import { businessSchema, invoiceSchema, purchaseSchema, type Invoice } from './contract.js';
-import { composeConfirmation, composeDispatch, DeliveryRejected, sesConfirmationTransport, type ConfirmationTransport } from './delivery.js';
+import { composeConfirmation, composeDispatch, composeReturnAuthorization, DeliveryRejected, sesConfirmationTransport, type ConfirmationTransport } from './delivery.js';
 import { generateInvoicePdf, UnsupportedInvoiceText, InvoiceFontUnavailable } from './pdf.js';
 
 const LEASE_MS = 120_000, MAX_ATTEMPTS = 8;
@@ -21,6 +22,11 @@ async function owns(tx: Prisma.TransactionClient, claim: OrderConfirmationJob) {
 async function ineligibleReason(tx: Prisma.TransactionClient, claim: OrderConfirmationJob) {
   const order = await tx.order.findUniqueOrThrow({ where: { id: claim.orderId }, include: { payments: true, paymentResolution: true, user: { select: { deletedAt: true } } } });
   if (order.user.deletedAt) return 'ACCOUNT_DELETED';
+  if (claim.type === 'RETURN_AUTHORIZATION') {
+    const parsed=returnAuthorizationSchema.safeParse(claim.source);if(!parsed.success)return 'RETURN_DATA_INVALID';
+    const line=await tx.orderReturn.findFirst({where:{id:parsed.data.returnId,orderItem:{orderId:claim.orderId}},select:{status:true,instructions:true}});
+    return line&&['AUTHORIZED','RECEIVED','INSPECTED','COMPLETED'].includes(line.status)&&line.instructions?null:'RETURN_NO_LONGER_AUTHORIZED';
+  }
   if (claim.type === 'DISPATCH_CONFIRMATION') {
     const parsed = dispatchSchema.safeParse(claim.source);
     if (!parsed.success) return 'DISPATCH_DATA_INVALID';
@@ -88,7 +94,7 @@ async function ensureInvoice(claim: OrderConfirmationJob, business: unknown) {
   });
 }
 async function prepareMessage(claim: OrderConfirmationJob, business: unknown): Promise<{ message: Buffer; presentation?: InvoicePresentation } | null> {
-  if (claim.type === 'DISPATCH_CONFIRMATION') {
+  if (claim.type === 'DISPATCH_CONFIRMATION' || claim.type === 'RETURN_AUTHORIZATION') {
     const brand = await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${claim.orderId} FOR NO KEY UPDATE`;
       const job = await owns(tx, claim);
@@ -98,7 +104,7 @@ async function prepareMessage(claim: OrderConfirmationJob, business: unknown): P
       await tx.orderConfirmationJob.update({ where: { id: job.id }, data: { brandSnapshot: parsed.data as Prisma.InputJsonValue } });
       return parsed.data;
     });
-    return brand ? { message: await composeDispatch(dispatchSchema.parse(claim.source), brand) } : null;
+    return brand ? { message: claim.type === 'RETURN_AUTHORIZATION' ? await composeReturnAuthorization(claim.source,brand) : await composeDispatch(dispatchSchema.parse(claim.source), brand) } : null;
   }
   let invoice = await ensureInvoice(claim, business); if (!invoice) return null;
   const snapshot: Invoice = invoiceSchema.parse(invoice.snapshot);
@@ -120,7 +126,7 @@ export type ConfirmationBatchOptions = { transport?: ConfirmationTransport; busi
 /** Capture transports may run while production sending is off. No HTTP mutation endpoint is exposed. */
 export async function runConfirmationBatch(options: ConfirmationBatchOptions = {}) {
   const transport = options.transport ?? sesConfirmationTransport;
-  const allTypes: EmailType[] = ['ORDER_CONFIRMATION', 'DISPATCH_CONFIRMATION'];
+  const allTypes: EmailType[] = ['ORDER_CONFIRMATION', 'DISPATCH_CONFIRMATION', 'RETURN_AUTHORIZATION'];
   const types = (options.types ?? allTypes).filter(type => transport.kind === 'capture' || emailEnabled(type));
   if (!types.length || transport.kind === 'ses' && process.env.NODE_ENV === 'test') return { processed: 0, disabled: true };
   if (transport.kind === 'ses') for (const type of types) approvedEmailConfiguration(type);
@@ -130,7 +136,7 @@ export async function runConfirmationBatch(options: ConfirmationBatchOptions = {
     processed++;
     let started = false;
     try {
-      const parsed = (claim.type === 'DISPATCH_CONFIRMATION' ? dispatchSchema : purchaseSchema).safeParse(claim.source);
+      const parsed = (claim.type === 'RETURN_AUTHORIZATION' ? returnAuthorizationSchema : claim.type === 'DISPATCH_CONFIRMATION' ? dispatchSchema : purchaseSchema).safeParse(claim.source);
       if (!parsed.success) { await settle(claim, 'BLOCKED', claim.type === 'DISPATCH_CONFIRMATION' ? 'DISPATCH_DATA_INVALID' : 'PURCHASE_DATA_INVALID'); continue; }
       const activeFrom = transport.kind === 'capture' ? options.activeFrom ?? new Date(0) : activationCutoff(claim.type as EmailType);
       if (!Number.isFinite(activeFrom.getTime()) || activeFrom.getTime() > Date.now()) throw new Error('Invalid activation cutoff');
@@ -186,7 +192,7 @@ export async function requeueConfirmation(jobId: string, acknowledgeUncertainAcc
 export function startOrderConfirmationWorker(intervalMs = 5000) {
   let stopped = false;
   const pending = new Set<Promise<void>>();
-  const types: EmailType[] = ['ORDER_CONFIRMATION', 'DISPATCH_CONFIRMATION'];
+  const types: EmailType[] = ['ORDER_CONFIRMATION', 'DISPATCH_CONFIRMATION', 'RETURN_AUTHORIZATION'];
   const ticks = types.map(type => createEmailReadinessTick({
     enabled: () => !stopped && emailEnabled(type) && process.env.NODE_ENV !== 'test',
     probe: () => checkEmailProviderReady(type), run: () => runConfirmationBatch({ types: [type] }),

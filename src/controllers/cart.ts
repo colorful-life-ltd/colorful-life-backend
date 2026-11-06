@@ -2,11 +2,12 @@ import {logOperationalError} from "../utils/operationalLog.js";
 import { InvalidListingPriceError } from "../domain/products/listingPrice.js";
 import type { Request, Response } from "express";
 import { addCartItem, clearCart, getCart, removeCartItem, updateCartItem } from "../domain/cart/cartService.js";
-import { CartItemNotFoundError, InsufficientAvailableStockError, ProductListingInactiveError, ProductListingNotFoundError } from "../domain/cart/cartErrors.js";
+import { CartAccountUnavailableError, CartItemNotFoundError, InsufficientAvailableStockError, ProductListingInactiveError, ProductListingNotFoundError } from "../domain/cart/cartErrors.js";
 import { CartItemSchema, UpdateCartItemSchema } from "../domain/cart/cartValidator.js";
 
 function listingId(req: Request) { const id = Number(req.params.productListingId); return Number.isInteger(id) && id > 0 ? id : null; }
 function respondError(res: Response, err: unknown) {
+  if (err instanceof CartAccountUnavailableError) return res.status(401).json({ error: err.message });
   if (err instanceof CartItemNotFoundError || err instanceof ProductListingNotFoundError) return res.status(404).json({ error: err.message });
   if (err instanceof InvalidListingPriceError || err instanceof ProductListingInactiveError || err instanceof InsufficientAvailableStockError) return res.status(409).json({ error: err.message });
   logOperationalError("Cart error"); return res.status(500).json({ error: "Internal server error" });

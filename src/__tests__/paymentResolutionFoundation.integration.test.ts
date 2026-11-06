@@ -79,7 +79,7 @@ describe("foundation historical backfill and PostgreSQL enforcement", () => {
   after(async () => { if (s) await s.close(); });
   beforeEach(async () => { await c.query("BEGIN"); });
   afterEach(async () => { await c.query("ROLLBACK"); });
-  async function eligible(kind: "FAILURE" | "SUCCESS" | "TERMINAL_UNPAID" = "FAILURE", provider: "STRIPE" | "PAYPAL" = "STRIPE") {
+  async function eligible(kind: "FAILURE" | "SUCCESS" | "TERMINAL_UNPAID" = "FAILURE", provider: "STRIPE" = "STRIPE") {
     const o=await order(c);
     const p=await c.query(`INSERT INTO "Payment" ("orderId",amount,currency,provider,"providerReference",status,"updatedAt") VALUES ($1,10,'GBP','${provider}',$2,'FAILED',now()) RETURNING id`,[o.id,`pi_${randomUUID()}`]);
     await c.query(`INSERT INTO "PaymentResolution" ("orderId","orderCreatedAt","initialPaymentDeadline","reservationDisposition","dispositionAt") VALUES ($1,'2026-01-01 12:00+00','2026-01-01 12:30+00','HELD','2026-01-01 12:00+00')`,[o.id]);
@@ -176,47 +176,6 @@ describe("foundation historical backfill and PostgreSQL enforcement", () => {
     await rejects(c,`UPDATE "PaymentAttempt" SET "providerReference"='pi_wrong' WHERE id=$1`,[f.attemptId]);
     await c.query(`UPDATE "PaymentAttempt" SET "providerReference"='pi_expected' WHERE id=$1`,[f.attemptId]);
   });
-  for (const [normalizedKey,receiptKey,binding] of [["providerReference","paypalOrderId","providerReference"],["providerCaptureReference","captureId","providerCaptureReference"]] as const) {
-    it(`rejects conflicting PayPal ${receiptKey} sources on evidence INSERT and UPDATE before binding`, async () => {
-      const f=await eligible("FAILURE","PAYPAL");
-      const w=await c.query(`INSERT INTO "PaymentWebhookEvent" (provider,"providerEventId","eventType",evidence) VALUES ('PAYPAL',$1,'PAYMENT.CAPTURE.DENIED',$2) RETURNING id`,[randomUUID(),JSON.stringify({[receiptKey]:"PP-B"})]);
-      await rejects(c,`INSERT INTO "FinancialEvidence" ("orderId",provider,"evidenceKey",kind,normalized,"verifiedAt","operationId","webhookEventId") VALUES ($1,'PAYPAL',$2,'FAILURE',$3,now(),$4,$5)`,[f.orderId,randomUUID(),JSON.stringify({[normalizedKey]:"PP-A"}),f.opId,w.rows[0].id]);
-      const e=await c.query(`INSERT INTO "FinancialEvidence" ("orderId",provider,"evidenceKey",kind,normalized,"verifiedAt","operationId") VALUES ($1,'PAYPAL',$2,'FAILURE',$3,now(),$4) RETURNING id`,[f.orderId,randomUUID(),JSON.stringify({[normalizedKey]:"PP-A"}),f.opId]);
-      await rejects(c,`UPDATE "FinancialEvidence" SET "webhookEventId"=$2 WHERE id=$1`,[e.rows[0].id,w.rows[0].id]);
-      const matching=await c.query(`INSERT INTO "PaymentWebhookEvent" (provider,"providerEventId","eventType",evidence) VALUES ('PAYPAL',$1,'PAYMENT.CAPTURE.DENIED',$2) RETURNING id`,[randomUUID(),JSON.stringify({[receiptKey]:"PP-A"})]);
-      await c.query(`UPDATE "FinancialEvidence" SET "webhookEventId"=$2 WHERE id=$1`,[e.rows[0].id,matching.rows[0].id]);
-      await rejects(c,`UPDATE "PaymentAttempt" SET "${binding}"='PP-B' WHERE id=$1`,[f.attemptId]);
-      await c.query(`UPDATE "PaymentAttempt" SET "${binding}"='PP-A' WHERE id=$1`,[f.attemptId]);
-    });
-    it(`rejects both late bindings when a linked PayPal ${receiptKey} gains conflicting evidence`, async () => {
-      const f=await eligible("FAILURE","PAYPAL");
-      const w=await c.query(`INSERT INTO "PaymentWebhookEvent" (provider,"providerEventId","eventType") VALUES ('PAYPAL',$1,'PAYMENT.CAPTURE.DENIED') RETURNING id`,[randomUUID()]);
-      await c.query(`INSERT INTO "FinancialEvidence" ("orderId",provider,"evidenceKey",kind,normalized,"verifiedAt","operationId","webhookEventId") VALUES ($1,'PAYPAL',$2,'FAILURE',$3,now(),$4,$5)`,[f.orderId,randomUUID(),JSON.stringify({[normalizedKey]:"PP-A"}),f.opId,w.rows[0].id]);
-      // Simulate verified legacy receipt backfill after the foundation link existed.
-      await c.query(`UPDATE "PaymentWebhookEvent" SET evidence=$2 WHERE id=$1`,[w.rows[0].id,JSON.stringify({[receiptKey]:"PP-B"})]);
-      for(const identity of ["PP-A","PP-B"])await rejects(c,`UPDATE "PaymentAttempt" SET "${binding}"=$2 WHERE id=$1`,[f.attemptId,identity]);
-      assert.equal((await c.query(`SELECT "${binding}" AS value FROM "PaymentAttempt" WHERE id=$1`,[f.attemptId])).rows[0].value,null);
-    });
-    it(`checks referenced PayPal ${receiptKey} independently during subsequent binding`, async () => {
-      const f=await eligible("FAILURE","PAYPAL");
-      const w=await c.query(`INSERT INTO "PaymentWebhookEvent" (provider,"providerEventId","eventType",evidence) VALUES ('PAYPAL',$1,'PAYMENT.CAPTURE.DENIED',$2) RETURNING id`,[randomUUID(),JSON.stringify({[receiptKey]:"PP-A"})]);
-      await c.query(`INSERT INTO "FinancialEvidence" ("orderId",provider,"evidenceKey",kind,normalized,"verifiedAt","operationId","webhookEventId") VALUES ($1,'PAYPAL',$2,'FAILURE','{}',now(),$3,$4)`,[f.orderId,randomUUID(),f.opId,w.rows[0].id]);
-      await rejects(c,`UPDATE "PaymentAttempt" SET "${binding}"='PP-B' WHERE id=$1`,[f.attemptId]);
-      await c.query(`UPDATE "PaymentAttempt" SET "${binding}"='PP-A' WHERE id=$1`,[f.attemptId]);
-    });
-  }
-  for (const [kind,field] of [["SUCCESS","successEvidenceId"],["TERMINAL_UNPAID","finalityEvidenceId"]] as const) {
-    it(`rejects ${field} from another PayPal attempt on the same order on INSERT and UPDATE`, async () => {
-      const f=await eligible(kind,"PAYPAL");
-      const other=await c.query(`INSERT INTO "PaymentAttempt" ("orderId","paymentId",provider,amount,currency,"creationKey","admittedAt") SELECT "orderId","paymentId",provider,amount,currency,$2,"admittedAt" FROM "PaymentAttempt" WHERE id=$1 RETURNING id`,[f.attemptId,randomUUID()]);
-      const op=await c.query(`INSERT INTO "PaymentOperation" ("attemptId",type,"operationKey","requestHash","admittedAt","admissionDeadline") VALUES ($1,'CAPTURE',$2,$3,'2026-01-01 12:15+00','2026-01-01 12:30+00') RETURNING id`,[other.rows[0].id,randomUUID(),'b'.repeat(64)]);
-      const e=await c.query(`INSERT INTO "FinancialEvidence" ("orderId",provider,"evidenceKey",kind,normalized,"verifiedAt","operationId") VALUES ($1,'PAYPAL',$2,$3,'{}',now(),$4) RETURNING id`,[f.orderId,randomUUID(),kind,op.rows[0].id]);
-      await rejects(c,`UPDATE "PaymentAttempt" SET "${field}"=$2 WHERE id=$1`,[f.attemptId,e.rows[0].id]);
-      await rejects(c,`INSERT INTO "PaymentAttempt" ("orderId","paymentId",provider,amount,currency,"creationKey","admittedAt","${field}") SELECT "orderId","paymentId",provider,amount,currency,$2,"admittedAt",$3 FROM "PaymentAttempt" WHERE id=$1`,[f.attemptId,randomUUID(),e.rows[0].id]);
-      await c.query(`UPDATE "PaymentAttempt" SET "${field}"=$2 WHERE id=$1`,[f.attemptId,f.evidenceId]);
-      await c.query(`UPDATE "PaymentAttempt" SET "${field}"=$2 WHERE id=$1`,[other.rows[0].id,e.rows[0].id]);
-    });
-  }
   it("production-style non-owner role cannot delete/reinsert or truncate audit history", async () => {
     const f=await eligible();const role=`foundation_runtime_${randomUUID().replaceAll("-","")}`;
     const schema=(await c.query('SELECT current_schema() AS name')).rows[0].name;

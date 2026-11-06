@@ -11,7 +11,6 @@ import { prisma } from '../prisma/runtime.js';
 import { abuseContext, admitFinancialOperation, admitOrderCreation, bucket, consume, limits, stagingLimits, PaymentAbuseError } from '../domain/security/paymentAbuse.js';
 import { reviewOrder, updatePolicy, pruneSecurityState } from '../domain/security/paymentSecurityOperations.js';
 import { createOrReuseStripePaymentIntent, setStripePaymentClientForTests } from '../domain/payments/stripePaymentService.js';
-import { capturePayPalOrder } from '../domain/payments/paypalCaptureService.js';
 import { assertPaymentVerifiedForFulfilment, dispatchLegacyOrder, dispatchShipment } from '../domain/fulfilment/fulfilmentService.js';
 
 const saved = { ...config };
@@ -26,7 +25,7 @@ after(async () => { server.close(); await prisma.$disconnect(); });
 beforeEach(async () => {
   config.PAYMENT_ABUSE_LIMITS_JSON = undefined;
   config.PAYMENT_ABUSE_HMAC_SECRET = 'synthetic-issue194-shared-hmac-secret';
-  config.PAYMENT_STRIPE_INITIATION_ENABLED = config.PAYMENT_PAYPAL_INITIATION_ENABLED = true;
+  config.PAYMENT_STRIPE_INITIATION_ENABLED = true;
   config.PAYMENT_RESOLUTION_ENABLED = false;
   config.PAYMENT_CHALLENGE_ENABLED = false;
   await prisma.$executeRaw`DELETE FROM "AbuseBucket"`;
@@ -63,7 +62,7 @@ async function catalogue() {
   const input = { shippingMethod: 'STANDARD' as const, items: [{ productListingId: listing.id, quantity: 1 }] };
   return { u, listing, input };
 }
-async function admit(f: Awaited<ReturnType<typeof order>>, identity: string = randomUUID(), network: string = randomUUID(), provider: 'STRIPE' | 'PAYPAL' = 'STRIPE', challengeVerified = false) {
+async function admit(f: Awaited<ReturnType<typeof order>>, identity: string = randomUUID(), network: string = randomUUID(), provider: 'STRIPE' = 'STRIPE', challengeVerified = false) {
   return abuseContext.run({ network, challengeVerified }, () => prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${f.o.id} FOR UPDATE`;
     await admitFinancialOperation(tx, provider, f.o.id, f.u.id, identity);
@@ -147,20 +146,19 @@ describe('distributed checkout admission', { concurrency: 1 }, () => {
     await prisma.$executeRaw`UPDATE "AbuseBucket" SET "updatedAt"=clock_timestamp()-interval '1 hour' WHERE "key"=${b.key}`;
     await prisma.$transaction(tx => consume(tx, [b]));
   });
-  it('does not reset account limits through new IPs, sessions, orders or providers', async () => {
+  it('does not reset account limits through new IPs, sessions or orders', async () => {
     configure({ paymentAccount: [2, 900], challengeAfter: [100, 900] });
     const a = await order(), b = await order(a.u.id), c = await order(a.u.id);
-    await admit(a); await admit(b, randomUUID(), 'different-ip', 'PAYPAL');
+    await admit(a); await admit(b, randomUUID(), 'different-ip');
     await assert.rejects(admit(c, randomUUID(), 'third-ip'), (e: unknown) => e instanceof PaymentAbuseError && e.code === 'CHECKOUT_RATE_LIMITED');
   });
   it('does not reset network limits through new accounts', async () => {
     configure({ paymentNetwork: [1, 900] }); const a = await order(), b = await order();
     await admit(a, randomUUID(), 'same-network'); await assert.rejects(admit(b, randomUUID(), 'same-network'), PaymentAbuseError);
   });
-  it('enforces independently adjustable provider budgets across identities', async () => {
+  it('enforces an adjustable provider budget across identities', async () => {
     const admin = await customer('ADMIN'); await updatePolicy(admin.id, 'STRIPE', true, 1, 'staging global limit');
     await admit(await order()); await assert.rejects(admit(await order()), PaymentAbuseError);
-    await admit(await order(), randomUUID(), randomUUID(), 'PAYPAL');
     await updatePolicy(admin.id, 'STRIPE', true, 2, 'adjust staging budget');
     // Raising capacity does not reset spent credit; refill is still based on time.
     const b = bucket('provider', 'STRIPE'); await prisma.$executeRaw`UPDATE "AbuseBucket" SET "updatedAt"=clock_timestamp()-interval '1 hour' WHERE "key"=${b.key}`;
@@ -194,16 +192,8 @@ describe('initiation switches and safe recovery', { concurrency: 1 }, () => {
     assert.equal(sdk.calls(), 0); assert.equal(await prisma.payment.count({ where: { orderId: f.o.id } }), 0);
     assert.equal(await prisma.paymentOperation.count({ where: { attempt: { orderId: f.o.id } } }), 0);
   });
-  it('blocks a new PayPal capture before journalling and preserves pending stock ownership', async () => {
-    const f = await order(); const payment = await prisma.payment.create({ data: { orderId: f.o.id, amount: 12.50, provider: 'PAYPAL', providerReference: 'ORDER-'+randomUUID() } });
-    config.PAYMENT_PAYPAL_INITIATION_ENABLED = false; let calls = 0;
-    await assert.rejects(capturePayPalOrder(f.o.id, f.u.id, { captureOrder: async () => { calls++; throw new Error('must not call'); } }), PaymentAbuseError);
-    assert.equal(calls, 0); assert.equal((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).captureIdempotencyKey, null);
-    assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.o.id } })).status, 'PENDING');
-  });
-  it('switches providers independently and recovers after re-enabling', async () => {
+  it('refuses Stripe admission while disabled and recovers after re-enabling', async () => {
     const f = await order(); config.PAYMENT_STRIPE_INITIATION_ENABLED = false;
-    await admit(await order(), randomUUID(), randomUUID(), 'PAYPAL');
     await assert.rejects(admit(f), PaymentAbuseError); config.PAYMENT_STRIPE_INITIATION_ENABLED = true; await admit(f);
   });
   it('retains bound Stripe checkout retrieval when new initiation is disabled', async () => {
@@ -232,9 +222,9 @@ describe('initiation switches and safe recovery', { concurrency: 1 }, () => {
     assert.equal((await prisma.$queryRaw<any[]>`SELECT * FROM "PaymentAdmission" WHERE "orderId"=${f.o.id}`).length, 1);
     assert.match((await prisma.payment.findUniqueOrThrow({ where: { orderId: f.o.id } })).providerReference, /^pending:/);
   });
-  it('processes verified Stripe success and refunds while both initiation switches are disabled', async () => {
+  it('processes verified Stripe success and refunds while Stripe initiation is disabled', async () => {
     const f = await order(), sdk = stripe(); await createOrReuseStripePaymentIntent(f.o.id, f.u.id, sdk.client);
-    config.PAYMENT_STRIPE_INITIATION_ENABLED = config.PAYMENT_PAYPAL_INITIATION_ENABLED = false;
+    config.PAYMENT_STRIPE_INITIATION_ENABLED = false;
     const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: f.o.id } });
     const { reconcileStripePaymentEvent } = await import('../domain/payments/stripeReconciliationService.js');
     const eventId = 'evt_'+randomUUID();
@@ -251,17 +241,6 @@ describe('initiation switches and safe recovery', { concurrency: 1 }, () => {
         assert.equal((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).refundedAmount.toString(), '1');
       } finally { restore(); }
     } finally { await prisma.paymentWebhookEvent.deleteMany({ where: { providerEventId: eventId } }); }
-  });
-  it('keeps successful PayPal capture retrieval available with initiation disabled', async () => {
-    const f = await order();
-    await prisma.payment.create({ data: { orderId: f.o.id, amount: 12.50, provider: 'PAYPAL', providerReference: 'ORDER-'+randomUUID(), providerCaptureReference: 'CAP-'+randomUUID(), status: 'SUCCEEDED', paidAt: new Date() } });
-    config.PAYMENT_PAYPAL_INITIATION_ENABLED = false;
-    const result = await capturePayPalOrder(f.o.id, f.u.id, { captureOrder: async () => { throw new Error('No provider POST allowed'); } });
-    assert.ok(result.captureId);
-  });
-  it('keeps PayPal customer order initiation unconditionally disabled', async () => {
-    const f = await order(); const response = await fetch(`${url}/orders/${f.o.id}/payments/paypal`, { method: 'POST', headers: auth(f.u) });
-    assert.equal(response.status, 503); assert.equal((await response.json()).error.code, 'PAYPAL_INITIATION_DISABLED');
   });
 });
 

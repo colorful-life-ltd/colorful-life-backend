@@ -4,7 +4,15 @@ import { prisma } from "../../prisma/runtime.js";
 import { lockCustomerCart, settleCartReconciliation, allocatedQuantity, reduceAllocations } from "./cartProvenanceService.js";
 import { CartReconciliationState as State } from "../../generated/prisma-client/enums.js";
 import { Prisma } from "../../generated/prisma-client/client.js";
-import { CartItemNotFoundError, InsufficientAvailableStockError, ProductListingInactiveError, ProductListingNotFoundError } from "./cartErrors.js";
+import { CartAccountUnavailableError, CartItemNotFoundError, InsufficientAvailableStockError, ProductListingInactiveError, ProductListingNotFoundError } from "./cartErrors.js";
+
+async function lockActiveCustomerCart(tx: Prisma.TransactionClient, userId: number) {
+  await lockCustomerCart(tx, userId);
+  // Authentication may have passed before deletion obtained this same lock.
+  // Read after acquiring it, without adding a User row lock to cart writers.
+  const account = await tx.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
+  if (!account || account.deletedAt !== null) throw new CartAccountUnavailableError();
+}
 
 const listingSelect = {
   id: true, legoProductId: true, condition: true, originalPrice: true, salePrice: true,
@@ -41,7 +49,10 @@ function present(cart: any) {
 export async function getCart(userId: number) {
   // Preserve lazy cart creation; projection reads a consistent quantity/provenance
   // snapshot, with no hidden reconciliation or shopping-intent mutation.
-  await prisma.cart.upsert({ where: { userId }, create: { userId }, update: {} });
+  await prisma.$transaction(async tx => {
+    await lockActiveCustomerCart(tx, userId);
+    await tx.cart.upsert({ where: { userId }, create: { userId }, update: {} });
+  });
   return present(await prisma.$transaction((tx) => tx.cart.findUniqueOrThrow({ where: { userId }, include: cartInclude }),
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }));
 }
@@ -63,7 +74,7 @@ async function validateListing(productListingId: number, quantity: number, db: t
 // Cart lock precedes listing locks. Listing locks precede any provenance writes.
 export async function addCartItem(userId: number, productListingId: number, quantity: number) {
   const itemId = await prisma.$transaction(async (tx) => {
-    await lockCustomerCart(tx, userId);
+    await lockActiveCustomerCart(tx, userId);
     await tx.$queryRaw`SELECT id FROM "ProductListing" WHERE id = ${productListingId} FOR UPDATE`;
     await settleCartReconciliation(tx, userId);
     const cart = await tx.cart.upsert({ where: { userId }, create: { userId }, update: {} });
@@ -82,7 +93,7 @@ export async function addCartItem(userId: number, productListingId: number, quan
 
 export async function updateCartItem(userId: number, productListingId: number, quantity: number) {
   await prisma.$transaction(async (tx) => {
-    await lockCustomerCart(tx, userId);
+    await lockActiveCustomerCart(tx, userId);
     await tx.$queryRaw`SELECT id FROM "ProductListing" WHERE id = ${productListingId} FOR UPDATE`;
     const cart = await tx.cart.findUnique({ where: { userId }, select: { id: true } });
     if (!cart) throw new CartItemNotFoundError();
@@ -106,7 +117,7 @@ export async function updateCartItem(userId: number, productListingId: number, q
 
 export async function removeCartItem(userId: number, productListingId: number) {
   await prisma.$transaction(async (tx) => {
-    await lockCustomerCart(tx, userId);
+    await lockActiveCustomerCart(tx, userId);
     const cart = await tx.cart.findUnique({ where: { userId }, select: { id: true } });
     const original = cart ? await tx.cartItem.findUnique({ where: { cartId_productListingId: { cartId: cart.id, productListingId } } }) : null;
     if (!original) throw new CartItemNotFoundError();
@@ -122,7 +133,7 @@ export async function removeCartItem(userId: number, productListingId: number) {
 
 export async function clearCart(userId: number) {
   await prisma.$transaction(async (tx) => {
-    await lockCustomerCart(tx, userId);
+    await lockActiveCustomerCart(tx, userId);
     await settleCartReconciliation(tx, userId);
     const cart = await tx.cart.findUnique({ where: { userId }, include: { items: true } });
     if (!cart) return;

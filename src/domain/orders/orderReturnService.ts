@@ -1,4 +1,6 @@
-import { assertReturnInventoryEligible, lockReturnScope } from "./returnInventorySafety.js";
+import { randomUUID } from "node:crypto";
+import type { Prisma } from "../../generated/prisma-client/client.js";
+import { assertReturnInventoryEligible, assertNewReturnAdmission, lockReturnScope } from "./returnInventorySafety.js";
 import { prisma } from "../../prisma/runtime.js";
 import {
   ReturnReason,
@@ -149,9 +151,11 @@ export async function requestOrderReturn(
   quantity: number,
   reason: ReturnReason,
   reasonNote: string | undefined,
-  shippingPayer: ReturnShippingPayer,
+  shippingPayer: ReturnShippingPayer | null,
   returnShippingCost: number | undefined,
   performedByUserId: number,
+  transaction?: Prisma.TransactionClient,
+  submissionId?: string,
 ) {
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw new InvalidReturnQuantityError();
@@ -161,7 +165,7 @@ export async function requestOrderReturn(
     throw new InvalidReturnReasonError();
   }
 
-  if (!Object.values(ReturnShippingPayer).includes(shippingPayer)) {
+  if (shippingPayer !== null && !Object.values(ReturnShippingPayer).includes(shippingPayer)) {
     throw new InvalidReturnShippingPayerError();
   }
 
@@ -172,7 +176,7 @@ export async function requestOrderReturn(
     throw new InvalidReturnShippingCostError();
   }
 
-  return prisma.$transaction(async (tx) => {
+  return inTransaction(transaction, async (tx) => {
     await lockReturnScope(tx, orderId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -182,6 +186,8 @@ export async function requestOrderReturn(
     if (!order) {
       throw new OrderNotFoundError(orderId);
     }
+
+    await assertNewReturnAdmission(tx, orderId);
 
     const orderItem = await tx.orderItem.findFirst({
       where: {
@@ -218,8 +224,15 @@ export async function requestOrderReturn(
       );
     }
 
+    if (!submissionId) {
+      const returnCase = await tx.returnCase.findUnique({ where: { orderId } }) ?? await tx.returnCase.create({ data: { orderId, reference: `BB-R-${orderId}` } });
+      const submission = await tx.returnSubmission.create({ data: { caseId: returnCase.id, idempotencyKey: randomUUID(), requestHash: 'LEGACY_ADMIN_REQUEST' } });
+      submissionId = submission.id;
+    }
+    await tx.operationalAudit.create({ data: {kind:'RETURN_LINE_REQUESTED',orderId,actorId:performedByUserId,details:{submissionId,orderItemId,quantity}} });
     return tx.orderReturn.create({
       data: {
+        submissionId,
         orderItemId,
         quantity,
         reason,
@@ -234,8 +247,8 @@ export async function requestOrderReturn(
   });
 }
 
-export async function cancelOrderReturn(orderId: number, returnId: number) {
-  return prisma.$transaction(async (tx) => {
+export async function cancelOrderReturn(orderId: number, returnId: number, transaction?: Prisma.TransactionClient) {
+  return inTransaction(transaction, async (tx) => {
     await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -253,7 +266,7 @@ export async function cancelOrderReturn(orderId: number, returnId: number) {
     const claimResult = await tx.orderReturn.updateMany({
       where: {
         id: returnId,
-        status: OrderReturnStatus.REQUESTED,
+        status: { in: [OrderReturnStatus.REQUESTED, OrderReturnStatus.AUTHORIZED] },
         orderItem: { orderId },
       },
       data: { status: OrderReturnStatus.CANCELLED, cancelledAt },
@@ -286,8 +299,9 @@ export async function cancelOrderReturn(orderId: number, returnId: number) {
 export async function authorizeOrderReturn(
   orderId: number,
   returnId: number,
+  transaction?: Prisma.TransactionClient,
 ) {
-  return prisma.$transaction(async (tx) => {
+  return inTransaction(transaction, async (tx) => {
     await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -360,8 +374,9 @@ export async function authorizeOrderReturn(
 export async function receiveOrderReturn(
   orderId: number,
   returnId: number,
+  transaction?: Prisma.TransactionClient,
 ) {
-  return prisma.$transaction(async (tx) => {
+  return inTransaction(transaction, async (tx) => {
     await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -438,6 +453,7 @@ export async function inspectOrderReturn(
   restockQuantity: number,
   inspectionNote: string | undefined,
   inspectedByUserId: number,
+  transaction?: Prisma.TransactionClient,
 ) {
   if (!Object.values(ReturnCondition).includes(condition)) {
     throw new InvalidReturnConditionError();
@@ -451,7 +467,7 @@ export async function inspectOrderReturn(
     throw new InvalidInspectionRestockConditionError();
   }
 
-  return prisma.$transaction(async (tx) => {
+  return inTransaction(transaction, async (tx) => {
     await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -540,8 +556,9 @@ export async function completeOrderReturn(
   orderId: number,
   returnId: number,
   performedByUserId: number,
+  transaction?: Prisma.TransactionClient,
 ) {
-  return prisma.$transaction(async (tx) => {
+  return inTransaction(transaction, async (tx) => {
     await lockReturnScope(tx, orderId, returnId);
     const order = await tx.order.findUnique({
       where: { id: orderId },
@@ -702,3 +719,5 @@ export async function completeOrderReturn(
     });
   });
 }
+
+function inTransaction<T>(transaction: Prisma.TransactionClient | undefined, run: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> { return transaction ? run(transaction) : prisma.$transaction(run); }

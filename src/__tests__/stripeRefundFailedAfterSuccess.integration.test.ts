@@ -6,7 +6,6 @@ import { randomUUID } from "node:crypto";
 import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { createOrReuseStripeRefund, setStripeRefundClientForTests, type StripeRefundClient, type StripeRefundResponse } from "../domain/refunds/stripeRefundService.js";
-import { createOrReusePayPalRefund, type PayPalRefundClient } from "../domain/refunds/paypalRefundService.js";
 import { applyRefundObservation, RefundIntentError } from "../domain/refunds/refundLifecycleService.js";
 import { reconcileExternalRefund } from "../domain/refunds/refundReconciliationService.js";
 import { resolveRefundReview } from "../domain/refunds/refundReviewService.js";
@@ -18,7 +17,7 @@ const restores: Array<() => void> = []; const oldFlag = config.REFUND_RECONCILIA
 afterEach(() => { restores.splice(0).reverse().forEach(r => r()); config.REFUND_RECONCILIATION_ENABLED = oldFlag; });
 after(async () => { await prisma.$disconnect(); });
 
-async function fixture(provider: "STRIPE" | "PAYPAL" = "STRIPE") {
+async function fixture() {
   const user = await prisma.user.create({ data: { email: `${randomUUID()}@failed-after-success.test`, passwordHash: "fixture", role: "ADMIN", emailVerified: true } });
   const product = await prisma.legoProduct.create({ data: { setNumber: randomUUID(), title: "Failed refund fixture", theme: "TEST", ageRecommendation: "8+", pieceCount: 1 } });
   const stock = await prisma.productListing.create({ data: { legoProductId: product.id, condition: "NEW", originalPrice: 100, currentStock: 5, reservedStock: 0 } });
@@ -26,8 +25,8 @@ async function fixture(provider: "STRIPE" | "PAYPAL" = "STRIPE") {
     billingRecipientName: "Fixture", billingLine1: "Fixture", billingCity: "Fixture", billingPostcode: "T1", billingCountryCode: "GB",
     deliveryRecipientName: "Fixture", deliveryLine1: "Fixture", deliveryCity: "Fixture", deliveryPostcode: "T1", deliveryCountryCode: "GB",
     orderItems: { create: { productListingId: stock.id, quantity: 1, unitPrice: 100, lineTotal: 100 } } } });
-  const payment = await prisma.payment.create({ data: { orderId: order.id, provider, providerReference: provider === "STRIPE" ? `pi_${randomUUID()}` : `ORDER-${randomUUID()}`,
-    ...(provider === "PAYPAL" ? { providerCaptureReference: `CAP-${randomUUID()}` } : {}), amount: 100, currency: "GBP", status: "SUCCEEDED", paidAt: new Date() } });
+  const payment = await prisma.payment.create({ data: { orderId: order.id, provider: "STRIPE", providerReference: `pi_${randomUUID()}`,
+    amount: 100, currency: "GBP", status: "SUCCEEDED", paidAt: new Date() } });
   return { user, order, payment, stock };
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
@@ -187,25 +186,10 @@ it("the database allows the status change only for an audited Stripe failure-aft
   await prisma.$executeRaw`INSERT INTO "OperationalAudit" (kind,"orderId","refundId","requestKey",details) VALUES ('REFUND_FAILED_AFTER_SUCCESS',${f.order.id},${refund.id},${`refund-failed-after-success:${refund.id}`},'{}'::jsonb)`;
   await assert.rejects(prisma.refund.update({ where: { id: refund.id }, data: { status: "FAILED", amount: 9 } }), /immutable/);
   await assert.rejects(prisma.refund.update({ where: { id: refund.id }, data: { status: "PROCESSING" } }), /immutable/);
-  const g = await fixture("PAYPAL"); const reference = `PP-${randomUUID()}`;
-  const pp = await createOrReusePayPalRefund(g.order.id, g.payment.id, 10, undefined, g.user.id, { refundCapture: async () => paypalCompleted(g, reference) }, undefined, randomUUID());
-  await prisma.$executeRaw`INSERT INTO "OperationalAudit" (kind,"orderId","refundId","requestKey",details) VALUES ('REFUND_FAILED_AFTER_SUCCESS',${g.order.id},${pp.id},${`refund-failed-after-success:${pp.id}`},'{}'::jsonb)`;
-  await assert.rejects(prisma.refund.update({ where: { id: pp.id }, data: { status: "FAILED" } }), /immutable/);
-});
-
-function paypalCompleted(f: Fixture, id: string) {
-  return { id, status: "COMPLETED", amount: { value: "10.00", currency_code: "GBP" },
-    links: [{ rel: "up", href: `${config.PAYPAL_BASE_URL}/v2/payments/captures/${f.payment.providerCaptureReference}` }] } as Awaited<ReturnType<PayPalRefundClient["refundCapture"]>>;
-}
-
-it("PayPal refunds keep today's behaviour: a later FAILED read is a conflict and never moves money", async () => {
-  const f = await fixture("PAYPAL"); const reference = `PP-${randomUUID()}`;
-  const refund = await createOrReusePayPalRefund(f.order.id, f.payment.id, 10, undefined, f.user.id, { refundCapture: async () => paypalCompleted(f, reference) }, undefined, randomUUID());
-  assert.equal(refund.status, "SUCCEEDED");
-  for (const source of ["WEBHOOK", "GET"] as const) {
-    const observed = await applyRefundObservation(refund.id, { provider: "PAYPAL", reference, parentReference: f.payment.providerCaptureReference!, amount: "10.00", currency: "GBP", status: "FAILED", source });
-    assert.equal(observed.status, "SUCCEEDED"); assert.equal(observed.resolutionCode, "TERMINAL_EVIDENCE_CONFLICT"); assert.equal(observed.reviewRequired, true);
-  }
-  assert.deepEqual(await amounts(f), { refunded: "10.00", reserved: "0.00" });
-  assert.equal(await prisma.operationalAudit.count({ where: { refundId: refund.id, kind: "REFUND_FAILED_AFTER_SUCCESS" } }), 0);
+  // The shared exception both guards rely on is Stripe-only, even with the adjustment audit present.
+  const [allowed] = await prisma.$queryRaw<Array<{ stripe: boolean; manual: boolean }>>`SELECT
+    refund_stripe_failure_after_success_allowed(r, jsonb_populate_record(r, '{"status":"FAILED"}'::jsonb)) AS stripe,
+    refund_stripe_failure_after_success_allowed(jsonb_populate_record(r, '{"provider":"MANUAL"}'::jsonb), jsonb_populate_record(r, '{"provider":"MANUAL","status":"FAILED"}'::jsonb)) AS manual
+    FROM "Refund" r WHERE r.id=${refund.id}`;
+  assert.deepEqual(allowed, { stripe: true, manual: false });
 });

@@ -100,7 +100,14 @@ export const listPaymentsHandler = async (req: Request, res: Response) => {
         { createdAt: "desc" },
       ],
     });
-    return res.json(payments);
+    // Renderer-facing contract: expose a Stripe PaymentIntent reference only when it
+    // is a real pi_ identifier. Never expose internal pending keys as provider refs.
+    return res.json(payments.map(payment => ({
+      ...payment,
+      paymentIntentReference: payment.provider === 'STRIPE' && /^pi_[A-Za-z0-9]+$/.test(payment.providerReference)
+        ? payment.providerReference
+        : null,
+    })));
   } catch (err: unknown) {
     if(err instanceof ManualPaymentAuthorizationError)return res.status(err.status).json({error:err.code});
     logOperationalError("List payments error", err);

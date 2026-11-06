@@ -1,3 +1,4 @@
+import { dispatchOrder } from "../domain/orders/orderDispatchService.js";
 import { recordVerifiedPayment } from "./fixtures/verifiedPayment.js";
 import { confirmOrder } from "../domain/orders/orderConfirmationService.js";
 import assert from "node:assert";
@@ -101,6 +102,7 @@ async function createOrderFixture(customerId: number, quantity = 3) {
   });
   await recordVerifiedPayment(order.id);
   await confirmOrder(customerId, order.id);
+  await dispatchOrder(order.id,0,"Royal Mail","AB123456789GB",customerId);
   orderIdsForCleanup.push(order.id);
   return { listing, order, orderItem: order.orderItems[0] };
 }
@@ -126,11 +128,12 @@ async function authorizeReturn(
   returnId: number | string,
   token: string | undefined,
 ) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {"Content-Type":"application/json"};
   if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(`${url}/orders/${orderId}/returns/${returnId}/authorize`, {
     method: "POST",
     headers,
+    body: JSON.stringify({shippingPayer:"SELLER",postageInstructions:"Contact support to arrange prepaid return postage.",rightsReviewed:true}),
   });
 }
 
@@ -140,11 +143,12 @@ async function receiveReturn(
   returnId: number | string,
   token: string | undefined,
 ) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {"Content-Type":"application/json"};
   if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(`${url}/orders/${orderId}/returns/${returnId}/receive`, {
     method: "POST",
     headers,
+    body: JSON.stringify({receivedAt:new Date(Date.now()-1).toISOString(),note:"Received synthetic test parcel"}),
   });
 }
 
@@ -155,15 +159,15 @@ async function inspectReturn(url: string, orderId: number | string, returnId: nu
 }
 
 async function completeReturn(url: string, orderId: number | string, returnId: number | string, token: string | undefined) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {"Content-Type":"application/json"};
   if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(`${url}/orders/${orderId}/returns/${returnId}/complete`, { method: "POST", headers });
 }
 
 async function cancelReturn(url: string, orderId: number | string, returnId: number | string, token: string | undefined) {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {"Content-Type":"application/json"};
   if (token) headers.Authorization = `Bearer ${token}`;
-  return fetch(`${url}/orders/${orderId}/returns/${returnId}/cancel`, { method: "POST", headers });
+  return fetch(`${url}/orders/${orderId}/returns/${returnId}/cancel`, { method: "POST", headers, body:JSON.stringify({note:"Synthetic cancellation"}) });
 }
 
 describe("Order Return HTTP Integration", () => {
@@ -604,9 +608,16 @@ describe("Order Return HTTP Integration", () => {
     const fixture = await createInspectedHttpReturn(customer.id, 2, 1);
     const itemBefore = await prisma.orderItem.findUnique({ where: { id: fixture.orderItem.id } });
     const listingBefore = await prisma.productListing.findUnique({ where: { id: fixture.listing.id } });
+    const financialSnapshot = () => Promise.all([
+      prisma.payment.findMany({ where: { orderId: fixture.order.id } }),
+      prisma.refund.findMany({ where: { orderId: fixture.order.id } }),
+      prisma.paymentOperation.findMany({ where: { attempt: { orderId: fixture.order.id } } }),
+    ]);
+    const financesBefore = await financialSnapshot();
     const response = await completeReturn(url, fixture.order.id, fixture.returnId, admin.token);
     const body = await response.json();
     assert.strictEqual(response.status, 200, JSON.stringify(body));
+    assert.deepEqual(await financialSnapshot(), financesBefore, "Return completion must not initiate or record refunds/payments");
     assert.strictEqual(body.status, "COMPLETED"); assert.ok(body.completedAt); assert.strictEqual(body.quantity, 2); assert.strictEqual(body.restockQuantity, 1); assert.strictEqual(body.condition, "AS_NEW"); assert.strictEqual(body.performedByUserId, admin.id); assert.strictEqual(body.inspectedByUserId, admin.id);
     const itemAfter = await prisma.orderItem.findUnique({ where: { id: fixture.orderItem.id } }); const listingAfter = await prisma.productListing.findUnique({ where: { id: fixture.listing.id } }); const movements = await prisma.inventoryMovement.findMany({ where: { listingId: fixture.listing.id, type: InventoryMovementType.ORDER_RETURN } });
     assert.strictEqual(itemAfter?.returnedQuantity, (itemBefore?.returnedQuantity ?? 0) + 2); assert.strictEqual(listingAfter?.currentStock, (listingBefore?.currentStock ?? 0) + 1); assert.strictEqual(movements.length, 1); assert.strictEqual(movements[0].quantityChange, 1);

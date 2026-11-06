@@ -5,7 +5,7 @@ export { stagingLimits } from '../../config/paymentAbuse.js';
 import type { Prisma } from '../../generated/prisma-client/client.js';
 import { config } from '../../config/index.js';
 
-export type Provider = 'STRIPE' | 'PAYPAL';
+export type Provider = 'STRIPE';
 type Context = { network: string; accountId?: number; challengeVerified?: boolean };
 export const abuseContext = new AsyncLocalStorage<Context>();
 export class PaymentAbuseError extends Error {
@@ -47,7 +47,7 @@ export async function consume(tx: Prisma.TransactionClient, input: Bucket[]): Pr
   }
 }
 export async function policy(tx: Prisma.TransactionClient, provider: Provider) {
-  const envEnabled = provider === 'STRIPE' ? config.PAYMENT_STRIPE_INITIATION_ENABLED : config.PAYMENT_PAYPAL_INITIATION_ENABLED;
+  const envEnabled = config.PAYMENT_STRIPE_INITIATION_ENABLED;
   // SHARE conflicts with operator policy UPDATE, allowing already admitted calls to complete.
   const rows = await tx.$queryRaw<Array<{ enabled: boolean; capacity: number | null }>>`SELECT "enabled", "capacity" FROM "PaymentInitiationPolicy" WHERE "provider"=${provider} FOR SHARE`;
   if (!envEnabled || !rows[0]?.enabled) throw new PaymentAbuseError('PAYMENT_INITIATION_DISABLED', 503);

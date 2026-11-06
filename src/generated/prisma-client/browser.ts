@@ -138,10 +138,25 @@ export type PaymentWebhookEvent = Prisma.PaymentWebhookEventModel
  */
 export type Refund = Prisma.RefundModel
 /**
+ * Model RetiredRefundRequestKey
+ *
+ */
+export type RetiredRefundRequestKey = Prisma.RetiredRefundRequestKeyModel
+/**
  * Model OrderItem
  *
  */
 export type OrderItem = Prisma.OrderItemModel
+/**
+ * Model ReturnCase
+ *
+ */
+export type ReturnCase = Prisma.ReturnCaseModel
+/**
+ * Model ReturnSubmission
+ *
+ */
+export type ReturnSubmission = Prisma.ReturnSubmissionModel
 /**
  * Model OrderReturn
  *

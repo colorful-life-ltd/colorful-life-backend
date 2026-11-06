@@ -13,6 +13,7 @@ import { parsePublicSiteOrigin } from "../domain/seo/publicSiteOrigin.js";
 
 const ORIGIN = "https://shop.example.co.uk";
 const productIds: number[] = [];
+const categoryIds: number[] = [];
 const servers: Server[] = [];
 
 afterEach(async () => {
@@ -21,6 +22,8 @@ afterEach(async () => {
     await prisma.legoProduct.deleteMany({ where: { id: { in: productIds } } });
   }
   productIds.length = 0;
+  if (categoryIds.length) await prisma.category.deleteMany({ where: { id: { in: categoryIds } } });
+  categoryIds.length = 0;
 });
 
 after(async () => { for (const server of servers) server.close(); await prisma.$disconnect(); });
@@ -52,6 +55,22 @@ async function makeProduct({ isPublished = true, currentStock = 1, title = "Site
 const locs = (xml: string) => [...xml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((match) => match[1]);
 const urlEntries = (xml: string) => [...xml.matchAll(/<url>(.*?)<\/url>/g)].map((match) => match[1]);
 const productUrl = (id: number) => `${ORIGIN}/products/${id}`;
+const basePaths = ["/", "/help", "/legal/contact", "/legal/delivery-returns", "/legal/cancellation-form", "/legal/terms", "/legal/privacy", "/legal/cookies"];
+const categorySlug = (name: string, id: number) => {
+  const normalized = name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, " ").trim();
+  const curated: Record<string, string> = { "harry potter": "harry-potter", "star wars": "star-wars", friends: "friends", city: "city", disney: "disney", marvel: "marvel", "jurassic world": "jurassic-world", "flowers botanicals": "flowers-botanicals", ninjago: "ninjago", "dc batman": "dc-batman", vehicles: "vehicles", creator: "creator", others: "others" };
+  return curated[normalized] ?? (normalized.replace(/ /g, "-") || `category-${id}`);
+};
+
+async function expectedNonProductLocs() {
+  const categories = await prisma.category.findMany({ where: { legoProducts: { some: { isPublished: true } } }, select: { id: true, name: true } });
+  const curatedOrder = ["harry-potter", "star-wars", "friends", "city", "disney", "marvel", "jurassic-world", "flowers-botanicals", "ninjago", "dc-batman", "vehicles", "creator", "others"];
+  const ordered = categories.map(row => ({ ...row, normalized: row.name.toLocaleLowerCase("en"), base: categorySlug(row.name, row.id) }))
+    .sort((a, b) => (curatedOrder.indexOf(a.base) < 0 ? 999 : curatedOrder.indexOf(a.base)) - (curatedOrder.indexOf(b.base) < 0 ? 999 : curatedOrder.indexOf(b.base)) || a.normalized.localeCompare(b.normalized, "en") || a.id - b.id);
+  const used = new Set<string>();
+  const paths = ordered.map(({ base, id }) => { let slug = base; if (used.has(slug)) slug = `${base}-${id}`; while (used.has(slug)) slug = `${slug}-${id}`; used.add(slug); return `/categories/${slug}`; });
+  return [...basePaths.map(path => `${ORIGIN}${path}`), ...paths.map(path => `${ORIGIN}${path}`)];
+}
 
 async function expectedProductLocs() {
   const published = await prisma.legoProduct.findMany({ where: { isPublished: true }, select: { id: true }, orderBy: { id: "asc" } });
@@ -108,14 +127,30 @@ describe("GET /sitemap.xml", () => {
     assertUrlset(xml);
 
     const found = locs(xml);
-    assert.equal(found[0], `${ORIGIN}/`);
-    assert.deepEqual(found.slice(1), await expectedProductLocs());
+    const nonProductLocs = await expectedNonProductLocs();
+    assert.deepEqual(found.slice(0, nonProductLocs.length), nonProductLocs);
+    assert.deepEqual(found.slice(nonProductLocs.length), await expectedProductLocs());
     assert.equal(new Set(found).size, found.length, "no duplicate URLs");
     for (const product of [inStock, soldOut, tricky]) assert.ok(found.includes(productUrl(product.id)));
     assert.ok(!found.includes(productUrl(unpublished.id)));
-    assert.ok(found.every((loc) => loc === `${ORIGIN}/` || /^https:\/\/shop\.example\.co\.uk\/products\/[1-9]\d*$/.test(loc)));
+    assert.ok(found.every((loc) => /^https:\/\/shop\.example\.co\.uk\/(?:|products\/[1-9]\d*|categories\/[a-z0-9-]+|help|legal\/[a-z-]+)$/.test(loc)));
     assert.doesNotMatch(xml, /localhost|\/(checkout|account|admin|orders|cart|verify-email|reset-password)\b/);
     assert.doesNotMatch(xml, /Bricks/, "only URLs, never product text, are emitted");
+  });
+
+  it("includes categories with published products and excludes empty or unpublished-only categories", async () => {
+    const suffix = randomUUID();
+    const live = await prisma.category.create({ data: { name: `Marvel ${suffix}` } });
+    const empty = await prisma.category.create({ data: { name: `Empty ${suffix}` } });
+    categoryIds.push(live.id, empty.id);
+    const product = await makeProduct({ currentStock: 0 });
+    await prisma.legoProduct.update({ where: { id: product.id }, data: { categoryId: live.id } });
+    const hidden = await makeProduct({ isPublished: false });
+    await prisma.legoProduct.update({ where: { id: hidden.id }, data: { categoryId: empty.id } });
+    const base = await sitemapServer({ siteUrl: ORIGIN });
+    const xml = await (await fetch(`${base}/sitemap.xml`)).text();
+    assert.ok(locs(xml).includes(`${ORIGIN}/categories/marvel-${suffix.toLocaleLowerCase("en")}`));
+    assert.ok(!locs(xml).some(loc => loc.includes(`empty-${suffix.toLocaleLowerCase("en")}`)));
   });
 
   it("reports a product-level lastmod and keeps product URLs stable as offers sell out", async () => {
@@ -151,7 +186,7 @@ describe("GET /sitemap.xml", () => {
     productIds.push(...created.map((product) => product.id));
     const pageSize = 25;
     const base = await sitemapServer({ siteUrl: ORIGIN, maxUrlsPerSitemap: pageSize });
-    const expected = [`${ORIGIN}/`, ...await expectedProductLocs()];
+    const expected = [...await expectedNonProductLocs(), ...await expectedProductLocs()];
     const pages = Math.ceil(expected.length / pageSize);
     assert.ok(pages > 1);
 

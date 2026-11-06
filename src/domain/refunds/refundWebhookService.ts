@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../prisma/runtime.js";
 import { applyRefundObservationInTransaction, lockRefund } from "./refundLifecycleService.js";
 const text=z.string().min(1).max(256);
-export const RefundWebhookEvidenceSchema=z.object({version:z.literal(2),kind:z.literal("refund"),provider:z.enum(["STRIPE","PAYPAL"]),
+export const RefundWebhookEvidenceSchema=z.object({version:z.literal(2),kind:z.literal("refund"),provider:z.enum(["STRIPE"]),
   id:text,eventType:text,reference:text.optional(),parentReference:text.optional(),localRefundId:z.string().max(64).optional(),localOrderId:z.string().max(64).optional(),
   amount:z.string().max(32).optional(),currency:z.string().max(3).optional(),status:z.enum(["SUCCEEDED","FAILED","PENDING","UNKNOWN"])}).strict();
 export type RefundWebhookEvidence=z.infer<typeof RefundWebhookEvidenceSchema>;

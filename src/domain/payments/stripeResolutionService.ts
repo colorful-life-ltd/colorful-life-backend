@@ -1,6 +1,5 @@
 import { completedSweep } from "../../operations/health.js";
 import {logOperationalError} from "../../utils/operationalLog.js";
-import { resolvePayPalPaymentOutcome } from "./paypalResolutionService.js";
 import type Stripe from "stripe";
 import { prisma } from "../../prisma/runtime.js";
 import { config } from "../../config/index.js";
@@ -23,8 +22,6 @@ export function canSafelyCancelStripeIntent(intent: Stripe.PaymentIntent) {
     && intent.amount_received === 0 && intent.amount_capturable === 0;
 }
 export async function resolvePaymentReservation(orderId: number, client?: StripeResolutionClient) {
-  const provider = await prisma.payment.findUnique({ where: { orderId }, select: { provider: true } });
-  if (provider?.provider === "PAYPAL") { await resolvePayPalPaymentOutcome(orderId); return; }
   const claim = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${orderId} FOR UPDATE`;
     const r = await managedResolution(tx, orderId);
@@ -52,7 +49,7 @@ export async function resolvePaymentReservation(orderId: number, client?: Stripe
     }
     const attempt = await tx.paymentAttempt.findFirst({ where: { paymentId: pay.id, historical: false, providerReference: pay.providerReference } });
     if (!attempt || pay.provider !== "STRIPE" || !pay.providerReference.startsWith("pi_")) {
-      // PayPal has no generic cancel, and placeholders cannot be redispatched safely after key retention.
+      // Placeholders cannot be redispatched safely after key retention; hold instead.
       await tx.paymentResolution.update({ where: { orderId }, data: { state: "SAFETY_HOLD", resolutionNextCheckAt: new Date(now.getTime()+300_000), escalatedAt: r.escalatedAt ?? now } });
       return null;
     }

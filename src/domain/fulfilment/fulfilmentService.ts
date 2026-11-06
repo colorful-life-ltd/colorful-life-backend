@@ -37,7 +37,7 @@ export function fulfilmentStage(order: { status: string; preparingAt: Date | nul
  * FOR UPDATE, fulfilment (Order -> Payment) and refund preparation
  * (Payment -> Order key share) deadlock. Fulfilment only updates non-key columns.
  */
-async function lockOrder(tx: Prisma.TransactionClient, orderId: number) {
+export async function lockOrder(tx: Prisma.TransactionClient, orderId: number) {
   await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR NO KEY UPDATE`;
   const order = await tx.order.findUnique({ where: { id: orderId } });
   if (!order) throw new FulfilmentOrderNotFoundError(orderId);

@@ -2,7 +2,6 @@ import { reconcileRefundWebhook, persistRefundWebhookEvidence } from '../domain/
 import { recordFbaOutbound } from '../domain/inventory/fbaOutboundService.js';
 import { reconcileStocktake } from '../domain/inventory/inventoryAdjustmentService.js';
 import { confirmOrder } from '../domain/orders/orderConfirmationService.js';
-import { PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC } from '../domain/payments/paypalPaymentOutcome.js';
 import assert from 'node:assert/strict';
 import { after, afterEach, before, beforeEach, it } from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -16,12 +15,6 @@ import { createOrder } from '../domain/orders/orderService.js';
 import { createOrReuseStripePaymentIntent, StripePaymentNotPayableError, type StripePaymentClient } from '../domain/payments/stripePaymentService.js';
 import { reconcileStripePaymentEvent, reconcileStripeRefundEvent } from '../domain/payments/stripeReconciliationService.js';
 import { recoverStripePayment } from '../domain/payments/stripePaymentRecoveryService.js';
-import { createOrReusePayPalOrder } from '../domain/payments/paypalOrderService.js';
-import { capturePayPalOrder } from '../domain/payments/paypalCaptureService.js';
-import { resolvePayPalPaymentOutcome, type PayPalResolutionOrder } from '../domain/payments/paypalResolutionService.js';
-import { reconcilePayPalWebhookEvent, persistVerifiedPayPalWebhookEvent } from '../domain/payments/paypalReconciliationService.js';
-import { normalizePayPalRiskResource } from '../domain/payments/paypalRiskEvents.js';
-import { acknowledgePayPalWebhookReview } from '../domain/payments/paypalWebhookReviewService.js';
 import { providerFinancialHold } from '../domain/payments/providerFinancialGuard.js';
 import { retainStripeDispute } from '../domain/payments/stripeDisputeService.js';
 import { startPreparing, dispatchShipment } from '../domain/fulfilment/fulfilmentService.js';
@@ -81,28 +74,6 @@ async function stripeJourney(lateBeforeRetry = false) {
   assert.equal((await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } })).currentStock, 9);
   return { ...f, old, current, oldAttempt, send };
 }
-async function paypalJourney() {
-  const f = await fixture();
-  let creates = 0;
-  const orders: string[] = [];
-  const createClient = { createOrder: async () => { creates++; const id = `PP-${randomUUID()}`; orders.push(id); return { id }; } };
-  await createOrReusePayPalOrder(f.order.id, f.user.id, createClient);
-  const oldCapture = `CAP-${randomUUID()}`;
-  const remote = (id: string, capture: string, status: string): PayPalResolutionOrder => ({ id, status: status === 'COMPLETED' ? 'COMPLETED' : 'APPROVED', intent: 'CAPTURE',
-    purchase_units: [{ amount: { value: f.order.totalAmount.toFixed(2), currency_code: 'GBP' }, payments: { captures: [{ id: capture, status, amount: { value: f.order.totalAmount.toFixed(2), currency_code: 'GBP' } }] } }] });
-  await assert.rejects(capturePayPalOrder(f.order.id, f.user.id, { captureOrder: async () => remote(orders[0], oldCapture, 'DECLINED') }));
-  await resolvePayPalPaymentOutcome(f.order.id, { retrieveOrder: async () => remote(orders[0], oldCapture, 'DECLINED') });
-  const oldAttempt = await prisma.paymentAttempt.findUniqueOrThrow({ where: { provider_providerReference: { provider: 'PAYPAL', providerReference: orders[0] } } });
-  assert.ok(oldAttempt.finalityEvidenceId);
-  await createOrReusePayPalOrder(f.order.id, f.user.id, createClient);
-  assert.equal(creates, 2);
-  const currentCapture = `CAP-${randomUUID()}`;
-  await capturePayPalOrder(f.order.id, f.user.id, { captureOrder: async () => remote(orders[1], currentCapture, 'COMPLETED') });
-  assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, 'CONFIRMED');
-  const decline = (id = randomUUID()) => reconcilePayPalWebhookEvent({ id, eventType: 'PAYMENT.CAPTURE.DECLINED',
-    ...normalizePayPalRiskResource('PAYMENT.CAPTURE.DECLINED', { id: oldCapture, status: 'DECLINED', amount: { value: f.order.totalAmount.toFixed(2), currency_code: 'GBP' }, supplementary_data: { related_ids: { order_id: orders[0] } } }) });
-  return { ...f, orders, oldCapture, currentCapture, oldAttempt, decline };
-}
 
 it('Stripe: real decline → verified unpaid GET → new intent → paid retry survives late cancellation and concurrent receipt replay', async () => {
   const f = await stripeJourney(), id = randomUUID();
@@ -141,31 +112,6 @@ it('Stripe: external dashboard refund after paid retry remains accounted once an
   const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: f.order.id } });
   assert.ok(payment.refundedAmount.eq(payment.amount)); assert.equal(await prisma.refund.count({ where: { paymentId: payment.id } }), 1);
   await assert.rejects(startPreparing(f.admin.id, f.order.id), /FULLY_REFUNDED|fully refunded/i);
-});
-it('PayPal: real decline → independently verified finality → distinct paid retry resolves earlier decline with immutable proof audit', async () => {
-  const f = await paypalJourney(), id = randomUUID();
-  await Promise.all([f.decline(id), f.decline(id)]);
-  assert.deepEqual(await Promise.all([hold(f.order.id), hold(f.order.id)]), [null, null]);
-  await startPreparing(f.admin.id, f.order.id); await dispatchShipment(f.admin.id, f.order.id, shipment);
-  const decisions = await prisma.operationalAudit.findMany({ where: { orderId: f.order.id, kind: 'PROVIDER_RECEIPT_FINANCIAL_RESOLVED' } });
-  assert.equal(decisions.length, 1); assert.equal((decisions[0].details as { evidenceId: number }).evidenceId, f.oldAttempt.finalityEvidenceId);
-});
-for (const eventType of ['PAYMENT.CAPTURE.REVERSED', 'CUSTOMER.DISPUTE.CREATED']) it(`PayPal: ${eventType} is not cleared by unpaid proof, reviewedAt or prior decline resolution`, async () => {
-  const f = await paypalJourney(); await f.decline(); assert.equal(await hold(f.order.id), null);
-  const id = randomUUID();
-  await reconcilePayPalWebhookEvent({ id, eventType, paypalOrderId: f.orders[0], captureId: f.oldCapture, resourceStatus: 'REVERSED', amount: f.order.totalAmount.toFixed(2), currency: 'GBP' });
-  const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: 'PAYPAL', providerEventId: id } } });
-  await acknowledgePayPalWebhookReview(receipt.id, f.admin.id);
-  assert.equal(await hold(f.order.id), eventType.startsWith('CUSTOMER.') ? 'DISPUTE' : 'REVERSAL');
-  await assert.rejects(startPreparing(f.admin.id, f.order.id));
-});
-it('PayPal: unproven historical decline and mismatched capture stay held after acknowledgement', async () => {
-  const f = await paypalJourney();
-  const oldOrder = randomUUID(), oldCapture = randomUUID();
-  await prisma.paymentAttempt.create({ data: { orderId: f.order.id, paymentId: f.oldAttempt.paymentId, provider: 'PAYPAL', providerReference: oldOrder, providerCaptureReference: oldCapture, amount: f.order.totalAmount, currency: 'GBP', historical: true } });
-  const id = randomUUID(); await reconcilePayPalWebhookEvent({ id, eventType: 'PAYMENT.CAPTURE.DECLINED', paypalOrderId: oldOrder, captureId: oldCapture, resourceStatus: 'DECLINED', amount: f.order.totalAmount.toFixed(2), currency: 'GBP' });
-  const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: 'PAYPAL', providerEventId: id } } });
-  await acknowledgePayPalWebhookReview(receipt.id, f.admin.id); assert.equal(await hold(f.order.id), 'PAYMENT');
 });
 
 const reason = 'Withdraw mistaken cancellation before any refund';
@@ -244,15 +190,6 @@ it('Stripe: unproven historical attempt flags never substitute for terminal-unpa
   await reconcileStripePaymentEvent({ id: randomUUID(), type: 'payment_intent.canceled', paymentIntentId: ref, amount: f.current.amount, currency: 'gbp' });
   assert.equal(await hold(f.order.id), 'PAYMENT');
 });
-it('PayPal: a mismatched capture or financial amount cannot inherit a different retired attempt proof', async () => {
-  for (const mismatch of ['capture', 'amount']) {
-    const f = await paypalJourney();
-    await reconcilePayPalWebhookEvent({ id: randomUUID(), eventType: 'PAYMENT.CAPTURE.DECLINED', paypalOrderId: f.orders[0],
-      captureId: mismatch === 'capture' ? f.currentCapture : f.oldCapture, resourceStatus: 'DECLINED',
-      amount: mismatch === 'amount' ? '0.01' : f.order.totalAmount.toFixed(2), currency: 'GBP' });
-    assert.equal(await hold(f.order.id), 'PAYMENT');
-  }
-});
 it('withdrawal cannot clear a dispute or unresolved externally observed refund', async () => {
   for (const risk of ['dispute', 'refund']) {
     const f = await stripeJourney(); const request = await requestPaidCancellation(f.admin.id, f.order.id, 'Pending cancellation with financial evidence', randomUUID());
@@ -315,14 +252,6 @@ it('Stripe: a same-intent nonterminal decline followed by verified success remai
   await send('payment_intent.payment_failed'); // Delayed delivery cannot undo immutable success on the same identity.
   assert.equal(await hold(f.order.id), null); await startPreparing(f.admin.id, f.order.id);
 });
-it('PayPal: a decline contradicting the current successful capture remains financial uncertainty after acknowledgement', async () => {
-  const f = await paypalJourney(); const id = randomUUID();
-  await reconcilePayPalWebhookEvent({ id, eventType: 'PAYMENT.CAPTURE.DECLINED', paypalOrderId: f.orders[1], captureId: f.currentCapture,
-    resourceStatus: 'DECLINED', amount: f.order.totalAmount.toFixed(2), currency: 'GBP' });
-  const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: 'PAYPAL', providerEventId: id } } });
-  await acknowledgePayPalWebhookReview(receipt.id, f.admin.id);
-  assert.equal(await hold(f.order.id), 'PAYMENT'); await assert.rejects(startPreparing(f.admin.id, f.order.id));
-});
 
 for (const recovery of [true, false]) it(`legacy Stripe decline → ${recovery ? 'verified GET recovery' : 'verified webhook'} success has receipt-backed proof without inventing managed attempts`, async () => {
   config.PAYMENT_RESOLUTION_ENABLED = false;
@@ -349,69 +278,4 @@ for (const recovery of [true, false]) it(`legacy Stripe decline → ${recovery ?
   assert.equal(await hold(f.order.id), 'PAYMENT'); // Success never explains a contradictory TERMINAL cancellation.
 });
 
-async function paypalInventoryJourney() {
-  const f = await fixture(), paypalOrderId = `PP-${randomUUID()}`, captureId = `CAP-${randomUUID()}`;
-  await createOrReusePayPalOrder(f.order.id, f.user.id, { createOrder: async () => ({ id: paypalOrderId }) });
-  await assert.rejects(capturePayPalOrder(f.order.id, f.user.id, { captureOrder: async () => ({ id: paypalOrderId, status: 'APPROVED', purchase_units: [{ payments: { captures: [{ id: captureId, status: 'PENDING', amount: { value: f.order.totalAmount.toFixed(2), currency_code: 'GBP' } }] } }] }) }));
-  await recordFbaOutbound({ productListingId: f.listing.id, quantity: 12, shipmentReference: randomUUID(), note: 'Physical shortage before capture', idempotencyKey: randomUUID() }, f.admin.id);
-  const event = { id: randomUUID(), eventType: 'PAYMENT.CAPTURE.COMPLETED', paypalOrderId, captureId, amount: f.order.totalAmount.toFixed(2), currency: 'GBP' };
-  await reconcilePayPalWebhookEvent(event);
-  const receipt = await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { provider_providerEventId: { provider: 'PAYPAL', providerEventId: event.id } } });
-  assert.equal(receipt.processingError, PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC);
-  assert.equal((await prisma.payment.findUniqueOrThrow({ where: { orderId: f.order.id } })).status, 'SUCCEEDED');
-  assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status, 'PENDING');
-  assert.equal(await hold(f.order.id), 'PAYMENT');
-  await assert.rejects(confirmOrder(f.admin.id, f.order.id), /DISCREPANCY/);
-  await reconcileStocktake({ productListingId: f.listing.id, actualStock: 3, performedByUserId: f.admin.id, reasonNote: 'Warehouse physical stock verified after reconciliation' });
-  await confirmOrder(f.admin.id, f.order.id);
-  return { ...f, event, receipt };
-}
-it('N1: verified PayPal capture → inventory hold → stocktake → admin confirmation → fulfilment; concurrent replay preserves evidence and stock', async () => {
-  const f = await paypalInventoryJourney();
-  await Promise.all([reconcilePayPalWebhookEvent(f.event), reconcilePayPalWebhookEvent(f.event)]);
-  assert.deepEqual(await Promise.all([hold(f.order.id), hold(f.order.id)]), [null, null]);
-  assert.equal((await prisma.paymentWebhookEvent.findUniqueOrThrow({ where: { id: f.receipt.id } })).processingError, PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC);
-  assert.equal(await prisma.operationalAudit.count({ where: { orderId: f.order.id, kind: 'PROVIDER_RECEIPT_FINANCIAL_RESOLVED' } }), 1);
-  await startPreparing(f.admin.id, f.order.id); await dispatchShipment(f.admin.id, f.order.id, shipment);
-  assert.equal(await prisma.inventoryMovement.count({ where: { listingId: f.listing.id, type: 'WEBSITE_SALE' } }), 1);
-});
-for (const [name, patch] of Object.entries({ amount: { amount: '0.01' }, currency: { currency: 'USD' }, capture: { captureId: 'OTHER' }, order: { paypalOrderId: 'OTHER' }, event: { eventType: 'PAYMENT.CAPTURE.PENDING' }, denied: { eventType: 'PAYMENT.CAPTURE.DENIED' }, status: { resourceStatus: 'REVERSED' }, invalid: { invalidFields: ['amount'] } })) {
-  it(`N1: ${name} conflict remains held despite the inventory diagnostic`, async () => {
-    const f = await paypalInventoryJourney();
-    // A distinct retained receipt simulates conflicting verified provider evidence;
-    // the original successful receipt is immutable and remains intact.
-    const id = randomUUID();
-    const saved = await persistVerifiedPayPalWebhookEvent({ ...f.event, ...patch, id });
-    await prisma.paymentWebhookEvent.update({ where: { id: saved.receiptId }, data: { processedAt: new Date(), processingError: PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC } });
-    assert.equal(await hold(f.order.id), 'PAYMENT');
-    await assert.rejects(startPreparing(f.admin.id, f.order.id));
-  });
-}
-it('N1: arbitrary processing errors are never inventory-resolution exemptions', async () => {
-  const f = await paypalInventoryJourney();
-  const saved = await persistVerifiedPayPalWebhookEvent({ ...f.event, id: randomUUID() });
-  await prisma.paymentWebhookEvent.update({ where: { id: saved.receiptId }, data: { processedAt: new Date(), processingError: 'Unknown capture financial uncertainty' } });
-  assert.equal(await hold(f.order.id), 'PAYMENT');
-});
-for (const eventType of ['PAYMENT.CAPTURE.DECLINED', 'PAYMENT.CAPTURE.REVERSED', 'CUSTOMER.DISPUTE.CREATED']) {
-  it(`N1: ${eventType} overrides the reconciled inventory success`, async () => {
-    const f = await paypalInventoryJourney();
-    await reconcilePayPalWebhookEvent({ ...f.event, id: randomUUID(), eventType, resourceStatus: eventType.endsWith('DECLINED') ? 'DECLINED' : 'REVERSED' });
-    assert.equal(await hold(f.order.id), eventType.startsWith('CUSTOMER.') ? 'DISPUTE' : eventType.endsWith('REVERSED') ? 'REVERSAL' : 'PAYMENT');
-    await assert.rejects(startPreparing(f.admin.id, f.order.id));
-  });
-}
 
-it('N1: unresolved and finalized external refunds still block after inventory reconciliation', async () => {
-  const f = await paypalInventoryJourney();
-  await persistRefundWebhookEvidence({ version: 2, kind: 'refund', provider: 'PAYPAL', id: randomUUID(), eventType: 'PAYMENT.CAPTURE.REFUNDED', parentReference: f.event.captureId, status: 'UNKNOWN' });
-  assert.equal(await hold(f.order.id), 'REFUND');
-  await assert.rejects(startPreparing(f.admin.id, f.order.id));
-  const other = await paypalInventoryJourney();
-  const event = { version: 2 as const, kind: 'refund' as const, provider: 'PAYPAL' as const, id: randomUUID(), eventType: 'PAYMENT.CAPTURE.REFUNDED', parentReference: other.event.captureId, reference: randomUUID(), amount: other.event.amount, currency: 'GBP', status: 'SUCCEEDED' as const };
-  await reconcileRefundWebhook(event); await reconcileRefundWebhook(event);
-  const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: other.order.id } });
-  assert.ok(payment.refundedAmount.eq(payment.amount));
-  assert.equal(await prisma.refund.count({ where: { paymentId: payment.id } }), 1);
-  await assert.rejects(startPreparing(other.admin.id, other.order.id), /FULLY_REFUNDED|fully refunded/i);
-});

@@ -3,7 +3,7 @@ import { resolveCarrierName, trackingLink } from "./carriers.js";
 import { fulfilmentStage } from "./fulfilmentService.js";
 
 export const customerShipmentSelect = {
-  select: { sequence: true, carrier: true, carrierName: true, trackingNumber: true, dispatchedAt: true,
+  select: { id: true, sequence: true, carrier: true, carrierName: true, trackingNumber: true, dispatchedAt: true,
     trackingState: { select: { progress: true, lastEventAt: true, exception: true, exceptionAt: true,
       lastEvent: { select: { verified: true, status: true, source: true, disposition: true } },
       deliveredEvent: { select: { verified: true, status: true, source: true, disposition: true, deliveryConfirmed: true, deliveryAt: true, occurredAt: true, evidenceReference: true } },
@@ -21,6 +21,8 @@ function trusted(evidence: SafeEvidence | null) {
   return evidence?.verified && evidence.disposition === "APPLIED" && (evidence.source !== "TEST_FIXTURE" || process.env.NODE_ENV === "test");
 }
 function carrierProgress(shipment: ShipmentRow): "DISPATCHED" | "IN_TRANSIT" | "DELIVERED" {
+  // An operator-confirmed delivery (manualDelivery.ts) is terminal; nothing is inferred from time or transit.
+  if (shipment.manualDeliveredAt) return "DELIVERED";
   const state = shipment.trackingState;
   if (!state) return "DISPATCHED";
   const proof = state.deliveredEvent;
@@ -29,7 +31,7 @@ function carrierProgress(shipment: ShipmentRow): "DISPATCHED" | "IN_TRANSIT" | "
   if (state.progress === "IN_TRANSIT" && trusted(state.lastEvent) && state.lastEvent?.status === "IN_TRANSIT") return "IN_TRANSIT";
   return "DISPATCHED";
 }
-type ShipmentRow = { trackingState?: TrackingStateRow | null; sequence: number; carrier: ShippingCarrier | null; carrierName: string; trackingNumber: string | null; dispatchedAt: Date };
+type ShipmentRow = { manualDeliveredAt?: Date | null; trackingState?: TrackingStateRow | null; sequence: number; carrier: ShippingCarrier | null; carrierName: string; trackingNumber: string | null; dispatchedAt: Date };
 type FulfilmentSource = {
   status: string;
   preparingAt: Date | null;
@@ -70,9 +72,12 @@ export function presentFulfilment(order: FulfilmentSource) {
         dispatchedAt: shipment.dispatchedAt,
         trackingUrl: link?.url ?? null,
         trackingUrlIncludesNumber: link?.includesTrackingNumber ?? false,
-        ...(shipment.trackingState ? { tracking: { progress: carrierProgress(shipment), lastEventAt: shipment.trackingState.lastEventAt,
+        ...(shipment.manualDeliveredAt ? { tracking: { progress: "DELIVERED" as const, lastEventAt: shipment.trackingState?.lastEventAt ?? null,
+          exception: null, exceptionAt: null, deliveredAt: shipment.manualDeliveredAt, deliveryConfirmation: "MANUAL" as const } }
+        : shipment.trackingState ? { tracking: { progress: carrierProgress(shipment), lastEventAt: shipment.trackingState.lastEventAt,
           exception: shipment.trackingState.exception, exceptionAt: shipment.trackingState.exceptionAt,
-          deliveredAt: carrierProgress(shipment) === "DELIVERED" ? shipment.trackingState.deliveredEvent!.deliveryAt : null } } : {}),
+          deliveredAt: carrierProgress(shipment) === "DELIVERED" ? shipment.trackingState.deliveredEvent!.deliveryAt : null,
+          deliveryConfirmation: carrierProgress(shipment) === "DELIVERED" ? "CARRIER" as const : null } } : {}),
       };
     }),
   };

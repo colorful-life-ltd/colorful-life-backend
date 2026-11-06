@@ -1,0 +1,679 @@
+{
+  "mode": "DRY_RUN_ONLY",
+  "observedAt": "2026-10-31T21:25:16.322015+00:00",
+  "target": {
+    "container": "colorful-life-sandbox-postgres-1",
+    "containerId": "53d23694be7aa578726adfd10100fd28583316734ed277a7c46600626eab6074",
+    "database": "colorful_life",
+    "systemIdentifier": "7700559377687638053",
+    "readOnly": "on"
+  },
+  "tables": [
+    {
+      "table": "AbuseBucket",
+      "rows": 42
+    },
+    {
+      "table": "Address",
+      "rows": 2
+    },
+    {
+      "table": "BusinessExpense",
+      "rows": 0
+    },
+    {
+      "table": "Cart",
+      "rows": 3
+    },
+    {
+      "table": "CartItem",
+      "rows": 1
+    },
+    {
+      "table": "Category",
+      "rows": 16
+    },
+    {
+      "table": "CommercialInvoice",
+      "rows": 0
+    },
+    {
+      "table": "EmailVerificationToken",
+      "rows": 0
+    },
+    {
+      "table": "FbaOutbound",
+      "rows": 0
+    },
+    {
+      "table": "FbaShipment",
+      "rows": 0
+    },
+    {
+      "table": "FbaShipmentSequence",
+      "rows": 0
+    },
+    {
+      "table": "FinancialEvidence",
+      "rows": 19
+    },
+    {
+      "table": "InventoryAudit",
+      "rows": 0
+    },
+    {
+      "table": "InventoryMovement",
+      "rows": 65
+    },
+    {
+      "table": "LegoProduct",
+      "rows": 57
+    },
+    {
+      "table": "OperationalAudit",
+      "rows": 5
+    },
+    {
+      "table": "Order",
+      "rows": 11
+    },
+    {
+      "table": "OrderCartAllocation",
+      "rows": 14
+    },
+    {
+      "table": "OrderCartProvenance",
+      "rows": 11
+    },
+    {
+      "table": "OrderConfirmationJob",
+      "rows": 6
+    },
+    {
+      "table": "OrderFulfilmentEvent",
+      "rows": 0
+    },
+    {
+      "table": "OrderItem",
+      "rows": 14
+    },
+    {
+      "table": "OrderReturn",
+      "rows": 0
+    },
+    {
+      "table": "PasswordRecoveryLimit",
+      "rows": 0
+    },
+    {
+      "table": "PasswordResetToken",
+      "rows": 0
+    },
+    {
+      "table": "Payment",
+      "rows": 9
+    },
+    {
+      "table": "PaymentAdmission",
+      "rows": 12
+    },
+    {
+      "table": "PaymentAttempt",
+      "rows": 9
+    },
+    {
+      "table": "PaymentChallengeUse",
+      "rows": 0
+    },
+    {
+      "table": "PaymentFulfilmentReview",
+      "rows": 0
+    },
+    {
+      "table": "PaymentInitiationPolicy",
+      "rows": 2
+    },
+    {
+      "table": "PaymentOperation",
+      "rows": 21
+    },
+    {
+      "table": "PaymentResolution",
+      "rows": 11
+    },
+    {
+      "table": "PaymentSecurityEvent",
+      "rows": 0
+    },
+    {
+      "table": "PaymentWebhookEvent",
+      "rows": 7
+    },
+    {
+      "table": "ProductImage",
+      "rows": 168
+    },
+    {
+      "table": "ProductListing",
+      "rows": 71
+    },
+    {
+      "table": "Purchase",
+      "rows": 0
+    },
+    {
+      "table": "PurchaseDocument",
+      "rows": 0
+    },
+    {
+      "table": "PurchaseItem",
+      "rows": 0
+    },
+    {
+      "table": "RefreshSession",
+      "rows": 16
+    },
+    {
+      "table": "Refund",
+      "rows": 0
+    },
+    {
+      "table": "ReservationReleaseProof",
+      "rows": 5
+    },
+    {
+      "table": "Shipment",
+      "rows": 0
+    },
+    {
+      "table": "ShipmentCarrierEvidence",
+      "rows": 0
+    },
+    {
+      "table": "ShipmentTrackingConflict",
+      "rows": 0
+    },
+    {
+      "table": "ShipmentTrackingEvent",
+      "rows": 0
+    },
+    {
+      "table": "ShipmentTrackingPoll",
+      "rows": 0
+    },
+    {
+      "table": "ShipmentTrackingState",
+      "rows": 0
+    },
+    {
+      "table": "ShipmentTrackingSync",
+      "rows": 0
+    },
+    {
+      "table": "TrackingCarrierBudget",
+      "rows": 0
+    },
+    {
+      "table": "UsedConditionPhoto",
+      "rows": 41
+    },
+    {
+      "table": "User",
+      "rows": 3
+    },
+    {
+      "table": "_prisma_migrations",
+      "rows": 73
+    }
+  ],
+  "migrations": [
+    {
+      "migration": "20260815133317_init_core_domain",
+      "checksum": "b4c5eff75588bb4c5dfe2bd146e3dfb4224731e517f09395c357b3257fe08c36",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260815140000_add_default_billing_to_address",
+      "checksum": "b2e394c9bdb4c299acc250473e7fcaaeacd1517b2f6b0fda5cc24955e59f7381",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260817175256_add_purchase_domain",
+      "checksum": "927d4b72e65c35f11c0ec497d192b097805c402115bf895795892e177f02a359",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260818120000_add_purchase_item_received_at",
+      "checksum": "7835e0fd12653e45a48652cf45b317c8f46acd2b83894bc9a6e0f9c09a5c8f1e",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260822114111_add_return_fields",
+      "checksum": "793de6f0b7261781a450bf65a43fa657ad75e67c90f8d2f3d4e71b6dfa7d60b5",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260823181454_add_customer_orders",
+      "checksum": "b82d9f2c65105263d1670c2388805bb1a7bf8549d2a5f4e993b5415d4176a525",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260824114702_add_user_profile_fields",
+      "checksum": "9a7a9c0535d723a5445b5e188bdc98820ae772ad2e7186092723b4670b24be9f",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260825160338_add_order_cancellation",
+      "checksum": "229c8099345d9f0deb93fb1953859e8a20a12dbb4e29ee1dde6afdae577c788d",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260825205857_add_seller_cancellation_reasons",
+      "checksum": "544b4f3e43616be185614827dd0e2295a65d6dbee008f52edcefd47c19d5e553",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260826000000_add_order_dispatch_fields",
+      "checksum": "5298a770402eb86386996e185b993e1e66fa558b13ac94591ce4f97e843941bd",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260827222708_add_completed_at_to_order",
+      "checksum": "556fdacc6af196ffbe23879221c071f8f291043c0aefeb12fdec2ada293a4e74",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260828000000_add_business_expense",
+      "checksum": "495ae3d8a6fab97f3f9c5950c1fc50b634dc269f7b67e11fe5ce167a4ceda87c",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260830122743_add_payment_model",
+      "checksum": "cb04bd613ae85bf945ecfe3860b368d45938c484255d1ca314113e9d24bd3efd",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260831134114_add_order_returns",
+      "checksum": "639247935d251cc94d12a1f57e910760d3a98ce6f40c7c9a024db929e899d724",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260831142246_add_order_return_lifecycle",
+      "checksum": "d2deb9e37ffa2c6b03ecedd202b8e82b34d615edb383c2fc406f4c997be193d9",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260831214725_add_refunds",
+      "checksum": "11105d9a3247a80a693db8031250bc0bd57090aedc707def969d1ec1f2d1e767",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260901000000_add_inventory_condition_adjustments",
+      "checksum": "b1fedef6eef06fdcfbbe32360779e2d7cd10fb00dc9c590918d99d1492a6f696",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260901220534_add_email_verification_token",
+      "checksum": "b4b18c8646d4f76723e25919edac1b3fc9c1cd5363e1d4dfd941da01f8ea6090",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260902000000_one_payment_per_order",
+      "checksum": "3f8d5e0683963ad24d0b41b99c8e3cd441f3773d9dd7fb7739d64ce44db190ce",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260902070222_add_password_reset_token",
+      "checksum": "04886423a8f2d2ef6b7ec8ceb3595af25ee30cb2a5e9bc5933be79da094e123a",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260903000000_add_reserved_return_quantity",
+      "checksum": "010ff98dd614fc4c957e3211b9dab86e3afe2867af10266b4d4ce02f2450bc50",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260904000000_add_inventory_reservation_foundation",
+      "checksum": "c9152f27cce0e86a9591e500202bc20a9a69949c1f03f442bf6f7358d593941d",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260905000000_add_user_deleted_at",
+      "checksum": "54c49fd40c08d7168ac819a118fb73b9ca17245437a42721dc9a800c5ecd57bf",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260906000000_add_payment_provider_foundation",
+      "checksum": "de9ebd56ca1e2422cd02ed18a1e3e6513defea59be07b756af745c3c02510edf",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260907000000_add_payment_capture_identity",
+      "checksum": "ebb06cec502db3c27032af849f58daf508acc82ffd75ca9926b5238f3acf78fd",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260908000000_add_refund_idempotency_key",
+      "checksum": "c327d2af3f8d5d0690d68205e2b3358d4bd0a3fc5a87879f165a51d94e4eb5dc",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260909000000_add_refund_capacity_reservation",
+      "checksum": "4eba73b77b3c8ee4ca9789f9935945629841c9e90b9839a5ceff03c15aa3b0ea",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260910000000_align_reserved_refund_precision",
+      "checksum": "4fbd0ef331fb0f9f70ad6f8f5d51aa6e0563d3acded070c7bbd860f501c75bfe",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260913115431_add_customer_cart",
+      "checksum": "7bf07ef84ee429d55f21ba8f9fe4cb2cabe8215af429ae9c8fab995b96b6b20b",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260916120000_add_colorful_life_category",
+      "checksum": "4a323fc24bd394f6914478aabe4d68a080198e8f50389983e9a73e1b85bb3bc3",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260918120000_add_catalogue_presentation",
+      "checksum": "f4c60ff837b308a2f54e6fdbd9462fdd7976e21bbee72e3a487d79a0365e0ae8",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260920100000_add_category_entity",
+      "checksum": "f4a0b04afb6a65de2aa870c9b0dc2ea60af320cdb193f01b88fa6f4153750f62",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260920130000_remove_legacy_category_enum",
+      "checksum": "9f2b779539ddb581c3a27b77ae4087dc2cc1cf4c3f656830dd874a1fbaee715f",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260920140000_populate_category_descriptions",
+      "checksum": "de0c5d87a6f8e79df2bb97f89dc5704bf464e32a6c83bdec0d29b2dfd1c555bb",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260924120000_add_physical_used_offers",
+      "checksum": "40805081e99f5edaedb219f8cdb62e02f6947a9b8f6bd4e23e5d8672bad35f46",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260925120000_add_lego_product_is_retired",
+      "checksum": "28cf80f129782a75900c9e3bcd52a80ccce967205331df345d4356de67048842",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260925120000_serialize_used_condition_photos",
+      "checksum": "3ada3c6b7cf6dfd7e3f15aa4a865d3f6a9f63df9dd637692972db0f1c347360d",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260925140000_move_product_presentation_to_lego_product",
+      "checksum": "285fb64bd90f569d53c6e8a28edd0f54537b41a62569d1d0d64da0d0594605d4",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260926153000_add_refresh_sessions",
+      "checksum": "b95a1d3e8932bbcc42b9ce22c9777f7d893f612468357cb3686e761df7ec3676",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260927120000_add_purchase_item_inventory_disposition",
+      "checksum": "9316b736ec9c231352b0f486656af7f88855b65d37fd41be3add3ba61625fd60",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20260928120000_add_category_thumbnail_artwork",
+      "checksum": "6973354ea40da60108f8fbda6541e8ff13580e83ab3e9dbe71bc2b1e0865a777",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261006120000_add_order_creation_idempotency",
+      "checksum": "4c61507252fcc7cb655d567b41618a40bf44fc1a9b566522024d9ecb95406e25",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261007120000_add_order_cart_provenance",
+      "checksum": "2221488a7798fcee1287e25f583c9ce0653d99a767e2ca3c0608d24413525d32",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261012120000_add_paypal_webhook_evidence",
+      "checksum": "231ab3633477eb8b4e76a824a505247ba2664f68f1427dbe8a6d68da04716749",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261013120000_payment_resolution_foundation",
+      "checksum": "4b8ab0e021014da810685424efcfb01e64d2b4ce58d2899c79067f7e9921abf5",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261013121000_payment_resolution_historical_backfill",
+      "checksum": "0300bac5e4106d6e577ffcf611debca3e26440fe5dcc920951392402c6858f3e",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261014120000_password_recovery_security",
+      "checksum": "9e516e987d97ca0fcfbdf55c31fd4de6c1de2ca2826af6476607f42407f50363",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261015120000_payment_resolution_runtime",
+      "checksum": "f034012a8dfbb76e029744b087c968c2c841309d64b625aa6ff82bf3a67b80ee",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261015121000_payment_resolution_runtime_scheduling",
+      "checksum": "9d5a7f51fffe2a7c2f34a655b48deaeaf86334f043e0f33ff05ea03a96e02534",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261015122000_payment_resolution_inbox_guard",
+      "checksum": "aee797fb0db05ddf19ccc934b79da9601011a09941edcbb985e2665f852ee482",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261015123000_payment_resolution_late_failure",
+      "checksum": "e79fc3cf8991b611f925a513d5f82af0b2746fd12019620badd4ea157aff2d19",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261015124000_payment_resolution_release_inbox_recheck",
+      "checksum": "ac92a4b34298049df80879648fe85d3681f08197fa157b8efbb32403699f1c17",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261016120000_add_product_publication",
+      "checksum": "b15602ec5561c55cc9e7ad28f82e4e60e1f4ad17b1b27a5976061dfaa45213c8",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261016120000_stripe_owned_inbox_correlation",
+      "checksum": "84f8415d4ae17efd491c149efc481d5d88a802a442f382223483c959513569a0",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261017120000_add_order_fulfilment",
+      "checksum": "ee15bf33ef3e6bb5c3be774929de179abe1ed8ed0e8ea3ca767212d2e363b5d1",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261018120000_carrier_tracking_foundation",
+      "checksum": "33bb9861d2c770b1d4bba97582689605bb03d47f580c73238d060ee52087651d",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261018121000_tracking_delivery_proof_check",
+      "checksum": "601a8e6633211f43c36feed9b6b4dfecbd2766a739b9e36eba4630b9e270b9e9",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261018122000_tracking_conflict_evidence",
+      "checksum": "d8c103c177f42b8f80ec736322c3d4dcc46ba35a7c2aa7678c639c6b328818e0",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261018123000_tracking_nonblank_delivery_proof",
+      "checksum": "8b0b245b59ce271a939c7fb0448e00760022ddfcc32d2501c3f960b5a3332ddc",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261018124000_tracking_evaluation_recovery",
+      "checksum": "dcd55a6ea07b7620173a230c93d6326bc7c670a44d55a558acc7016c26d41dd7",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261018150000_add_fba_outbound_ledger",
+      "checksum": "18f7f73b1ffc1fb1ffa024035458e034000557ccb950c275dc6b0920f09ac888",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261019120000_refund_provider_safety",
+      "checksum": "2fbf3dbd44ab70c01b77588312443a0b0b4434a071c11923c86d277a92ae2f5a",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261020120000_order_confirmation_outbox",
+      "checksum": "b6303507b3767f7e9ea822097b6f9c22caa8206fd32e90cc6bac301f6d6aee67",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261020130000_dispatch_email_outbox",
+      "checksum": "300182c00500f7f3a0420da2eaa245c9303c2d592f50003bb65699d2f06da7a1",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261020140000_email_rollout_integrity",
+      "checksum": "337347c1e5983edd1e6e121ff3a77b7f6fc4a499df0efb72c535e40a09c1095d",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261021120000_invoice_number_start",
+      "checksum": "f5f8c281910f084c4efbfb951f55d3ad62a6d310a232c4cf39bac8938b178cd4",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261022120000_paypal_unpaid_finality",
+      "checksum": "9477902b0c57031bdc96f122052aede88ca0d512d7f567e0da31122b74deb883",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261023120000_paypal_webhook_review",
+      "checksum": "80697ac536dbf202d2ad8fd82149fc64e1e061e53ea2448f289fa530b1c92111",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261024120000_payment_abuse_controls",
+      "checksum": "3cfd77c3fd3a946c48b1ef7f5a71807e886d6921fae2ed4df5980ad9bab93cc7",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261025120000_production_audit",
+      "checksum": "9feb061bb8b49ea4cf5ebe503206ed1e96113853d42cdf11459ee516da375a89",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261025121000_audit_lookup_indexes",
+      "checksum": "38e4bb135941325a7454a5a54302bd4cffe1942c9d8126f3d0be15e07f1b2e25",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261026120000_three_system_integration",
+      "checksum": "a867d2a8863b12a41e7d2967741a239cc2839b25c41926d01e144831fa6ef29b",
+      "finished": true,
+      "rolledBack": false
+    },
+    {
+      "migration": "20261027120000_fba_shipment_builder",
+      "checksum": "54d28d36741f720295010b2bca897e1bbafd57fdee147efe2610046ac1744507",
+      "finished": true,
+      "rolledBack": false
+    }
+  ],
+  "decision": "KEEP_SANDBOX_OPERATIONAL",
+  "futureAction": "Discard/recreate the entire verified Sandbox database after testing and separate owner approval",
+  "productionAccess": "NONE: Unix-socket inspection inside the verified Sandbox container only",
+  "prerequisites": [
+    "Return V1 and Stripe testing finished",
+    "Separate explicit owner destruction/recreation approval",
+    "Fresh verified Sandbox backup and recovery key custody",
+    "Approved catalogue-only snapshot supplied separately; never export Sandbox transactions to Production",
+    "Reviewed maintenance/recreation and acceptance plan bound to exact target identity"
+  ]
+}

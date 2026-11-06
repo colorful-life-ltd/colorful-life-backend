@@ -21,15 +21,15 @@ export async function assertEmailSchemaReady(db: Prisma.TransactionClient = pris
     if (!row?.ready) throw new Error('Schema incomplete');
   } catch { throw new Error('Transactional email schema not ready: apply and verify Issue #180 migrations before starting this release'); }
 }
-export type EmailType = 'ORDER_CONFIRMATION' | 'DISPATCH_CONFIRMATION';
-export const emailEnabled = (type: EmailType) => type === 'ORDER_CONFIRMATION' ? config.ORDER_CONFIRMATION_EMAIL_ENABLED : config.DISPATCH_CONFIRMATION_EMAIL_ENABLED;
+export type EmailType = 'ORDER_CONFIRMATION' | 'DISPATCH_CONFIRMATION' | 'RETURN_AUTHORIZATION';
+export const emailEnabled = (type: EmailType) => type === 'ORDER_CONFIRMATION' ? config.ORDER_CONFIRMATION_EMAIL_ENABLED : type === 'RETURN_AUTHORIZATION' ? config.RETURN_AUTHORIZATION_EMAIL_ENABLED : config.DISPATCH_CONFIRMATION_EMAIL_ENABLED;
 export class EmailActivationCutoffError extends Error {
   constructor(type: EmailType, future: boolean) {
     super(`${type} email worker paused: activation cutoff ${future ? 'was future-dated at configuration load' : 'is missing or invalid'}; correct configuration and restart; queued jobs retained`);
   }
 }
 export function activationCutoff(type: EmailType) {
-  const cutoff = type === 'ORDER_CONFIRMATION' ? config.ORDER_CONFIRMATION_EMAIL_ACTIVE_FROM : config.DISPATCH_CONFIRMATION_EMAIL_ACTIVE_FROM;
+  const cutoff = type === 'ORDER_CONFIRMATION' ? config.ORDER_CONFIRMATION_EMAIL_ACTIVE_FROM : type === 'RETURN_AUTHORIZATION' ? config.RETURN_AUTHORIZATION_EMAIL_ACTIVE_FROM : config.DISPATCH_CONFIRMATION_EMAIL_ACTIVE_FROM;
   if (!z.string().datetime().safeParse(cutoff).success) throw new EmailActivationCutoffError(type, false);
   if (Date.parse(cutoff!) > emailConfigurationLoadedAt) throw new EmailActivationCutoffError(type, true);
   return new Date(cutoff!);

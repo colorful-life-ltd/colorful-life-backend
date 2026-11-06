@@ -293,6 +293,7 @@ describe("Payment HTTP integration", () => {
     assert.ok(Array.isArray(listed));
     assert.deepStrictEqual(listed.map((payment: { id: number }) => payment.id), [first.id]);
     assert.ok(listed.every((payment: { orderId: number }) => payment.orderId === order.id));
+    assert.ok(listed.every((payment: { paymentIntentReference: string | null }) => payment.paymentIntentReference === null));
     assert.ok(!listed.some((payment: { id: number }) => payment.id === other.id));
   });
 });

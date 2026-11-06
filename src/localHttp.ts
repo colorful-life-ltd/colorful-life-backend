@@ -10,10 +10,10 @@ const host = '127.0.0.1' as const;
 // This deliberately pins the approved Windows development cluster, not any database with this name.
 const clusterId = '7668309425915929176';
 export const disabledLocalFlags = [
-  'PAYMENT_STRIPE_INITIATION_ENABLED', 'PAYMENT_PAYPAL_INITIATION_ENABLED',
+  'PAYMENT_STRIPE_INITIATION_ENABLED',
   'PAYMENT_RESOLUTION_ENABLED', 'REFUND_RECONCILIATION_ENABLED',
   'CARRIER_TRACKING_POLLING_ENABLED', 'ORDER_CONFIRMATION_EMAIL_ENABLED',
-  'DISPATCH_CONFIRMATION_EMAIL_ENABLED', 'PAYMENT_CHALLENGE_ENABLED',
+  'DISPATCH_CONFIRMATION_EMAIL_ENABLED', 'RETURN_AUTHORIZATION_EMAIL_ENABLED', 'PAYMENT_CHALLENGE_ENABLED',
 ] as const;
 const refused = () => new Error('Local HTTP safety checks failed. No API launch is permitted.');
 

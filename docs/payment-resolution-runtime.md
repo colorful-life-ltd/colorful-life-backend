@@ -1,5 +1,7 @@
 # Payment resolution — Issue #156 Phase 2B
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 This is a staged runtime extension of the Phase 2A data foundation. It is not production activation. `PAYMENT_RESOLUTION_ENABLED` defaults to `false`. No historical order is automatically enrolled, released or given a fabricated admission/retry timestamp. Existing quarantined records, including order #16964, require separate reviewed recovery. No automatic refunds are implemented.
 
 ## Admission and retry policy
