@@ -86,12 +86,12 @@ naming them. It only deletes the PayPal policy row (configuration).
   `refundReconciliationService.ts` and `refundProviderSafety.integration.test.ts`, which #235 also
   edits (PayPal branches and PayPal test cases removed). Whichever merges second needs a rebase;
   #218's own refund logic should be kept, dropping only PayPal-specific code it may reintroduce.
-- **#219** (Stripe refund failure after success): adds migration
-  `20261028120000_stripe_refund_failure_after_success`, which now sorts **before** migrations
-  already on main (73–75), and edits
-  `scripts/rehearse-database.py`'s migration-position guard. It must be rebased onto main with its
-  migration renamed to a timestamp after the newest migration on main (it has never been applied,
-  so renaming is checksum-safe), and the rehearsal guard updated for the resulting positions. #235
+- **#219** (Stripe refund failure after success): its never-applied migration, originally
+  `20261028120000_…`, is renamed byte-identically to
+  `20261106120000_stripe_refund_failure_after_success` (Migration 77, after every migration on
+  main). The rehearsal guard pins the new positions; the Single-Admin upgrade rehearsal runs the
+  unchanged pinned Migration 75/76 installer against its exact 76-migration bundle, then applies
+  Migration 77 through the ordinary deployment path. #235
   adds no migration, so it does not conflict with #219's migration history; the future contract
   migration must be dated after whatever #219 lands as.
 
