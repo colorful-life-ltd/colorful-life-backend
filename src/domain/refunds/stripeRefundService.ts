@@ -20,19 +20,26 @@ export function stripeRefundClient():StripeRefundClient{
     retrieveRefund:reference=>stripe.refunds.retrieve(reference) as Promise<StripeRefundResponse>,
     listRefunds:paymentIntent=>stripe.refunds.list({payment_intent:paymentIntent,limit:100}) as Promise<StripeRefundList>};
 }
-/** Classifies one listed entry. "unrelated" needs a well-formed refund of this intent that provably is
- * not this local refund (no metadata, no local_refund_id, or another canonical refund ID). Anything that
- * cannot be classified is "malformed" and makes the whole lookup unavailable, never evidence of absence. */
+/** A complete Stripe refund object of this intent (Stripe.Refund contract): object "refund", id, positive
+ * integer amount, currency, created, a status, and a metadata key that is present (null or an object).
+ * Truncated or ambiguous objects (e.g. only id and payment_intent, or status null) are not evidence. */
+function wellFormedListedRefund(r:Record<string,unknown>,paymentIntent:string){
+  const intent=r.payment_intent;
+  const parent=typeof intent==="string"?intent:intent&&typeof intent==="object"?(intent as {id?:unknown}).id:undefined;
+  return r.object==="refund"&&typeof r.id==="string"&&!!r.id&&parent===paymentIntent
+    &&Number.isSafeInteger(r.amount)&&(r.amount as number)>0&&typeof r.currency==="string"&&/^[a-z]{3}$/i.test(r.currency)
+    &&Number.isSafeInteger(r.created)&&(r.created as number)>0&&typeof r.status==="string"&&!!r.status
+    &&Object.prototype.hasOwnProperty.call(r,"metadata")&&(r.metadata===null||(typeof r.metadata==="object"&&!Array.isArray(r.metadata)));
+}
+/** Classifies one listed entry. "unrelated" needs a complete refund object of this intent that provably is
+ * not this local refund (explicit null metadata, no local_refund_id, or another canonical refund ID). Anything
+ * that cannot be classified is "malformed" and makes the whole lookup unavailable, never evidence of absence. */
 function classifyListedRefund(entry:unknown,paymentIntent:string,refundId:number):"match"|"unrelated"|"malformed"{
   if(!entry||typeof entry!=="object"||Array.isArray(entry))return "malformed";
   const r=entry as Record<string,unknown>;
-  if(typeof r.id!=="string"||!r.id)return "malformed";
-  const intent=r.payment_intent;
-  const parent=typeof intent==="string"?intent:intent&&typeof intent==="object"?(intent as {id?:unknown}).id:undefined;
-  if(parent!==paymentIntent)return "malformed";
+  if(!wellFormedListedRefund(r,paymentIntent))return "malformed";
   const metadata=r.metadata;
-  if(metadata===null||metadata===undefined)return "unrelated";
-  if(typeof metadata!=="object"||Array.isArray(metadata))return "malformed";
+  if(metadata===null)return "unrelated";
   const local=(metadata as Record<string,unknown>).local_refund_id;
   if(local===undefined)return "unrelated";
   if(typeof local!=="string"||!/^[1-9][0-9]*$/.test(local))return "malformed";

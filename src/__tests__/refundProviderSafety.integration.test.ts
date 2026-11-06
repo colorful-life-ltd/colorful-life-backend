@@ -285,7 +285,12 @@ for(const environment of ["live","sandbox"]){
 const refusal=(code:string,statusCode=400)=>new Stripe.errors.StripeInvalidRequestError({message:"private",type:"invalid_request_error",code,statusCode});
 const listed=(data:any[],has_more=false)=>({data,has_more});
 const localRefundId=(input:Stripe.RefundCreateParams)=>String((input.metadata as Record<string,string>).local_refund_id);
-function ours(f:Fixture,localId:string,status="succeeded",orderId=String(f.order.id)){return {...stripeResponse(f,`re_${randomUUID()}`,status),metadata:{local_refund_id:localId,order_id:orderId}};}
+/** A complete Stripe.Refund list entry, as refunds.list returns it. */
+function listedRefund(paymentIntent:unknown,overrides:Record<string,unknown>={}):Record<string,unknown>{
+ return {id:`re_${randomUUID()}`,object:"refund",amount:1000,currency:"gbp",created:1767225600,status:"succeeded",payment_intent:paymentIntent,metadata:{},...overrides};
+}
+function without(entry:Record<string,unknown>,key:string){const copy={...entry};delete copy[key];return copy;}
+function ours(f:Fixture,localId:string,status="succeeded",orderId=String(f.order.id)){return listedRefund(f.payment.providerReference,{status,metadata:{local_refund_id:localId,order_id:orderId}});}
 it("documented Stripe refusals with a complete empty lookup fail once and release capacity",async()=>{
  for(const code of ["refund_disputed_payment","amount_too_large","amount_too_small"]){
   const f=await fixture(),key=randomUUID();let posts=0,lists=0;
@@ -304,19 +309,24 @@ it("a definitive refusal is never failed on an unavailable, incomplete or malfor
  }
 });
 // Every listed entry must be classifiable before a lookup counts as complete evidence of absence.
+// Each case breaks exactly one part of an otherwise complete refund object.
 function malformedEntries(pi:string):Array<[string,unknown]>{
- const ok={id:`re_${randomUUID()}`,status:"succeeded",amount:1000,currency:"gbp",payment_intent:pi};
- return [["null",null],["empty object",{}],["array",[]],["string","re_123"],["missing id",{...ok,id:undefined,metadata:{}}],["empty id",{...ok,id:"",metadata:{}}],
-  ["other intent",{...ok,payment_intent:"pi_other",metadata:{}}],["no intent",{...ok,payment_intent:null,metadata:{}}],
+ const ok=listedRefund(pi);
+ return [["null",null],["empty object",{}],["array",[]],["string","re_123"],["truncated (id and payment_intent only)",{id:"re_synthetic",payment_intent:pi}],
+  ...["object","id","amount","currency","created","status","payment_intent","metadata"].map(key=>[`missing ${key}`,without(ok,key)] as [string,unknown]),
+  ["not a refund object",{...ok,object:"charge"}],["empty id",{...ok,id:""}],["zero amount",{...ok,amount:0}],["string amount",{...ok,amount:"1000"}],
+  ["empty currency",{...ok,currency:""}],["string created",{...ok,created:"1767225600"}],["null status",{...ok,status:null}],
+  ["other intent",{...ok,payment_intent:"pi_other"}],["null intent",{...ok,payment_intent:null}],
   ["string metadata",{...ok,metadata:"local_refund_id=1"}],["array metadata",{...ok,metadata:[]}],["numeric local id",{...ok,metadata:{local_refund_id:1}}],
   ["empty local id",{...ok,metadata:{local_refund_id:""}}],["non-canonical local id",{...ok,metadata:{local_refund_id:" 1"}}],["null local id",{...ok,metadata:{local_refund_id:null}}]];
 }
 const malformedLabels=malformedEntries("pi_label").map(([label])=>label);
-/** Well-formed refunds of the same intent that provably are not this local refund. */
+/** Complete refunds of the same intent that provably are not this local refund: explicit null, empty or
+ * foreign metadata (including an expanded payment_intent). */
 function unrelatedEntries(f:Fixture){
- const pi=f.payment.providerReference,ok={status:"succeeded",amount:1000,currency:"gbp",payment_intent:pi};
- return [{...ok,id:`re_${randomUUID()}`,metadata:null},{...ok,id:`re_${randomUUID()}`,metadata:{}},{...ok,id:`re_${randomUUID()}`,metadata:{order_id:"5"}},
-  {...ok,id:`re_${randomUUID()}`,payment_intent:{id:pi},metadata:{local_refund_id:"999999999",order_id:String(f.order.id)}}];
+ const pi=f.payment.providerReference;
+ return [listedRefund(pi,{metadata:null}),listedRefund(pi),listedRefund(pi,{metadata:{order_id:"5"}}),
+  listedRefund({id:pi},{metadata:{local_refund_id:"999999999",order_id:String(f.order.id)}})];
 }
 it("a definitive refusal is never failed when any listed entry is null, empty or malformed",async()=>{
  for(const [i,label] of malformedLabels.entries())for(const withUnrelated of [false,true]){
@@ -326,6 +336,20 @@ it("a definitive refusal is never failed when any listed entry is null, empty or
   assert.equal(result.status,"PROCESSING",label);assert.equal(result.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED",label);
   assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"},label);
  }
+});
+it("a truncated refund object (only id and payment_intent) never corroborates absence on either path",async()=>{
+ const f=await fixture();const truncated=()=>({id:"re_synthetic",payment_intent:f.payment.providerReference});
+ let list:unknown[]=[truncated()];
+ const c:StripeRefundClient={createRefund:async()=>{throw refusal("refund_disputed_payment");},listRefunds:async()=>listed(list)};
+ const pending=await stripe(f,c);
+ assert.equal(pending.status,"PROCESSING");assert.equal(pending.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED");assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+ const restore=setStripeRefundClientForTests(c);config.REFUND_RECONCILIATION_ENABLED=true;
+ try{
+  for(const data of [[truncated()],[...unrelatedEntries(f),truncated()]]){
+   list=data;const kept=await reconcileExternalRefund(f.order.id,pending.id);
+   assert.equal(kept.status,"PROCESSING");assert.equal(kept.resolutionCode,"RECONCILIATION_UNAVAILABLE");assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
+  }
+ }finally{restore();}
 });
 it("legitimate unrelated refunds, including null metadata, still corroborate a definitive refusal",async()=>{
  const f=await fixture();
