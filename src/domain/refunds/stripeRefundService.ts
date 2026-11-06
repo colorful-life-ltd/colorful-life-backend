@@ -20,15 +20,40 @@ export function stripeRefundClient():StripeRefundClient{
     retrieveRefund:reference=>stripe.refunds.retrieve(reference) as Promise<StripeRefundResponse>,
     listRefunds:paymentIntent=>stripe.refunds.list({payment_intent:paymentIntent,limit:100}) as Promise<StripeRefundList>};
 }
+/** Classifies one listed entry. "unrelated" needs a well-formed refund of this intent that provably is
+ * not this local refund (no metadata, no local_refund_id, or another canonical refund ID). Anything that
+ * cannot be classified is "malformed" and makes the whole lookup unavailable, never evidence of absence. */
+function classifyListedRefund(entry:unknown,paymentIntent:string,refundId:number):"match"|"unrelated"|"malformed"{
+  if(!entry||typeof entry!=="object"||Array.isArray(entry))return "malformed";
+  const r=entry as Record<string,unknown>;
+  if(typeof r.id!=="string"||!r.id)return "malformed";
+  const intent=r.payment_intent;
+  const parent=typeof intent==="string"?intent:intent&&typeof intent==="object"?(intent as {id?:unknown}).id:undefined;
+  if(parent!==paymentIntent)return "malformed";
+  const metadata=r.metadata;
+  if(metadata===null||metadata===undefined)return "unrelated";
+  if(typeof metadata!=="object"||Array.isArray(metadata))return "malformed";
+  const local=(metadata as Record<string,unknown>).local_refund_id;
+  if(local===undefined)return "unrelated";
+  if(typeof local!=="string"||!/^[1-9][0-9]*$/.test(local))return "malformed";
+  return local===String(refundId)?"match":"unrelated";
+}
 /** The refunds Stripe holds for this intent that carry this local refund's metadata. Only a complete
- * (unpaginated) list is evidence; any failure or truncation is "unavailable", never "none". */
+ * (unpaginated) list whose every entry is classifiable is evidence; any failure, truncation or
+ * malformed entry is "unavailable", never "none". */
 export async function stripeRefundsForLocalRefund(client:StripeRefundClient,paymentIntent:string,refundId:number)
   :Promise<{complete:true;matches:StripeRefundResponse[]}|{complete:false}>{
   if(!client.listRefunds)return {complete:false};
   try{
     const list=await client.listRefunds(paymentIntent);
     if(!list||!Array.isArray(list.data)||list.has_more!==false)return {complete:false};
-    return {complete:true,matches:list.data.filter(r=>r?.metadata?.local_refund_id===String(refundId))};
+    const matches:StripeRefundResponse[]=[];
+    for(const entry of list.data){
+      const kind=classifyListedRefund(entry,paymentIntent,refundId);
+      if(kind==="malformed")return {complete:false};
+      if(kind==="match")matches.push(entry);
+    }
+    return {complete:true,matches};
   }catch{return {complete:false};}
 }
 /** A lookup match is adopted only with full correlation: our metadata, this intent and a valid amount. */

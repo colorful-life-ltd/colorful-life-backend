@@ -303,6 +303,51 @@ it("a definitive refusal is never failed on an unavailable, incomplete or malfor
   assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"});
  }
 });
+// Every listed entry must be classifiable before a lookup counts as complete evidence of absence.
+function malformedEntries(pi:string):Array<[string,unknown]>{
+ const ok={id:`re_${randomUUID()}`,status:"succeeded",amount:1000,currency:"gbp",payment_intent:pi};
+ return [["null",null],["empty object",{}],["array",[]],["string","re_123"],["missing id",{...ok,id:undefined,metadata:{}}],["empty id",{...ok,id:"",metadata:{}}],
+  ["other intent",{...ok,payment_intent:"pi_other",metadata:{}}],["no intent",{...ok,payment_intent:null,metadata:{}}],
+  ["string metadata",{...ok,metadata:"local_refund_id=1"}],["array metadata",{...ok,metadata:[]}],["numeric local id",{...ok,metadata:{local_refund_id:1}}],
+  ["empty local id",{...ok,metadata:{local_refund_id:""}}],["non-canonical local id",{...ok,metadata:{local_refund_id:" 1"}}],["null local id",{...ok,metadata:{local_refund_id:null}}]];
+}
+const malformedLabels=malformedEntries("pi_label").map(([label])=>label);
+/** Well-formed refunds of the same intent that provably are not this local refund. */
+function unrelatedEntries(f:Fixture){
+ const pi=f.payment.providerReference,ok={status:"succeeded",amount:1000,currency:"gbp",payment_intent:pi};
+ return [{...ok,id:`re_${randomUUID()}`,metadata:null},{...ok,id:`re_${randomUUID()}`,metadata:{}},{...ok,id:`re_${randomUUID()}`,metadata:{order_id:"5"}},
+  {...ok,id:`re_${randomUUID()}`,payment_intent:{id:pi},metadata:{local_refund_id:"999999999",order_id:String(f.order.id)}}];
+}
+it("a definitive refusal is never failed when any listed entry is null, empty or malformed",async()=>{
+ for(const [i,label] of malformedLabels.entries())for(const withUnrelated of [false,true]){
+  const f=await fixture();const entry=malformedEntries(f.payment.providerReference!)[i][1];
+  const list=withUnrelated?[...unrelatedEntries(f),entry]:[entry];
+  const result=await stripe(f,{createRefund:async()=>{throw refusal("refund_disputed_payment");},listRefunds:async()=>listed(list)});
+  assert.equal(result.status,"PROCESSING",label);assert.equal(result.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED",label);
+  assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"},label);
+ }
+});
+it("legitimate unrelated refunds, including null metadata, still corroborate a definitive refusal",async()=>{
+ const f=await fixture();
+ const failed=await stripe(f,{createRefund:async()=>{throw refusal("amount_too_large");},listRefunds:async()=>listed(unrelatedEntries(f))});
+ assert.equal(failed.status,"FAILED");assert.equal((failed.providerOutcome as any).rejectionCode,"amount_too_large");assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"});
+});
+it("reconciliation keeps an uncorroborated refusal unresolved while any listed entry is malformed",async()=>{
+ for(const [i,label] of malformedLabels.entries()){
+  const f=await fixture();let list:unknown[]|null=null;
+  const c:StripeRefundClient={createRefund:async()=>{throw refusal("refund_disputed_payment");},listRefunds:async()=>{if(!list)throw new Error("network");return listed(list);}};
+  const pending=await stripe(f,c);assert.equal(pending.resolutionCode,"PROVIDER_REJECTION_UNCORROBORATED",label);
+  const restore=setStripeRefundClientForTests(c);config.REFUND_RECONCILIATION_ENABLED=true;
+  try{
+   list=[...unrelatedEntries(f),malformedEntries(f.payment.providerReference!)[i][1]];
+   const kept=await reconcileExternalRefund(f.order.id,pending.id);
+   assert.equal(kept.status,"PROCESSING",label);assert.equal(kept.resolutionCode,"RECONCILIATION_UNAVAILABLE",label);
+   assert.deepEqual(await amounts(f),{reserved:"10",refunded:"0"},label);
+   list=unrelatedEntries(f);const failed=await reconcileExternalRefund(f.order.id,pending.id);
+   assert.equal(failed.status,"FAILED",label);assert.deepEqual(await amounts(f),{reserved:"0",refunded:"0"},label);
+  }finally{restore();}
+ }
+});
 it("a refusal contradicted by our own provider refund adopts it; a partial correlation requires review",async()=>{
  const f=await fixture();let localId="";
  const adopted=await stripe(f,{createRefund:async input=>{localId=localRefundId(input);throw refusal("amount_too_large");},listRefunds:async()=>listed([ours(f,localId)])});
