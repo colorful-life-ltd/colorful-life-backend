@@ -14,10 +14,10 @@ with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
 env={k:v for k,v in os.environ.items() if not k.startswith(('DB_','DATABASE_','TEST_DATABASE_','PG','AWS_','PAYPAL_','STRIPE_')) and k not in ['NODE_OPTIONS','NODE_TEST_CONTEXT','NODE_ENV']}
 env.update(PGHOST='127.0.0.1',PGPORT=str(port),PGUSER='rehearsal_bootstrap',PGPASSWORD=password)
 commands=[]
-def run(command,extra=None):
+def run(command,extra=None,cwd=None):
  commands.append(command)
  print('RUN '+json.dumps(command),flush=True)
- subprocess.run(command,cwd=root,env={**env,**(extra or {})},check=True)
+ subprocess.run(command,cwd=cwd or root,env={**env,**(extra or {})},check=True)
 started=False
 try:
  run([str(pg/'initdb'),'-D',str(owned/'data'),'-U','rehearsal_bootstrap','--pwfile',str(pw),'-A','scram-sha-256','--no-locale'])
@@ -46,7 +46,8 @@ try:
   return_index=next((i for i,m in enumerate(migrations) if m.parent.name=='20261029150000_return_management_v1'),-1)
   admin_index=next((i for i,m in enumerate(migrations) if m.parent.name=='20261101120000_single_admin_bootstrap'),-1)
   retired_index=next((i for i,m in enumerate(migrations) if m.parent.name=='20261102100000_retired_refund_request_keys'),-1)
-  if fba_index!=72 or return_index!=73 or admin_index!=74 or retired_index!=75 or len(migrations)!=76:
+  refund_failure_index=next((i for i,m in enumerate(migrations) if m.parent.name=='20261106120000_stripe_refund_failure_after_success'),-1)
+  if fba_index!=72 or return_index!=73 or admin_index!=74 or retired_index!=75 or refund_failure_index!=76 or len(migrations)!=77:
    raise RuntimeError('Review the baseline upgrade rehearsal when migration history changes')
   baseline=owned/'baseline-migrations';baseline.mkdir()
   shutil.copy2(root/'prisma/migrations/migration_lock.toml',baseline/'migration_lock.toml')
@@ -65,13 +66,22 @@ try:
    fixture="import pg from 'pg';const c=new pg.Client();await c.connect();try{for(const [email,role] of [['existing-admin@single-admin.test','ADMIN'],['existing-customer@single-admin.test','CUSTOMER']])await c.query('INSERT INTO \\\"User\\\" (email,\\\"passwordHash\\\",role,\\\"emailVerified\\\",\\\"updatedAt\\\") VALUES ($1,$2,$3,true,now())',[email,'synthetic-fixture',role]);}finally{await c.end()}"
    run(['node','--input-type=module','-e',fixture],{**common,'DB_USER':'cl_runtime','DB_PASSWORD':runtime,'PGDATABASE':'colorful_life','PGUSER':'cl_runtime','PGPASSWORD':runtime})
    identities=owned/'sandbox-identities.json';identities.write_text(json.dumps({'OWNER_PASSWORD':password,'RUNTIME_PASSWORD':runtime,'MIGRATOR_PASSWORD':migrator}));identities.chmod(0o600)
-   run(['node','scripts/sandbox-migrate-single-admin.mjs'],{**common,'EXPECTED_DB_SERVER':'127.0.0.1','LOCAL_DATABASE_REHEARSAL':'true','SANDBOX_IDENTITIES_FILE':str(identities),'MIGRATION_WRITES_APPROVED':'true'})
-   run(['node','scripts/sandbox-migrate-single-admin.mjs'],{**common,'EXPECTED_DB_SERVER':'127.0.0.1','LOCAL_DATABASE_REHEARSAL':'true','SANDBOX_IDENTITIES_FILE':str(identities),'MIGRATION_WRITES_APPROVED':'true'})
- if not args.single_admin_upgrade:run(['node','scripts/deploy-database.mjs'],{**common,'DB_USER':'cl_migrator','DB_PASSWORD':migrator,'MIGRATION_WRITES_APPROVED':'true'})
+   # The pinned Migration 75/76 installer requires Migration 76 to be the newest bundled migration, as in
+   # the reviewed image that ships it. Run it unchanged from an owned staged root whose bundle ends there;
+   # newer migrations are then applied by the ordinary deployment path below.
+   staged=owned/'single-admin-bundle';(staged/'prisma/migrations').mkdir(parents=True)
+   for name in ['scripts','src','node_modules','package.json']:(staged/name).symlink_to(root/name)
+   shutil.copy2(root/'prisma.config.ts',staged/'prisma.config.ts');shutil.copy2(root/'prisma/schema.prisma',staged/'prisma/schema.prisma')
+   shutil.copy2(root/'prisma/migrations/migration_lock.toml',staged/'prisma/migrations/migration_lock.toml')
+   for migration in migrations[:retired_index+1]:shutil.copytree(migration.parent,staged/'prisma/migrations'/migration.parent.name)
+   run(['node','scripts/sandbox-migrate-single-admin.mjs'],{**common,'EXPECTED_DB_SERVER':'127.0.0.1','LOCAL_DATABASE_REHEARSAL':'true','SANDBOX_IDENTITIES_FILE':str(identities),'MIGRATION_WRITES_APPROVED':'true'},cwd=staged)
+   run(['node','scripts/sandbox-migrate-single-admin.mjs'],{**common,'EXPECTED_DB_SERVER':'127.0.0.1','LOCAL_DATABASE_REHEARSAL':'true','SANDBOX_IDENTITIES_FILE':str(identities),'MIGRATION_WRITES_APPROVED':'true'},cwd=staged)
+ # Every mode then applies all remaining source migrations (for Single-Admin: those newer than Migration 76).
+ run(['node','scripts/deploy-database.mjs'],{**common,'DB_USER':'cl_migrator','DB_PASSWORD':migrator,'MIGRATION_WRITES_APPROVED':'true'})
  if args.single_admin_upgrade:
   verify="import pg from 'pg';const c=new pg.Client();await c.connect();try{const rows=await c.query('SELECT role,count(*)::int AS n FROM \\\"User\\\" WHERE email IN ($1,$2) GROUP BY role',[ 'existing-admin@single-admin.test','existing-customer@single-admin.test']);if(rows.rows.length!==2||!rows.rows.some(r=>r.role==='ADMIN'&&r.n===1)||!rows.rows.some(r=>r.role==='CUSTOMER'&&r.n===1))throw Error('Existing accounts were not preserved');for(const operation of [()=>c.query('INSERT INTO \\\"User\\\" (email,\\\"passwordHash\\\",role,\\\"updatedAt\\\") VALUES ($1,$2,$3,now())',['second-admin@single-admin.test','synthetic','ADMIN']),()=>c.query('UPDATE \\\"User\\\" SET role=\\\'ADMIN\\\' WHERE email=$1',['existing-customer@single-admin.test'])]){let rejected=false;try{await operation()}catch(e){rejected=e.code==='23505'}if(!rejected)throw Error('The database did not reject a second Admin');}}finally{await c.end()}"
   run(['node','--input-type=module','-e',verify],{**common,'DB_USER':'cl_runtime','DB_PASSWORD':runtime,'PGDATABASE':'colorful_life','PGUSER':'cl_runtime','PGPASSWORD':runtime})
- if not args.single_admin_upgrade:run(['node','scripts/runtime-privilege-probes.mjs'],{**common,'DB_USER':'cl_runtime','DB_PASSWORD':runtime})
+ run(['node','scripts/runtime-privilege-probes.mjs'],{**common,'DB_USER':'cl_runtime','DB_PASSWORD':runtime})
  if args.fba_upgrade:run(['node','scripts/fba-runtime-journey.mjs','verify',str(owned/'fba-fixture.json')],journey)
  if args.returns_upgrade:run(['node','scripts/return-upgrade-journey.mjs','verify',str(owned/'return-fixture.json')],journey)
  print('FRESH DATABASE / ALL MIGRATIONS / GRANTS / RUNTIME PROBES: PASS',flush=True)
