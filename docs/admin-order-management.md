@@ -1,5 +1,7 @@
 # Admin order contract — Issue #151 / Admin #39
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 All endpoints require `Authorization: Bearer <access token>`. Authentication reads the current database role; a stale ADMIN JWT does not grant access. No verified-email requirement is added to admin routes.
 
 ## Verified existing capabilities

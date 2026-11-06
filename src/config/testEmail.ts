@@ -21,5 +21,7 @@ export function isolateTestAwsEnvironment(env: NodeJS.ProcessEnv) {
     AWS_CONTAINER_CREDENTIALS_FULL_URI: '', AWS_CONTAINER_CREDENTIALS_RELATIVE_URI: '',
     AWS_CONTAINER_AUTHORIZATION_TOKEN: '', AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE: devNull,
     AWS_WEB_IDENTITY_TOKEN_FILE: devNull, AWS_ROLE_ARN: '', AWS_ROLE_SESSION_NAME: '',
+    // Never read a developer's or host's mounted SES session from an automated test.
+    SES_SESSION_DIRECTORY: '', SES_SESSION_SOURCE_ARN: '',
   });
 }

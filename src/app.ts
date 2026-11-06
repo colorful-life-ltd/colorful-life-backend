@@ -1,9 +1,10 @@
+import { customerReturns, adminReturns, legacyReturnActions } from './routes/returns.js';
 import {logOperationalError} from "./utils/operationalLog.js";
 import refundReviews from "./routes/refundReviews.js";
 import adminOperatorIntents from "./routes/adminOperatorIntents.js";
 import { prisma } from "./prisma/runtime.js";
 import adminPaymentSecurity from "./routes/adminPaymentSecurity.js";
-import adminPayPalWebhookReviewsRouter from './routes/adminPayPalWebhookReviews.js';
+import adminPaymentEnvironment from "./routes/adminPaymentEnvironment.js";
 import express from "express";
 import { config } from "./config/index.js";
 import authRouter from "./routes/auth.js";
@@ -18,7 +19,6 @@ import ordersRouter from "./routes/orders.js";
 import businessExpensesRouter from "./routes/businessExpenses.js";
 import inventoryRouter from "./routes/inventory.js";
 import stripeWebhookRouter from "./routes/stripeWebhook.js";
-import paypalWebhookRouter from "./routes/paypalWebhook.js";
 import cartRouter from "./routes/cart.js";
 import cors from "cors";
 import { createProductImagesRouter } from "./routes/productImages.js";
@@ -29,7 +29,9 @@ import { createUsedOffersRouter, createConditionConversionRouter } from "./route
 import adminProductsRouter from "./routes/adminProducts.js";
 import adminProductListingsRouter from "./routes/adminProductListings.js";
 import { createSitemapRouter } from "./routes/sitemap.js";
+import adminBootstrapRouter from "./routes/adminBootstrap.js";
 import type { ImageStorage } from "./infrastructure/imageStorage/imageStorage.js";
+import { emailCredentialReadiness } from "./services/sesRuntime.js";
 
 export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?: ImageStorage, categoryArtworkStorage?: ImageStorage) {
   const app = express();
@@ -39,9 +41,9 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   const origins=config.CORS_ALLOWED_ORIGINS.split(',').map(v=>v.trim());
   app.use(cors({ origin(origin,callback){callback(null,!origin||origins.includes(origin));} }));
   app.use("/payments", stripeWebhookRouter);
-  app.use("/payments", paypalWebhookRouter);
   app.use(express.json());
   app.use("/auth", authRouter);
+  app.use("/admin/bootstrap", adminBootstrapRouter);
   app.use("/", profileRouter);
   app.use("/users", usersRouter);
   app.use("/products", productsRouter);
@@ -58,8 +60,11 @@ export function createApp(imageStorage?: ImageStorage, catalogueArtworkStorage?:
   app.use("/admin/refund-reviews",refundReviews);
   app.use("/admin/operator-intents", adminOperatorIntents);
   app.use("/admin/payment-security", adminPaymentSecurity);
+  app.use("/admin/payment-environment", adminPaymentEnvironment);
 app.use("/admin/orders", adminOrdersRouter);
-  app.use("/admin/paypal/webhook-reviews", adminPayPalWebhookReviewsRouter);
+  app.use("/orders", customerReturns);
+  app.use("/orders", legacyReturnActions);
+  app.use("/admin/returns", adminReturns);
   app.use("/orders", ordersRouter);
   app.use("/cart", cartRouter);
   app.use("/business-expenses", businessExpensesRouter);
@@ -68,6 +73,9 @@ app.use("/admin/orders", adminOrdersRouter);
   app.use(createSitemapRouter());
   app.get("/health", (_req, res) => { res.json({ status: "ok" }); });
   app.get('/ready',async(_req,res)=>{try{await prisma.$queryRaw`SELECT 1`;res.json({status:'ready'});}catch{res.status(503).json({status:'unavailable'});}});
+  // Signup email credential readiness for monitoring. Deliberately separate from /ready so an
+  // SES outage never fails API recovery/deploy health. Body carries no reason or configuration.
+  app.get('/ready/email',async(_req,res)=>{res.setHeader('Cache-Control','no-store');try{if((await emailCredentialReadiness('signup')).ready){res.json({status:'ready'});return;}}catch{/* unavailable */}res.status(503).json({status:'unavailable'});});
   app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{
     logOperationalError('HTTP request rejected',error);
     if(res.headersSent){res.end();return;}

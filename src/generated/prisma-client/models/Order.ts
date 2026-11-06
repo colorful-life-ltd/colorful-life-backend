@@ -465,6 +465,7 @@ export type OrderWhereInput = {
   completedAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   updatedAt?: Prisma.DateTimeFilter<"Order"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  returnCase?: Prisma.XOR<Prisma.ReturnCaseNullableScalarRelationFilter, Prisma.ReturnCaseWhereInput> | null
   confirmationJobs?: Prisma.OrderConfirmationJobListRelationFilter
   commercialInvoice?: Prisma.XOR<Prisma.CommercialInvoiceNullableScalarRelationFilter, Prisma.CommercialInvoiceWhereInput> | null
   orderItems?: Prisma.OrderItemListRelationFilter
@@ -518,6 +519,7 @@ export type OrderOrderByWithRelationInput = {
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
+  returnCase?: Prisma.ReturnCaseOrderByWithRelationInput
   confirmationJobs?: Prisma.OrderConfirmationJobOrderByRelationAggregateInput
   commercialInvoice?: Prisma.CommercialInvoiceOrderByWithRelationInput
   orderItems?: Prisma.OrderItemOrderByRelationAggregateInput
@@ -575,6 +577,7 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   completedAt?: Prisma.DateTimeNullableFilter<"Order"> | Date | string | null
   updatedAt?: Prisma.DateTimeFilter<"Order"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  returnCase?: Prisma.XOR<Prisma.ReturnCaseNullableScalarRelationFilter, Prisma.ReturnCaseWhereInput> | null
   confirmationJobs?: Prisma.OrderConfirmationJobListRelationFilter
   commercialInvoice?: Prisma.XOR<Prisma.CommercialInvoiceNullableScalarRelationFilter, Prisma.CommercialInvoiceWhereInput> | null
   orderItems?: Prisma.OrderItemListRelationFilter
@@ -710,6 +713,7 @@ export type OrderCreateInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -762,6 +766,7 @@ export type OrderUncheckedCreateInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -813,6 +818,7 @@ export type OrderUpdateInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -865,6 +871,7 @@ export type OrderUncheckedUpdateInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -1249,6 +1256,20 @@ export type OrderUpdateOneRequiredWithoutOrderItemsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.OrderUpdateToOneWithWhereWithoutOrderItemsInput, Prisma.OrderUpdateWithoutOrderItemsInput>, Prisma.OrderUncheckedUpdateWithoutOrderItemsInput>
 }
 
+export type OrderCreateNestedOneWithoutReturnCaseInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutReturnCaseInput, Prisma.OrderUncheckedCreateWithoutReturnCaseInput>
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutReturnCaseInput
+  connect?: Prisma.OrderWhereUniqueInput
+}
+
+export type OrderUpdateOneRequiredWithoutReturnCaseNestedInput = {
+  create?: Prisma.XOR<Prisma.OrderCreateWithoutReturnCaseInput, Prisma.OrderUncheckedCreateWithoutReturnCaseInput>
+  connectOrCreate?: Prisma.OrderCreateOrConnectWithoutReturnCaseInput
+  upsert?: Prisma.OrderUpsertWithoutReturnCaseInput
+  connect?: Prisma.OrderWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.OrderUpdateToOneWithWhereWithoutReturnCaseInput, Prisma.OrderUpdateWithoutReturnCaseInput>, Prisma.OrderUncheckedUpdateWithoutReturnCaseInput>
+}
+
 export type OrderCreateNestedOneWithoutPaymentAttemptsInput = {
   create?: Prisma.XOR<Prisma.OrderCreateWithoutPaymentAttemptsInput, Prisma.OrderUncheckedCreateWithoutPaymentAttemptsInput>
   connectOrCreate?: Prisma.OrderCreateOrConnectWithoutPaymentAttemptsInput
@@ -1423,6 +1444,7 @@ export type OrderCreateWithoutUserInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -1474,6 +1496,7 @@ export type OrderUncheckedCreateWithoutUserInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -1592,6 +1615,7 @@ export type OrderCreateWithoutCartProvenanceInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -1643,6 +1667,7 @@ export type OrderUncheckedCreateWithoutCartProvenanceInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -1709,6 +1734,7 @@ export type OrderUpdateWithoutCartProvenanceInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -1760,6 +1786,7 @@ export type OrderUncheckedUpdateWithoutCartProvenanceInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -1810,6 +1837,7 @@ export type OrderCreateWithoutPaymentsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -1861,6 +1889,7 @@ export type OrderUncheckedCreateWithoutPaymentsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -1927,6 +1956,7 @@ export type OrderUpdateWithoutPaymentsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -1978,6 +2008,7 @@ export type OrderUncheckedUpdateWithoutPaymentsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -2028,6 +2059,7 @@ export type OrderCreateWithoutRefundsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -2079,6 +2111,7 @@ export type OrderUncheckedCreateWithoutRefundsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -2145,6 +2178,7 @@ export type OrderUpdateWithoutRefundsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -2196,6 +2230,7 @@ export type OrderUncheckedUpdateWithoutRefundsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -2246,6 +2281,7 @@ export type OrderCreateWithoutOrderItemsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
@@ -2297,6 +2333,7 @@ export type OrderUncheckedCreateWithoutOrderItemsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
@@ -2363,6 +2400,7 @@ export type OrderUpdateWithoutOrderItemsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
@@ -2414,8 +2452,231 @@ export type OrderUncheckedUpdateWithoutOrderItemsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
+  refunds?: Prisma.RefundUncheckedUpdateManyWithoutOrderNestedInput
+  cartProvenance?: Prisma.OrderCartProvenanceUncheckedUpdateOneWithoutOrderNestedInput
+  paymentResolution?: Prisma.PaymentResolutionUncheckedUpdateOneWithoutOrderNestedInput
+  paymentAttempts?: Prisma.PaymentAttemptUncheckedUpdateManyWithoutOrderNestedInput
+  financialEvidence?: Prisma.FinancialEvidenceUncheckedUpdateManyWithoutOrderNestedInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUncheckedUpdateManyWithoutOrderNestedInput
+  shipments?: Prisma.ShipmentUncheckedUpdateManyWithoutOrderNestedInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedUpdateManyWithoutOrderNestedInput
+}
+
+export type OrderCreateWithoutReturnCaseInput = {
+  status?: $Enums.OrderStatus
+  creationIdempotencyKey?: string | null
+  creationRequestHash?: string | null
+  billingRecipientName: string
+  billingLine1: string
+  billingLine2?: string | null
+  billingCity: string
+  billingCounty?: string | null
+  billingPostcode: string
+  billingCountryCode: string
+  billingPhone?: string | null
+  deliveryRecipientName: string
+  deliveryLine1: string
+  deliveryLine2?: string | null
+  deliveryCity: string
+  deliveryCounty?: string | null
+  deliveryPostcode: string
+  deliveryCountryCode: string
+  deliveryPhone?: string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: string | null
+  trackingNumber?: string | null
+  dispatchedAt?: Date | string | null
+  preparingAt?: Date | string | null
+  reservationExpiresAt?: Date | string | null
+  createdAt?: Date | string
+  cancelledAt?: Date | string | null
+  cancelledBy?: $Enums.CancellationInitiator | null
+  cancellationReason?: $Enums.CancellationReason | null
+  completedAt?: Date | string | null
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
+  commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
+  orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewCreateNestedOneWithoutOrderInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutOrderInput
+  refunds?: Prisma.RefundCreateNestedManyWithoutOrderInput
+  cartProvenance?: Prisma.OrderCartProvenanceCreateNestedOneWithoutOrderInput
+  paymentResolution?: Prisma.PaymentResolutionCreateNestedOneWithoutOrderInput
+  paymentAttempts?: Prisma.PaymentAttemptCreateNestedManyWithoutOrderInput
+  financialEvidence?: Prisma.FinancialEvidenceCreateNestedManyWithoutOrderInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofCreateNestedManyWithoutOrderInput
+  shipments?: Prisma.ShipmentCreateNestedManyWithoutOrderInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventCreateNestedManyWithoutOrderInput
+}
+
+export type OrderUncheckedCreateWithoutReturnCaseInput = {
+  id?: number
+  userId: number
+  status?: $Enums.OrderStatus
+  creationIdempotencyKey?: string | null
+  creationRequestHash?: string | null
+  billingRecipientName: string
+  billingLine1: string
+  billingLine2?: string | null
+  billingCity: string
+  billingCounty?: string | null
+  billingPostcode: string
+  billingCountryCode: string
+  billingPhone?: string | null
+  deliveryRecipientName: string
+  deliveryLine1: string
+  deliveryLine2?: string | null
+  deliveryCity: string
+  deliveryCounty?: string | null
+  deliveryPostcode: string
+  deliveryCountryCode: string
+  deliveryPhone?: string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: string | null
+  trackingNumber?: string | null
+  dispatchedAt?: Date | string | null
+  preparingAt?: Date | string | null
+  reservationExpiresAt?: Date | string | null
+  createdAt?: Date | string
+  cancelledAt?: Date | string | null
+  cancelledBy?: $Enums.CancellationInitiator | null
+  cancellationReason?: $Enums.CancellationReason | null
+  completedAt?: Date | string | null
+  updatedAt?: Date | string
+  confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
+  commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
+  orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedCreateNestedOneWithoutOrderInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutOrderInput
+  refunds?: Prisma.RefundUncheckedCreateNestedManyWithoutOrderInput
+  cartProvenance?: Prisma.OrderCartProvenanceUncheckedCreateNestedOneWithoutOrderInput
+  paymentResolution?: Prisma.PaymentResolutionUncheckedCreateNestedOneWithoutOrderInput
+  paymentAttempts?: Prisma.PaymentAttemptUncheckedCreateNestedManyWithoutOrderInput
+  financialEvidence?: Prisma.FinancialEvidenceUncheckedCreateNestedManyWithoutOrderInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUncheckedCreateNestedManyWithoutOrderInput
+  shipments?: Prisma.ShipmentUncheckedCreateNestedManyWithoutOrderInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUncheckedCreateNestedManyWithoutOrderInput
+}
+
+export type OrderCreateOrConnectWithoutReturnCaseInput = {
+  where: Prisma.OrderWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrderCreateWithoutReturnCaseInput, Prisma.OrderUncheckedCreateWithoutReturnCaseInput>
+}
+
+export type OrderUpsertWithoutReturnCaseInput = {
+  update: Prisma.XOR<Prisma.OrderUpdateWithoutReturnCaseInput, Prisma.OrderUncheckedUpdateWithoutReturnCaseInput>
+  create: Prisma.XOR<Prisma.OrderCreateWithoutReturnCaseInput, Prisma.OrderUncheckedCreateWithoutReturnCaseInput>
+  where?: Prisma.OrderWhereInput
+}
+
+export type OrderUpdateToOneWithWhereWithoutReturnCaseInput = {
+  where?: Prisma.OrderWhereInput
+  data: Prisma.XOR<Prisma.OrderUpdateWithoutReturnCaseInput, Prisma.OrderUncheckedUpdateWithoutReturnCaseInput>
+}
+
+export type OrderUpdateWithoutReturnCaseInput = {
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  creationIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creationRequestHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingCity?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryCity?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  trackingNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dispatchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  preparingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reservationExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  cancelledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  cancelledBy?: Prisma.NullableEnumCancellationInitiatorFieldUpdateOperationsInput | $Enums.CancellationInitiator | null
+  cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
+  commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
+  orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
+  securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
+  securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUpdateOneWithoutOrderNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutOrderNestedInput
+  refunds?: Prisma.RefundUpdateManyWithoutOrderNestedInput
+  cartProvenance?: Prisma.OrderCartProvenanceUpdateOneWithoutOrderNestedInput
+  paymentResolution?: Prisma.PaymentResolutionUpdateOneWithoutOrderNestedInput
+  paymentAttempts?: Prisma.PaymentAttemptUpdateManyWithoutOrderNestedInput
+  financialEvidence?: Prisma.FinancialEvidenceUpdateManyWithoutOrderNestedInput
+  reservationReleaseProofs?: Prisma.ReservationReleaseProofUpdateManyWithoutOrderNestedInput
+  shipments?: Prisma.ShipmentUpdateManyWithoutOrderNestedInput
+  fulfilmentEvents?: Prisma.OrderFulfilmentEventUpdateManyWithoutOrderNestedInput
+}
+
+export type OrderUncheckedUpdateWithoutReturnCaseInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  userId?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+  creationIdempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creationRequestHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  billingLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingCity?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  billingPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  billingPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryRecipientName?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine1?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryLine2?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryCity?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCounty?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryPostcode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryCountryCode?: Prisma.StringFieldUpdateOperationsInput | string
+  deliveryPhone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confirmationDeliverySnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  actualShippingCost?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  shippingCarrier?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  trackingNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dispatchedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  preparingAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reservationExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  cancelledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  cancelledBy?: Prisma.NullableEnumCancellationInitiatorFieldUpdateOperationsInput | $Enums.CancellationInitiator | null
+  cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
+  commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
+  orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
   securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
   securityFulfilmentReview?: Prisma.PaymentFulfilmentReviewUncheckedUpdateOneWithoutOrderNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutOrderNestedInput
@@ -2464,6 +2725,7 @@ export type OrderCreateWithoutPaymentAttemptsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -2515,6 +2777,7 @@ export type OrderUncheckedCreateWithoutPaymentAttemptsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -2581,6 +2844,7 @@ export type OrderUpdateWithoutPaymentAttemptsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -2632,6 +2896,7 @@ export type OrderUncheckedUpdateWithoutPaymentAttemptsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -2682,6 +2947,7 @@ export type OrderCreateWithoutFinancialEvidenceInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -2733,6 +2999,7 @@ export type OrderUncheckedCreateWithoutFinancialEvidenceInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -2799,6 +3066,7 @@ export type OrderUpdateWithoutFinancialEvidenceInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -2850,6 +3118,7 @@ export type OrderUncheckedUpdateWithoutFinancialEvidenceInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -2900,6 +3169,7 @@ export type OrderCreateWithoutReservationReleaseProofsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -2951,6 +3221,7 @@ export type OrderUncheckedCreateWithoutReservationReleaseProofsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -3017,6 +3288,7 @@ export type OrderUpdateWithoutReservationReleaseProofsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -3068,6 +3340,7 @@ export type OrderUncheckedUpdateWithoutReservationReleaseProofsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -3118,6 +3391,7 @@ export type OrderCreateWithoutPaymentResolutionInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -3169,6 +3443,7 @@ export type OrderUncheckedCreateWithoutPaymentResolutionInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -3235,6 +3510,7 @@ export type OrderUpdateWithoutPaymentResolutionInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -3286,6 +3562,7 @@ export type OrderUncheckedUpdateWithoutPaymentResolutionInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -3336,6 +3613,7 @@ export type OrderCreateWithoutShipmentsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -3387,6 +3665,7 @@ export type OrderUncheckedCreateWithoutShipmentsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -3453,6 +3732,7 @@ export type OrderUpdateWithoutShipmentsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -3504,6 +3784,7 @@ export type OrderUncheckedUpdateWithoutShipmentsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -3554,6 +3835,7 @@ export type OrderCreateWithoutFulfilmentEventsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -3605,6 +3887,7 @@ export type OrderUncheckedCreateWithoutFulfilmentEventsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -3671,6 +3954,7 @@ export type OrderUpdateWithoutFulfilmentEventsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -3722,6 +4006,7 @@ export type OrderUncheckedUpdateWithoutFulfilmentEventsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -3772,6 +4057,7 @@ export type OrderCreateWithoutConfirmationJobsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
   securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
@@ -3823,6 +4109,7 @@ export type OrderUncheckedCreateWithoutConfirmationJobsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
   securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
@@ -3889,6 +4176,7 @@ export type OrderUpdateWithoutConfirmationJobsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
   securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
@@ -3940,6 +4228,7 @@ export type OrderUncheckedUpdateWithoutConfirmationJobsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
   securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
@@ -3990,6 +4279,7 @@ export type OrderCreateWithoutCommercialInvoiceInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
   securityAdmissions?: Prisma.PaymentAdmissionCreateNestedManyWithoutOrderInput
@@ -4041,6 +4331,7 @@ export type OrderUncheckedCreateWithoutCommercialInvoiceInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
   securityAdmissions?: Prisma.PaymentAdmissionUncheckedCreateNestedManyWithoutOrderInput
@@ -4107,6 +4398,7 @@ export type OrderUpdateWithoutCommercialInvoiceInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
   securityAdmissions?: Prisma.PaymentAdmissionUpdateManyWithoutOrderNestedInput
@@ -4158,6 +4450,7 @@ export type OrderUncheckedUpdateWithoutCommercialInvoiceInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
   securityAdmissions?: Prisma.PaymentAdmissionUncheckedUpdateManyWithoutOrderNestedInput
@@ -4208,6 +4501,7 @@ export type OrderCreateWithoutSecurityAdmissionsInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -4259,6 +4553,7 @@ export type OrderUncheckedCreateWithoutSecurityAdmissionsInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -4325,6 +4620,7 @@ export type OrderUpdateWithoutSecurityAdmissionsInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -4376,6 +4672,7 @@ export type OrderUncheckedUpdateWithoutSecurityAdmissionsInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -4426,6 +4723,7 @@ export type OrderCreateWithoutSecurityFulfilmentReviewInput = {
   completedAt?: Date | string | null
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutOrdersInput
+  returnCase?: Prisma.ReturnCaseCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemCreateNestedManyWithoutOrderInput
@@ -4477,6 +4775,7 @@ export type OrderUncheckedCreateWithoutSecurityFulfilmentReviewInput = {
   cancellationReason?: $Enums.CancellationReason | null
   completedAt?: Date | string | null
   updatedAt?: Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedCreateNestedOneWithoutOrderInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedCreateNestedManyWithoutOrderInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedCreateNestedOneWithoutOrderInput
   orderItems?: Prisma.OrderItemUncheckedCreateNestedManyWithoutOrderInput
@@ -4543,6 +4842,7 @@ export type OrderUpdateWithoutSecurityFulfilmentReviewInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutOrdersNestedInput
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -4594,6 +4894,7 @@ export type OrderUncheckedUpdateWithoutSecurityFulfilmentReviewInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -4680,6 +4981,7 @@ export type OrderUpdateWithoutUserInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUpdateManyWithoutOrderNestedInput
@@ -4731,6 +5033,7 @@ export type OrderUncheckedUpdateWithoutUserInput = {
   cancellationReason?: Prisma.NullableEnumCancellationReasonFieldUpdateOperationsInput | $Enums.CancellationReason | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  returnCase?: Prisma.ReturnCaseUncheckedUpdateOneWithoutOrderNestedInput
   confirmationJobs?: Prisma.OrderConfirmationJobUncheckedUpdateManyWithoutOrderNestedInput
   commercialInvoice?: Prisma.CommercialInvoiceUncheckedUpdateOneWithoutOrderNestedInput
   orderItems?: Prisma.OrderItemUncheckedUpdateManyWithoutOrderNestedInput
@@ -4933,6 +5236,7 @@ export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   completedAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  returnCase?: boolean | Prisma.Order$returnCaseArgs<ExtArgs>
   confirmationJobs?: boolean | Prisma.Order$confirmationJobsArgs<ExtArgs>
   commercialInvoice?: boolean | Prisma.Order$commercialInvoiceArgs<ExtArgs>
   orderItems?: boolean | Prisma.Order$orderItemsArgs<ExtArgs>
@@ -5069,6 +5373,7 @@ export type OrderSelectScalar = {
 export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "status" | "creationIdempotencyKey" | "creationRequestHash" | "billingRecipientName" | "billingLine1" | "billingLine2" | "billingCity" | "billingCounty" | "billingPostcode" | "billingCountryCode" | "billingPhone" | "deliveryRecipientName" | "deliveryLine1" | "deliveryLine2" | "deliveryCity" | "deliveryCounty" | "deliveryPostcode" | "deliveryCountryCode" | "deliveryPhone" | "confirmationDeliverySnapshot" | "totalAmount" | "actualShippingCost" | "shippingCarrier" | "trackingNumber" | "dispatchedAt" | "preparingAt" | "reservationExpiresAt" | "createdAt" | "cancelledAt" | "cancelledBy" | "cancellationReason" | "completedAt" | "updatedAt", ExtArgs["result"]["order"]>
 export type OrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  returnCase?: boolean | Prisma.Order$returnCaseArgs<ExtArgs>
   confirmationJobs?: boolean | Prisma.Order$confirmationJobsArgs<ExtArgs>
   commercialInvoice?: boolean | Prisma.Order$commercialInvoiceArgs<ExtArgs>
   orderItems?: boolean | Prisma.Order$orderItemsArgs<ExtArgs>
@@ -5096,6 +5401,7 @@ export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   name: "Order"
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
+    returnCase: Prisma.$ReturnCasePayload<ExtArgs> | null
     confirmationJobs: Prisma.$OrderConfirmationJobPayload<ExtArgs>[]
     commercialInvoice: Prisma.$CommercialInvoicePayload<ExtArgs> | null
     orderItems: Prisma.$OrderItemPayload<ExtArgs>[]
@@ -5542,6 +5848,7 @@ readonly fields: OrderFieldRefs;
 export interface Prisma__OrderClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  returnCase<T extends Prisma.Order$returnCaseArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$returnCaseArgs<ExtArgs>>): Prisma.Prisma__ReturnCaseClient<runtime.Types.Result.GetResult<Prisma.$ReturnCasePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   confirmationJobs<T extends Prisma.Order$confirmationJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$confirmationJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderConfirmationJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   commercialInvoice<T extends Prisma.Order$commercialInvoiceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$commercialInvoiceArgs<ExtArgs>>): Prisma.Prisma__CommercialInvoiceClient<runtime.Types.Result.GetResult<Prisma.$CommercialInvoicePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   orderItems<T extends Prisma.Order$orderItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Order$orderItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$OrderItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -6018,6 +6325,25 @@ export type OrderDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Interna
    * Limit how many Orders to delete.
    */
   limit?: number
+}
+
+/**
+ * Order.returnCase
+ */
+export type Order$returnCaseArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ReturnCase
+   */
+  select?: Prisma.ReturnCaseSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ReturnCase
+   */
+  omit?: Prisma.ReturnCaseOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ReturnCaseInclude<ExtArgs> | null
+  where?: Prisma.ReturnCaseWhereInput
 }
 
 /**

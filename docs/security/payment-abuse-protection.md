@@ -1,5 +1,7 @@
 # Issue #194 — payment abuse admission (staging policy)
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 This is an application control, pending independent review and AWS Staging integration acceptance. It does not establish production readiness. No provider Dashboard or AWS controls were configured by this implementation.
 
 ## Boundaries and invariants

@@ -25,3 +25,44 @@ test('requested older commit supplies actual source; invalid or dirty source fai
   writeFileSync(join(root,'source.txt'),'unreviewed-dirty-source');assert.notEqual(run(older).status,0);
  } finally {rmSync(root,{recursive:true,force:true});}
 });
+
+test('image preparation retains main/CI admission and never calls SSM or deploys',()=>{
+ assert.ok(workflow.includes('options: [status, prepare, migrate, routes, deploy, rollback, www-vhost, www-certificate, www-remove]'));
+ assert.ok(workflow.includes('migration_writes_approved:'));
+ assert.ok(workflow.includes('nginx_routes_approved:'));
+ assert.ok(workflow.includes('NginxRoutesApproved:[$routes]'));
+ assert.ok(workflow.includes("if: inputs.action == 'routes'"));
+ for(const name of ['Resolve the commit and require a passed backend workflow','Check out the exact approved deployment source','Publish immutable images (reuse existing sandbox tags)']){
+  const block=workflow.split('      - name: '+name+'\n')[1]?.split('      - ')[0];
+  assert.ok(block?.includes("if: inputs.action == 'deploy' || inputs.action == 'prepare' || inputs.action == 'migrate'"));
+  if(name==='Publish immutable images (reuse existing sandbox tags)'){
+   assert.ok(block?.includes('docker pull "$image_ref"'));
+   assert.ok(block?.includes('node scripts/verify-sandbox-image.mjs "$kind" "$image_ref" "$DEPLOY_SHA"'));
+  }
+ }
+ for(const name of ['Define the host command helper','Read the running Sandbox release']){
+  const block=workflow.split('      - name: '+name+'\n')[1]?.split('      - ')[0];
+  assert.ok(block?.includes("if: inputs.action != 'prepare'"));
+ }
+ const deploy=workflow.split('      - name: Deploy API then Worker on the host')[1]?.split('      - ')[0];
+ assert.ok(deploy?.includes("if: inputs.action == 'deploy'\n"));
+ assert.ok(workflow.includes("if: always() && (inputs.action == 'deploy' || inputs.action == 'rollback' || inputs.action == 'migrate' || inputs.action == 'routes')"));
+});
+
+test('www steps need their own approval and send WwwApproved only for www actions',()=>{
+ assert.ok(workflow.includes('www_approved:\n        description: Explicit owner approval'));
+ const block=workflow.split('      - name: Owner-approved www canonical redirect and certificate step\n')[1]?.split('      - ')[0];
+ assert.ok(block?.includes("if: startsWith(inputs.action, 'www-')"));
+ assert.ok(block?.includes('[ "$WWW_APPROVED" = true ] || {'));
+ // Image, source and migration steps never run for www actions.
+ for(const name of ['Resolve the commit and require a passed backend workflow','Publish immutable images (reuse existing sandbox tags)']){
+  const step=workflow.split('      - name: '+name+'\n')[1]?.split('      - ')[0];
+  assert.ok(!step?.includes('www'));
+ }
+ // The SSM document rejects undeclared parameters: other actions must not send WwwApproved.
+ const filter=/--arg www "\$WWW_APPROVED" '([^']+)'/.exec(workflow)?.[1];
+ assert.ok(filter);
+ const params=(action:string)=>JSON.parse(execFileSync('jq',['-nc','--arg','a',action,'--arg','api','','--arg','mig','','--arg','s','','--arg','approved','false','--arg','routes','false','--arg','www','true',filter!],{encoding:'utf8'}));
+ assert.deepEqual(params('www-certificate').WwwApproved,['true']);
+ for(const action of ['status','deploy','routes','migrate','rollback']) assert.equal(params(action).WwwApproved,undefined,action);
+});

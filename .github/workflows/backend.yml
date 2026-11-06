@@ -39,6 +39,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: python3 -B -m unittest discover -s scripts -p sandbox_disposal_preflight_test.py -v
       - run: npm run test:deployment-contracts
       - run: npm run generate:client
       - run: npx prisma validate
@@ -73,7 +74,8 @@ jobs:
           assert.equal(result.status, 0);"
 
   deployment-rehearsal:
-    runs-on: ubuntu-latest
+    # Pinned: needs the preinstalled PostgreSQL 16 binaries (Sandbox major); ubuntu-26.04 images do not ship them.
+    runs-on: ubuntu-24.04
     env:
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
@@ -82,6 +84,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Install PostgreSQL 16 rehearsal binaries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y postgresql-16
       - run: test -x /usr/lib/postgresql/16/bin/initdb
       - run: npm ci
       - run: DATABASE_URL=postgresql://unused@127.0.0.1:1/unused npm run generate:client
@@ -93,3 +99,9 @@ jobs:
         run: python3 scripts/rehearse-tls.py
       - name: Rehearse populated FBA schema upgrade and restricted-runtime journey
         run: python3 scripts/rehearse-database.py --fba-upgrade --skip-application-tests
+      - name: Rehearse populated return-case upgrade and restricted runtime grants
+        run: python3 scripts/rehearse-database.py --returns-upgrade --skip-application-tests
+      - name: Rehearse single-Admin constraint upgrade with existing accounts
+        run: python3 scripts/rehearse-database.py --single-admin-upgrade --skip-application-tests
+      - name: Rehearse rollback compatibility (previous release image on this schema)
+        run: python3 scripts/rehearse-previous-image.py

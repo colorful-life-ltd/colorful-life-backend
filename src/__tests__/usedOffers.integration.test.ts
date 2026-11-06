@@ -1,3 +1,4 @@
+import { dispatchOrder } from "../domain/orders/orderDispatchService.js";
 import {historicalUnpaidConfirmedFixture} from "./fixtures/historicalUnpaidOrder.js";
 import {recordVerifiedPayment} from "./fixtures/verifiedPayment.js";
 import { OrderReturnEligibilityError } from "../domain/orders/returnInventorySafety.js";
@@ -497,6 +498,7 @@ describe("per-item Used offers", () => {
     const returnOrder = await createOrder(buyer.id, { shippingMethod: "STANDARD" as const, items: [{ productListingId: returnListing.id, quantity: 1 }] }); orders.push(returnOrder.id);
     await recordVerifiedPayment(returnOrder.id);
     await confirmOrder(adminId, returnOrder.id);
+    await dispatchOrder(returnOrder.id,0,"Royal Mail","AB123456789GB",adminId);
     const orderItem = await prisma.orderItem.findFirstOrThrow({ where: { orderId: returnOrder.id } });
     const returnedItem = await requestOrderReturn(returnOrder.id, orderItem.id, 1, ReturnReason.DAMAGED, "Box damaged in transit", ReturnShippingPayer.SELLER, undefined, buyer.id);
     await authorizeOrderReturn(returnOrder.id, returnedItem.id);

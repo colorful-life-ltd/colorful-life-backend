@@ -12,12 +12,13 @@ import {
   lookupAddresses,
 } from "../controllers/addressController.js";
 import { deleteCurrentUserAccount } from "../controllers/accountDeletionController.js";
+import { accountEmailReady } from "../middleware/emailDeliveryReady.js";
 
 const router = Router();
 
 router.get("/me", authMiddleware, requireVerifiedEmail, getCurrentUserProfile);
 router.patch("/me", authMiddleware, requireVerifiedEmail, updateCurrentUserProfile);
-router.patch("/me/email", authMiddleware, checkoutProtection("recovery"), changeCurrentUserEmail);
+router.patch("/me/email", authMiddleware, accountEmailReady, checkoutProtection("recovery"), changeCurrentUserEmail);
 router.post("/me/password", authMiddleware, checkoutProtection("recovery"), changePassword);
 router.delete("/me", authMiddleware, checkoutProtection("recovery"), deleteCurrentUserAccount);
 // Address management endpoints

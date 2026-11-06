@@ -14,9 +14,6 @@ import { createPayment } from "./helpers/manualPayment.js";
 import { cancelOrder, cancelOrderByAdmin } from "../domain/orders/orderCancellationService.js";
 import { InsufficientAvailableStockError } from "../domain/orders/orderErrors.js";
 import { createOrder } from "../domain/orders/orderService.js";
-import { createOrReusePayPalOrder } from "../domain/payments/paypalOrderService.js";
-import { capturePayPalOrder } from "../domain/payments/paypalCaptureService.js";
-import { reconcilePayPalWebhookEvent } from "../domain/payments/paypalReconciliationService.js";
 import app from "../app.js";
 import jwt from "jsonwebtoken";
 
@@ -44,11 +41,11 @@ type Fixture=Awaited<ReturnType<typeof fixture>>;
 function intent(f:Fixture,status:Stripe.PaymentIntent.Status="requires_payment_method"):Stripe.PaymentIntent {
   return {id:`pi_${f.order.id}_${randomUUID()}`,status,amount:2000,amount_received:0,amount_capturable:0,currency:"gbp",metadata:{orderId:String(f.order.id)},client_secret:"fixture-only",last_payment_error:null} as unknown as Stripe.PaymentIntent;
 }
-async function admitted(f:Fixture,provider="STRIPE" as "STRIPE"|"PAYPAL",unbound=false) {
+async function admitted(f:Fixture,provider="STRIPE" as const,unbound=false) {
   const remote=intent(f);const r=await prisma.paymentResolution.findUniqueOrThrow({where:{orderId:f.order.id}});const at=new Date(r.orderCreatedAt.getTime());
   const payment=await prisma.payment.create({data:{orderId:f.order.id,provider,status:"PROCESSING",providerReference:unbound?`pending:order-${f.order.id}-stripe`:remote.id,amount:20,currency:"GBP"}});
   const attempt=await prisma.paymentAttempt.create({data:{orderId:f.order.id,paymentId:payment.id,provider,amount:20,currency:"GBP",providerReference:unbound?null:remote.id,creationKey:randomUUID(),admittedAt:at}});
-  for(const type of ["CREATE",provider==="STRIPE"?"CONFIRM":"CAPTURE"] as const){
+  for(const type of ["CREATE","CONFIRM"] as const){
     const op=await prisma.paymentOperation.create({data:{attemptId:attempt.id,type,operationKey:randomUUID(),requestHash:"a".repeat(64),admittedAt:at,admissionDeadline:r.initialPaymentDeadline}});
     await prisma.paymentOperation.update({where:{id:op.id},data:{state:"POTENTIALLY_DISPATCHED",executionCount:1}});
   }
@@ -144,13 +141,6 @@ it("manual success preserves payment and prevents ordinary customer/seller cance
  const f=await fixture();await createPayment(f.order.id,{providerReference:randomUUID()});assert.equal((await state(f)).resolution.state,"PAID");
  await assert.rejects(cancelOrder(f.u.id,f.order.id,"CHANGED_MIND"));await assert.rejects(cancelOrderByAdmin(f.order.id,"OUT_OF_STOCK",f.u.id));assert.equal((await state(f)).stock.reservedStock,2);
 });
-it("PayPal denial opens retry but unknown order finality retains stock and prevents competing capture",async()=>{
- const f=await fixture();const ppId=`PP-${randomUUID()}`;await createOrReusePayPalOrder(f.order.id,f.u.id,{createOrder:async()=>({id:ppId})});
- let calls=0;await assert.rejects(capturePayPalOrder(f.order.id,f.u.id,{captureOrder:async()=>{calls++;throw Error("timeout");}}));
- await reconcilePayPalWebhookEvent({id:randomUUID(),eventType:"PAYMENT.CAPTURE.DENIED",captureId:`CAP-${randomUUID()}`,paypalOrderId:ppId,amount:"20.00",currency:"GBP"});
- assert.ok((await state(f)).resolution.retryDeadline);await assert.rejects(capturePayPalOrder(f.order.id,f.u.id,{captureOrder:async()=>{calls++;throw Error("must not run");}}));assert.equal(calls,1);
- await abandonPaymentReservation(f.order.id,f.u.id);assert.equal((await state(f)).stock.reservedStock,2);assert.equal((await state(f)).resolution.state,"SAFETY_HOLD");
-});
 it("database refuses a no-payment proof with an uncovered compatibility payment",async()=>{
  const f=await fixture(31);await prisma.payment.create({data:{orderId:f.order.id,provider:"STRIPE",status:"FAILED",providerReference:`pi_${randomUUID()}`,amount:20}});
  await assert.rejects(prisma.$transaction(async tx=>{await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${f.order.id} FOR UPDATE`;await tx.paymentResolution.update({where:{orderId:f.order.id},data:{state:"CLOSED_RESOLVING",paymentAdmissionClosedAt:new Date(),closureReason:"WINDOW_EXPIRED"}});await tx.reservationReleaseProof.create({data:{orderId:f.order.id,type:"NO_PAYMENT",decisionVersion:1,coverage:{attempts:[],operations:[]}}});}),error=>String(error).includes("No-payment proof has financial activity"));
@@ -208,14 +198,6 @@ it("database rejects cross-order release proofs and relevant unresolved provider
  const p=await admitted(b);
  await prisma.paymentWebhookEvent.create({data:{provider:"STRIPE",providerEventId:randomUUID(),eventType:"payment_intent.succeeded",evidence:{orderId:String(b.order.id),paymentIntentId:p.remote.id}}});
  assert.equal(await expireOrderReservation(b.order.id),null);assert.equal((await state(b)).stock.reservedStock,2);
-});
-it("PayPal provider lookup recovers late success through shared order confirmation",async()=>{
- const f=await fixture(31);const p=await admitted(f,"PAYPAL");
- const {resolvePayPalPaymentOutcome}=await import("../domain/payments/paypalResolutionService.js");
- const captureId=`CAP-${randomUUID()}`;
- await resolvePayPalPaymentOutcome(f.order.id,{retrieveOrder:async()=>({id:p.remote.id,status:"COMPLETED",purchase_units:[{payments:{captures:[{id:captureId,status:"COMPLETED",amount:{value:"20.00",currency_code:"GBP"}}]}}]})});
- const payment=await prisma.payment.findUniqueOrThrow({where:{id:p.payment.id}});assert.equal(payment.status,"SUCCEEDED");assert.ok(payment.paidAt);assert.equal(payment.providerCaptureReference,captureId);
- const s=await state(f);assert.equal(s.order.status,"CONFIRMED");assert.equal(s.resolution.state,"PAID");assert.equal(s.resolution.reservationDisposition,"CONSUMED");assert.equal(s.stock.currentStock,0);assert.equal(s.stock.reservedStock,0);
 });
 
 it("resolution projection is customer-owned and excludes provider identities and proof data",async()=>{

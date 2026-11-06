@@ -30,10 +30,11 @@ import {
   reconcileRefundHandler,
   createRefundHandler,
   listRefundsHandler,
+  refundRequestStatusHandler,
+  retireRefundRequestKeyHandler,
 } from "../controllers/refunds.js";
 import { createStripePaymentIntentHandler } from "../controllers/stripePaymentController.js";
 import { recoverStripePaymentHandler } from "../controllers/stripePaymentRecoveryController.js";
-import { createPayPalOrderHandler, capturePayPalOrderHandler } from "../controllers/paypalPaymentController.js";
 
 const router = Router();
 
@@ -91,11 +92,11 @@ router.post(
 router.post("/:orderId/payments", authMiddleware, createPaymentHandler);
 router.post("/:orderId/payments/stripe", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), createStripePaymentIntentHandler);
 router.post("/:orderId/payments/stripe/reconcile", authMiddleware, requireVerifiedEmail, checkoutProtection("recovery"), recoverStripePaymentHandler);
-router.post("/:orderId/payments/paypal", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), createPayPalOrderHandler);
-router.post("/:orderId/payments/paypal/capture", authMiddleware, requireVerifiedEmail, checkoutProtection("payment"), capturePayPalOrderHandler);
 router.get("/:orderId/payments", authMiddleware, listPaymentsHandler);
 router.post("/:orderId/refunds", authMiddleware, createRefundHandler);
 router.get("/:orderId/refunds", authMiddleware, listRefundsHandler);
+router.get("/:orderId/payments/:paymentId/refund-request-status", authMiddleware, refundRequestStatusHandler);
+router.post("/:orderId/payments/:paymentId/refund-request-retirement", authMiddleware, retireRefundRequestKeyHandler);
 router.post("/:orderId/refunds/:refundId/reconcile", authMiddleware, reconcileRefundHandler);
 
 export default router;

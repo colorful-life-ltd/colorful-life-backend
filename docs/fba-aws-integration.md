@@ -1,5 +1,7 @@
 # FBA and London AWS deployment integration
 
+> **PayPal removed.** Stripe is the only payment provider; PayPal sections below are obsolete and describe deleted code. See `docs/operations/paypal-removal.md`.
+
 Local integration branch: `feature/fba-aws-deployment-integration`.
 
 ## Sources and boundaries

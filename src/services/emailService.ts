@@ -4,24 +4,29 @@ import { config } from "../config/index.js";
 import { composeVerificationEmail } from "../domain/email/verificationEmail.js";
 import { approvedLegalIdentity, approvedSupportReplyTo } from "../domain/email/supportContact.js";
 import { EMAIL_VERIFICATION_TOKEN_LIFETIME_MS } from "../domain/auth/emailVerificationService.js";
+import { configuredSesCredentials } from "./sesRuntime.js";
 
 export type VerificationEmail = { recipientEmail: string; verificationUrl: string };
 type VerificationEmailSender = (email: VerificationEmail) => Promise<void>;
 export type PasswordResetEmail = { recipientEmail: string; resetUrl: string };
 type PasswordResetEmailSender = (email: PasswordResetEmail) => Promise<void>;
 
+// One long-lived client: a session-directory provider re-reads renewed credentials itself,
+// so rotation needs neither client recreation nor a restart. Single attempt: an automatic
+// SDK retry after an ambiguous failure could send a duplicate security email.
 let sesClient: SESClient | undefined;
 function realSesClient() {
   assertRealEmailAllowed();
-  return sesClient ??= new SESClient({ region: config.AWS_REGION });
+  return sesClient ??= new SESClient({ region: config.AWS_REGION, maxAttempts: 1, credentials: configuredSesCredentials() });
 }
+const VERIFICATION_SEND_TIMEOUT_MS = 5_000;
 
 // Branded Build & Bloom HTML with a plain-text fallback and an embedded hero, hence raw MIME.
 const sesVerificationEmailSender: VerificationEmailSender = async (email) => {
   if (testEmailMode()) return; // Deterministic no-send default; content tests inject a capture sender.
   const message = await composeVerificationEmail({ to: email.recipientEmail, from: config.SES_FROM_EMAIL, replyTo: approvedSupportReplyTo(), legal: approvedLegalIdentity(),
     verificationUrl: email.verificationUrl, lifetimeMs: EMAIL_VERIFICATION_TOKEN_LIFETIME_MS, siteUrl: config.FRONTEND_URL });
-  await realSesClient().send(new SendRawEmailCommand({ Source: config.SES_FROM_EMAIL, Destinations: [email.recipientEmail], RawMessage: { Data: message } }));
+  await realSesClient().send(new SendRawEmailCommand({ Source: config.SES_FROM_EMAIL, Destinations: [email.recipientEmail], RawMessage: { Data: message } }), { abortSignal: AbortSignal.timeout(VERIFICATION_SEND_TIMEOUT_MS) });
 };
 
 export function buildPasswordResetEmailCommand(email: PasswordResetEmail) {
@@ -73,7 +78,7 @@ export type DispatchNotification = { customerEmail: string; orderId: number; shi
 type DispatchSender = (notification: DispatchNotification) => Promise<void>;
 const legacyDispatchSender: DispatchSender = async notification => {
   assertRealEmailAllowed();
-  const client = new SESClient({ region: config.AWS_REGION, maxAttempts: 1 });
+  const client = new SESClient({ region: config.AWS_REGION, maxAttempts: 1, credentials: configuredSesCredentials() });
   try {
     const result = await client.send(new SendEmailCommand({
       Source: config.SES_FROM_EMAIL, Destination: { ToAddresses: [notification.customerEmail] },

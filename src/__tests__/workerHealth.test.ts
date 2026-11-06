@@ -5,7 +5,7 @@ it('sweep health records completed work and exposes elapsed age without resettin
  sweepTimes.clear();completedSweep('payment');
  const done=sweepTimes.get('payment')!;
  assert.equal(sweepAge('payment',done+181000),181);
- completedSweep('paypal');
+ completedSweep('cart');
  assert.equal(sweepTimes.get('payment'),done);
  assert.equal(sweepAge('payment',done-1),0);
  assert.ok(Number.isFinite(sweepAge('cart')));

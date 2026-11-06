@@ -1,5 +1,4 @@
 import type { Payment, Prisma } from '../../generated/prisma-client/client.js';
-import { PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC } from './paypalPaymentOutcome.js';
 import { Decimal } from '@prisma/client/runtime/client';
 
 type Evidence = Record<string, Prisma.JsonValue | undefined>;
@@ -16,10 +15,8 @@ async function unpaidProof(tx: Prisma.TransactionClient, attempt: Attempt, payme
     || !attempt.amount.eq(payment.amount) || attempt.currency !== payment.currency
     || !attempt.operations.length || attempt.operations.some(op => op.state !== 'RESULT_RECORDED' || op.historical)
     || data.providerReference !== attempt.providerReference || data.amount !== attempt.amount.toFixed(2) || data.currency !== attempt.currency) return null;
-  if (payment.provider === 'STRIPE') {
-    if (data.providerStatus !== 'canceled' || data.amountReceived !== 0 || data.amountCapturable !== 0) return null;
-  } else if (data.outcome !== 'DEFINITIVELY_DECLINED' || !attempt.providerCaptureReference
-    || data.providerCaptureReference !== attempt.providerCaptureReference) return null;
+  // Only Stripe evidence can prove an attempt unpaid; a retired provider never can.
+  if (payment.provider !== 'STRIPE' || data.providerStatus !== 'canceled' || data.amountReceived !== 0 || data.amountCapturable !== 0) return null;
   if (await tx.financialEvidence.count({ where: { kind: 'SUCCESS', operation: { attemptId: attempt.id } } })) return null;
   return proof;
 }
@@ -54,11 +51,14 @@ export type ProviderFinancialHold = 'REFUND' | 'DISPUTE' | 'REVERSAL' | 'PAYMENT
 /** Caller holds Order then Payment. Only locally bound IDs establish ownership. No provider calls. */
 export async function providerFinancialHold(tx: Prisma.TransactionClient, payment: Payment): Promise<ProviderFinancialHold | null> {
   if (payment.provider === 'MANUAL') return null;
+  // A residual payment from a retired provider stays held for manual review until the
+  // provider contract migration proves no such records exist.
+  if (payment.provider !== 'STRIPE') return 'PAYMENT';
   const [refund] = await tx.$queryRaw<Array<{ id: number }>>`SELECT e.id FROM "PaymentWebhookEvent" e
     WHERE e.provider=${payment.provider}::"PaymentProvider" AND e.evidence->>'kind'='refund'
-    AND (e.evidence->>'parentReference'=${payment.provider === 'STRIPE' ? payment.providerReference : payment.providerCaptureReference}
+    AND (e.evidence->>'parentReference'=${payment.providerReference}
       OR EXISTS(SELECT 1 FROM "PaymentAttempt" a WHERE a."paymentId"=${payment.id} AND a.provider=e.provider
-        AND e.evidence->>'parentReference'=CASE WHEN e.provider='STRIPE' THEN a."providerReference" ELSE a."providerCaptureReference" END))
+        AND e.evidence->>'parentReference'=a."providerReference"))
     AND (e."processedAt" IS NULL OR e."processingError" IN ('REFUND_UNCORRELATED','REFUND_CORRELATION_MISMATCH','REFUND_EVIDENCE_INCOMPLETE')) LIMIT 1`;
   if (refund) return 'REFUND';
   const attempts = await tx.paymentAttempt.findMany({ where: { paymentId: payment.id, provider: payment.provider },
@@ -96,55 +96,6 @@ export async function providerFinancialHold(tx: Prisma.TransactionClient, paymen
         await retainResolution(tx, payment, receipt.id, attempt!.id, proof.id); continue;
       }
       return 'PAYMENT'; // Historical success or unproven/contradictory identity stays held.
-    }
-  } else {
-    const receipts = await tx.$queryRaw<Array<StripeReceipt & { providerEventId: string }>>`SELECT e.id,e."eventType",e.evidence,e."processedAt",e."processingError",e."providerEventId" FROM "PaymentWebhookEvent" e
-      WHERE e.provider='PAYPAL' AND (e."reviewDetails"->'correlations' @> ${JSON.stringify([{ orderId: payment.orderId, paymentId: payment.id }])}::jsonb
-        OR ((e."eventType" IN ('PAYMENT.CAPTURE.DECLINED','PAYMENT.CAPTURE.REVERSED','CHECKOUT.PAYMENT-APPROVAL.REVERSED','CUSTOMER.DISPUTE.CREATED','CUSTOMER.DISPUTE.UPDATED','CUSTOMER.DISPUTE.RESOLVED')
-          OR (e."eventType" IN ('PAYMENT.CAPTURE.COMPLETED','PAYMENT.CAPTURE.PENDING','PAYMENT.CAPTURE.DENIED') AND (e."processedAt" IS NULL OR e."processingError" IS NOT NULL)))
-          AND (e.evidence->>'paypalOrderId'=${payment.providerReference} OR e.evidence->>'captureId'=${payment.providerCaptureReference}
-            OR EXISTS(SELECT 1 FROM "PaymentAttempt" a WHERE a."paymentId"=${payment.id} AND a.provider='PAYPAL'
-              AND (a."providerReference"=e.evidence->>'paypalOrderId' OR a."providerCaptureReference"=e.evidence->>'captureId'
-                OR e.evidence->'sellerTransactionIds' @> to_jsonb(ARRAY[a."providerCaptureReference"])))))) ORDER BY e.id`;
-    for (const receipt of receipts) {
-      if (receipt.eventType.startsWith('CUSTOMER.DISPUTE.')) return 'DISPUTE';
-      if (['PAYMENT.CAPTURE.REVERSED', 'CHECKOUT.PAYMENT-APPROVAL.REVERSED'].includes(receipt.eventType)) return 'REVERSAL';
-      const data = object(receipt.evidence);
-      const attempt = attempts.find(a => a.providerReference === data.paypalOrderId && a.providerCaptureReference === data.captureId);
-      // This one diagnostic records failed inventory conversion after verified financial
-      // success. Revalidate the exact receipt and current confirmed principal; never
-      // turn arbitrary processing errors or operator acknowledgement into proof.
-      const order = receipt.processingError === PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC
-        ? await tx.order.findUnique({ where: { id: payment.orderId } }) : null;
-      const success = attempt?.successEvidence;
-      const facts = object(success?.normalized ?? null);
-      if (receipt.eventType === 'PAYMENT.CAPTURE.COMPLETED' && receipt.processedAt
-        && receipt.processingError === PAYPAL_INVENTORY_RECONCILIATION_DIAGNOSTIC
-        && (data.resourceStatus === undefined || data.resourceStatus === 'COMPLETED')
-        && data.version === 1 && data.id === receipt.providerEventId && data.eventType === receipt.eventType
-        && (data.invalidFields === undefined || Array.isArray(data.invalidFields) && data.invalidFields.length === 0)
-        && data.paypalOrderId === payment.providerReference && data.captureId === payment.providerCaptureReference
-        && typeof data.captureId === 'string' && data.captureId.length > 0
-        && data.amount === payment.amount.toFixed(2) && data.currency === payment.currency
-        && payment.status === 'SUCCEEDED' && payment.paidAt && payment.currency === 'GBP'
-        && order?.status === 'CONFIRMED' && payment.amount.eq(order.totalAmount)
-        && (attempts.length === 0 || attempt && !attempt.finalityEvidenceId && attempt.orderId === payment.orderId
-          && attempt.amount.eq(payment.amount) && attempt.currency === payment.currency
-          && success?.kind === 'SUCCESS' && success.verifiedAt && success.orderId === payment.orderId && success.provider === payment.provider
-          && facts.providerReference === payment.providerReference && facts.providerCaptureReference === payment.providerCaptureReference
-          && facts.amount === payment.amount.toFixed(2) && facts.currency === payment.currency)) {
-        await retainSuccessReceiptResolution(tx, payment, receipt.id, receipt.id); continue;
-      }
-      const proof = attempt && await unpaidProof(tx, attempt, payment);
-      let matches = false;
-      try { matches = typeof data.amount === 'string' && new Decimal(data.amount).eq(attempt?.amount ?? -1); } catch { /* held below */ }
-      if ((receipt.eventType === 'PAYMENT.CAPTURE.DECLINED' && data.resourceStatus === 'DECLINED' || receipt.eventType === 'PAYMENT.CAPTURE.DENIED')
-        && data.version === 1 && data.eventType === receipt.eventType
-        && (data.invalidFields === undefined || Array.isArray(data.invalidFields) && data.invalidFields.length === 0)
-        && data.currency === payment.currency && matches && proof && attempt!.providerReference !== payment.providerReference) {
-        await retainResolution(tx, payment, receipt.id, attempt!.id, proof.id); continue;
-      }
-      return 'PAYMENT'; // Including unknown declines: reviewedAt is intentionally irrelevant.
     }
   }
   return null;

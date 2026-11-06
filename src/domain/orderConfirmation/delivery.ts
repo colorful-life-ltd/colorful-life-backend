@@ -1,5 +1,7 @@
+import { renderReturnAuthorization, returnAuthorizationSchema } from './returnAuthorization.js';
 import { testEmailMode } from '../../config/testEmail.js';
 import { SESClient, SendRawEmailCommand, GetSendQuotaCommand, GetIdentityVerificationAttributesCommand, GetAccountSendingEnabledCommand } from '@aws-sdk/client-ses';
+import { configuredSesCredentials } from '../../services/sesRuntime.js';
 import nodemailer from 'nodemailer';
 import { config } from '../../config/index.js';
 import { invoiceSchema, type Invoice } from './contract.js';
@@ -27,6 +29,7 @@ export async function composeDispatch(value: Dispatch, business: Business) {
   const b = businessSchema.parse(business), rendered = renderDispatch(value, b, { siteUrl: config.FRONTEND_URL, includeImages: emailImagesAvailable() });
   return composeEmail(value.recipientEmail, b, rendered, []);
 }
+export async function composeReturnAuthorization(value: unknown, business: Business) { const b=businessSchema.parse(business);return composeEmail(returnAuthorizationSchema.parse(value).recipientEmail,b,renderReturnAuthorization(value,b),[]); }
 /** Customer-facing sender name is the brand; address and Reply-To come from the approved bundle. */
 async function composeEmail(to: string, b: Business, rendered: { subject: string; text: string; html: string }, attachments: Array<{ filename: string; content: Buffer; contentType: string }>) {
   const composer = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'windows' });
@@ -56,7 +59,7 @@ export function classifySesError(error: unknown): DeliveryRejected | null {
 export type SesReadinessClient = Pick<SESClient, 'send' | 'config'>;
 export async function checkSesReadiness(fromEmail: string, injected?: SesReadinessClient, signal = AbortSignal.timeout(10_000)) {
   if (testEmailMode() && (!injected || injected instanceof SESClient)) throw new Error('Real SES disabled in tests');
-  const client = injected ?? new SESClient({ region: config.AWS_REGION, maxAttempts: 1 });
+  const client = injected ?? new SESClient({ region: config.AWS_REGION, maxAttempts: 1, credentials: configuredSesCredentials() });
   try {
     const credentials = await client.config.credentials();
     if (!credentials.accessKeyId || !credentials.secretAccessKey) throw new Error('Missing credentials');
@@ -73,8 +76,8 @@ export async function checkSesReadiness(fromEmail: string, injected?: SesReadine
 export const sesConfirmationTransport: ConfirmationTransport = {
   kind: 'ses',
   async send(message) {
-    if (!(config.ORDER_CONFIRMATION_EMAIL_ENABLED || config.DISPATCH_CONFIRMATION_EMAIL_ENABLED) || testEmailMode()) throw new DeliveryRejected(false, 'PROVIDER_REJECTED');
-    const client = new SESClient({ region: config.AWS_REGION, maxAttempts: 1 });
+    if (!(config.ORDER_CONFIRMATION_EMAIL_ENABLED || config.DISPATCH_CONFIRMATION_EMAIL_ENABLED || config.RETURN_AUTHORIZATION_EMAIL_ENABLED) || testEmailMode()) throw new DeliveryRejected(false, 'PROVIDER_REJECTED');
+    const client = new SESClient({ region: config.AWS_REGION, maxAttempts: 1, credentials: configuredSesCredentials() });
     try {
       const result = await client.send(new SendRawEmailCommand({ RawMessage: { Data: message } }), { abortSignal: AbortSignal.timeout(10_000) });
       if (!result.MessageId) throw new Error('Provider acceptance unknown');

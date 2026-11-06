@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import bcrypt from "bcrypt";
 import type { Prisma } from "../../generated/prisma-client/client.js";
 import { prisma } from "../../prisma/runtime.js";
+import { lockCustomerCart } from "../cart/cartProvenanceService.js";
 import {
   AccountDeletionAdminNotAllowedError,
   AccountDeletionUserNotFoundError,
@@ -17,6 +18,8 @@ async function deleteCustomerAccountInTransaction(
   unusablePasswordHash: string,
   expectedHash?:string,
 ): Promise<void> {
+  // Match cart writers' advisory-lock-before-User/FK lock order.
+  await lockCustomerCart(tx, userId);
   const locked = await tx.$queryRaw<Array<{ id: number }>>`
     SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE
   `;
@@ -36,6 +39,10 @@ async function deleteCustomerAccountInTransaction(
   await tx.address.deleteMany({ where: { userId } });
   await tx.emailVerificationToken.deleteMany({ where: { userId } });
   await tx.passwordResetToken.deleteMany({ where: { userId } });
+  await tx.refreshSession.deleteMany({ where: { userId } });
+  // Preserve the empty Cart and order provenance. Deleting items sets allocation
+  // cartItemId to null; later payment reconciliation must not recreate the basket.
+  await tx.cartItem.deleteMany({ where: { cart: { userId } } });
   await tx.user.update({
     where: { id: userId },
     data: {

@@ -50,7 +50,8 @@ describe("isolated payment-abuse test environment (no database connections)", ()
     assert.equal(env.CLIENT_IP_MODE, "direct");
     assert.equal(env.TRUSTED_PROXY_CIDRS, "");
     assert.equal(env.PAYMENT_STRIPE_INITIATION_ENABLED, "true");
-    assert.equal(env.PAYMENT_PAYPAL_INITIATION_ENABLED, "true");
+    // Retired: the runner no longer sets a PayPal flag, and config ignores any inherited value.
+    assert.equal(env.PAYMENT_PAYPAL_INITIATION_ENABLED, "false");
     for (const key of ["PAYMENT_CHALLENGE_ENABLED", "PAYMENT_RESOLUTION_ENABLED", "REFUND_RECONCILIATION_ENABLED",
       "CARRIER_TRACKING_POLLING_ENABLED", "ORDER_CONFIRMATION_EMAIL_ENABLED", "DISPATCH_CONFIRMATION_EMAIL_ENABLED"]) {
       assert.equal(env[key], "false");
@@ -76,7 +77,7 @@ describe("isolated payment-abuse test environment (no database connections)", ()
       assert.equal(config.DATABASE_URL, process.env.TEST_DATABASE_URL);
       assert.equal(config.PAYMENT_ABUSE_HMAC_SECRET, process.env.PAYMENT_ABUSE_HMAC_SECRET);
       assert.equal(config.PAYMENT_STRIPE_INITIATION_ENABLED, true);
-      assert.equal(config.PAYMENT_PAYPAL_INITIATION_ENABLED, true);
+      assert.equal('PAYMENT_PAYPAL_INITIATION_ENABLED' in config, false);
       assert.match(digest('synthetic-subject'), /^[a-f0-9]{64}$/);
       assert.equal(limits().provider[0], 1000000);
       console.log('isolated-test-config-ready');
@@ -102,7 +103,7 @@ describe("isolated payment-abuse test environment (no database connections)", ()
       import assert from 'node:assert/strict';
       const { config } = await import(${JSON.stringify(configUrl)});
       assert.equal(config.PAYMENT_STRIPE_INITIATION_ENABLED, false);
-      assert.equal(config.PAYMENT_PAYPAL_INITIATION_ENABLED, false);
+      assert.equal('PAYMENT_PAYPAL_INITIATION_ENABLED' in config, false);
       assert.equal(config.PAYMENT_ABUSE_LIMITS_JSON, undefined);
       console.log('production-defaults-preserved');
     `], { cwd, env: { ...base, NODE_ENV: "production", DEPLOYMENT_ENVIRONMENT:"production", JWT_SECRET:"1e104b8f32dc87f979d6ff7924025fc52abf245a48f28b0457c1da8500bc2bf9", FRONTEND_URL:"https://shop.colorful-life.co.uk",CORS_ALLOWED_ORIGINS:"https://shop.colorful-life.co.uk",SES_FROM_EMAIL:"no-reply@colorful-life.co.uk",PAYMENT_RESOLUTION_ENABLED:"true", CLIENT_IP_MODE: "direct",
