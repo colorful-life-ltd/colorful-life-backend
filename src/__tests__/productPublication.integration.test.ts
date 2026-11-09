@@ -11,6 +11,7 @@ import app from "../app.js";
 import { prisma } from "../prisma/runtime.js";
 import { config } from "../config/index.js";
 import { TEST_DATABASE_NAME, validateTestDatabase } from "../config/testDatabase.js";
+import { createSitemapService, productPath } from "../domain/seo/sitemapService.js";
 
 const migration = readFileSync(resolve(process.cwd(), "prisma/migrations/20261016120000_add_product_publication/migration.sql"), "utf8");
 const pool = new Pool({ connectionString: config.DATABASE_URL, max: 2 });
@@ -33,6 +34,8 @@ before(async () => {
 afterEach(async () => {
   if (orderIds.length) await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
   if (userIds.length) {
+    // Admin inventory adjustments reference their performing user (onDelete: Restrict).
+    await prisma.inventoryMovement.deleteMany({ where: { performedByUserId: { in: userIds } } });
     await prisma.cart.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.address.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -175,6 +178,45 @@ describe("product publication HTTP integration", () => {
     assert.equal((await call("/cart/items", { method: "POST", token: customer.token, body: JSON.stringify({ productListingId: listing.id, quantity: 1 }) })).status, 409);
     // Availability conflicts use the actionable Issue #173 checkout envelope.
     assert.equal((await call("/orders", { method: "POST", token: customer.token, body: JSON.stringify({ shippingMethod: "STANDARD", items: [{ productListingId: listing.id, quantity: 1 }] }) })).status, 409);
+  });
+
+  it("keeps a published product listed, viewable and in the sitemap while Admin stock goes N → 0 → N", async () => {
+    const stock = 3;
+    const listing = await makeListing({ currentStock: stock });
+    const productId = listing.legoProductId;
+    const { setNumber } = await prisma.legoProduct.findUniqueOrThrow({ where: { id: productId }, select: { setNumber: true } });
+    const admin = await makeUser("ADMIN");
+    const sitemap = createSitemapService({ siteOrigin: "https://example.test" });
+
+    const observe = async () => {
+      const detail = await call(`/products/by-product/${productId}`);
+      assert.equal(detail.status, 200);
+      const product = await detail.json();
+      const list = await (await call(`/products?q=${encodeURIComponent(setNumber)}`)).json();
+      const listed = list.items.filter((item: { id: number }) => item.id === productId);
+      const root = await sitemap.root();
+      const stored = await prisma.legoProduct.findUniqueOrThrow({ where: { id: productId }, select: { isPublished: true, everPublished: true } });
+      return {
+        detail: [product.isPublished, product.availability],
+        listed: listed.map((item: { isPublished: boolean; availability: string }) => [item.isPublished, item.availability]),
+        inSitemap: root.kind === "urlset" && root.xml.includes(`<loc>https://example.test${productPath(productId)}</loc>`),
+        stored: [stored.isPublished, stored.everPublished],
+      };
+    };
+    const expectState = async (availability: string) => assert.deepEqual(await observe(), {
+      detail: [true, availability], listed: [[true, availability]], inSitemap: true, stored: [true, true],
+    });
+    const adjust = async (quantity: number) => assert.equal((await call(`/products/${listing.id}/inventory-adjustments`, {
+      method: "POST", token: admin.token, body: JSON.stringify({ quantity }),
+    })).status, 200);
+
+    await expectState("IN_STOCK");
+    await adjust(-stock);
+    assert.equal((await prisma.productListing.findUniqueOrThrow({ where: { id: listing.id } })).currentStock, 0);
+    await expectState("OUT_OF_STOCK");
+    await adjust(stock);
+    assert.equal((await prisma.productListing.findUniqueOrThrow({ where: { id: listing.id } })).currentStock, stock);
+    await expectState("IN_STOCK");
   });
 
   it("rejects cart and order purchases of unpublished products without reserving stock", async () => {
