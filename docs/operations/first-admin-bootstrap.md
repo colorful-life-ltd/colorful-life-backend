@@ -25,19 +25,35 @@ live, so verification rests on the owner's attestation that they control the mai
 the reason and the operator reference (5–128 characters of `A-Z a-z 0-9 . _ : / -`). It does not record
 the email or any password material.
 
-## Owner invocation (after approval)
+## Production invocation (after approval)
 
-Run on the host as an operator with Docker access. `read -s` keeps the password off the screen. `printf`
-is a shell builtin, so the password does not appear in any process's arguments, and an unexported
-shell variable is not passed into the container's environment.
+**Do not run the CLI with a plain `docker exec` in the Production API container.** That container's own
+environment holds no database or JWT settings. The Infra entrypoint `secret-bootstrap.mjs` builds them from the
+mounted runtime file only for `node dist/index.js` or `node dist/worker.js`, and it refuses any other command.
+`docker exec … node dist/scripts/bootstrapAdmin.js` therefore fails on configuration validation before reaching
+the database (verified in a rehearsal on the `dfe6118` image; nothing is written).
+
+Use the reviewed Infra operator script `ops/ec2/production_first_admin.py`, documented in Infra
+`docs/production-first-admin.md`:
 
 ```bash
-api=$(sudo docker ps -q --filter label=com.docker.compose.project=colorful-life-production --filter label=com.docker.compose.service=api)
-read -r -p 'Admin email: ' ADMIN_EMAIL; read -r -s -p 'Admin password: ' ADMIN_PASSWORD; echo
-printf '%s\n%s\n' "$ADMIN_EMAIL" "$ADMIN_PASSWORD" | sudo docker exec -i "$api" \
-  node dist/scripts/bootstrapAdmin.js --create "<audit reason>" "<operator reference>"
-unset ADMIN_EMAIL ADMIN_PASSWORD
+# Read-only preflight: no prompt, no credentials, no database access.
+sudo python3 /opt/colorful-life-infra/ops/ec2/production_first_admin.py --check
+
+# Creation: interactive terminal only (ssh -t). Email by prompt; password twice, never echoed.
+sudo python3 /opt/colorful-life-infra/ops/ec2/production_first_admin.py \
+  --reason "<audit reason>" --operator-reference "<operator reference>"
 ```
 
-Success prints only the new user ID. Then sign in through the private Admin connection. An "outcome unknown"
-failure means the database could not be reached reliably: check whether an Administrator exists before retrying.
+The script first verifies the host, the recorded release and a single healthy Production API container running
+an image that contains this CLI. It then runs `bootstrapAdmin --create` with the environment the reviewed
+entrypoint builds for the API (same `cl_runtime` database role). It sends the email and password only over
+`docker exec -i` stdin: never in arguments, environment variables, logs or files.
+
+Success prints only the new user ID. Then sign in from the Admin application in Production mode. An "outcome
+unknown" result means the result could not be confirmed: check whether an Administrator exists before
+retrying. A second Administrator is refused in any case.
+
+Outside Production (a local or test environment whose shell already provides the database settings), run the
+compiled CLI directly and pipe the two lines on stdin, for example from `read -s` variables passed through
+`printf`.
