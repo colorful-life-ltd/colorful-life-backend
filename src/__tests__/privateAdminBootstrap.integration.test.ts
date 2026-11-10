@@ -188,4 +188,11 @@ it("once an ADMIN exists, setup is closed for good: status, grants, arming and f
     assert.equal(customer.role, "CUSTOMER"); assert.equal(customer.emailVerified, false);
   }
   assert.equal(await prisma.user.count({ where: { role: "ADMIN" } }), 1);
+  // The window was consumed by the creation: even if the Admin row were removed, setup does not reopen
+  // until the owner arms again on the host.
+  await prisma.user.deleteMany({ where: { role: "ADMIN" } });
+  assert.equal(await prisma.user.count({ where: { role: "ADMIN" } }), 0);
+  assert.deepEqual((await status()).body, { registrationAvailable: false });
+  const reopened = await authorize();
+  assert.equal(reopened.status, 403); assert.equal(reopened.body.error.code, "BOOTSTRAP_NOT_ARMED");
 });

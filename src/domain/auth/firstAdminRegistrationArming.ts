@@ -11,12 +11,14 @@ export const FIRST_ADMIN_REGISTRATION_ARMED = 'FIRST_ADMIN_REGISTRATION_ARMED';
 
 type Db = Pick<typeof prisma, '$queryRaw'>;
 
-/** The newest arming record still inside the window, judged by database time. */
+/** The newest unused arming record still inside the window, judged by database time. */
 export async function activeRegistrationArming(db: Db = prisma, windowSeconds = FIRST_ADMIN_REGISTRATION_WINDOW_SECONDS): Promise<bigint | null> {
     const rows = await db.$queryRaw<Array<{ id: bigint }>>`
-      SELECT id FROM "OperationalAudit"
-      WHERE kind = ${FIRST_ADMIN_REGISTRATION_ARMED} AND "createdAt" > clock_timestamp() - make_interval(secs => ${windowSeconds})
-      ORDER BY id DESC LIMIT 1`;
+      SELECT armed.id FROM "OperationalAudit" armed
+      WHERE armed.kind = ${FIRST_ADMIN_REGISTRATION_ARMED} AND armed."createdAt" > clock_timestamp() - make_interval(secs => ${windowSeconds})
+        -- Single use: any first-Admin creation after the arming (by any path) closes it, even if that Admin is removed later.
+        AND NOT EXISTS (SELECT 1 FROM "OperationalAudit" used WHERE used.kind = 'FIRST_ADMIN_BOOTSTRAP' AND used.id > armed.id)
+      ORDER BY armed.id DESC LIMIT 1`;
     return rows[0]?.id ?? null;
 }
 
