@@ -56,6 +56,7 @@ export type ApiErrorCode =
   | "BOOTSTRAP_CLOSED"
   | "BOOTSTRAP_DISABLED"
   | "BOOTSTRAP_AUTHORIZATION_INVALID"
+  | "BOOTSTRAP_NOT_ARMED"
   | "INVALID_REGISTRATION";
 
 /** Sends a stable machine-readable API error envelope. */

@@ -36,7 +36,7 @@ export function validateProduction(c: {
         bad.push('CORS_ALLOWED_ORIGINS');
     if (/@(example\.(com|org|net)|localhost|.*\.invalid)$/i.test(c.SES_FROM_EMAIL))
         bad.push('SES_FROM_EMAIL');
-    // Production provisions the first Administrator only through the owner-run CLI.
+    // Production never runs open HTTP Administrator registration; only the private, owner-armed window (see docs/first-admin-registration.md).
     if (live && env.ADMIN_BOOTSTRAP_HTTP_ENABLED === 'true')
         bad.push('ADMIN_BOOTSTRAP_HTTP_ENABLED');
     if((c.STRIPE_SECRET_KEY&&!c.STRIPE_SECRET_KEY.startsWith(live?'sk_live_':'sk_test_')) || (c.PAYMENT_STRIPE_INITIATION_ENABLED&&(!c.STRIPE_SECRET_KEY||!c.STRIPE_WEBHOOK_SECRET)))bad.push('STRIPE_PROVIDER_CONFIGURATION');

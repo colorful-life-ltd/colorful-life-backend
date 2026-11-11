@@ -45,10 +45,12 @@ try {
       // in its dedicated suite first, then remove only that test DB constraint so the
       // legacy fixtures retain their historical shape. Production migrations are
       // never altered; testDatabase validation above fences this operation to CI DBs.
-      const bootstrapFile = resolve(testDirectory, "adminBootstrap.integration.test.js");
-      const hasBootstrap = files.includes(bootstrapFile);
-      if (hasBootstrap) run(["--test", "--test-concurrency=1", bootstrapFile]);
-      const legacyFiles = files.filter(file => file !== bootstrapFile);
+      // The private (Production) first-Admin suite also needs the constraint and a database without Admins.
+      const singletonFiles = ["adminBootstrap.integration.test.js", "privateAdminBootstrap.integration.test.js"]
+        .map((name) => resolve(testDirectory, name)).filter((file) => files.includes(file));
+      const hasBootstrap = singletonFiles.length > 0;
+      if (hasBootstrap) run(["--test", "--test-concurrency=1", ...singletonFiles]);
+      const legacyFiles = files.filter(file => !singletonFiles.includes(file));
       if (hasBootstrap && legacyFiles.length) {
         run([resolve(root, "node_modules/prisma/build/index.js"), "db", "execute", "--stdin"],
         'DROP INDEX IF EXISTS "User_single_admin_idx";');

@@ -24,9 +24,9 @@ export type FirstAdminCreateFailure = 'INVALID_AUDIT' | 'INVALID_CREDENTIALS' | 
 export class FirstAdminCreateError extends Error {
     constructor(readonly code: FirstAdminCreateFailure) { super(code); this.name = 'FirstAdminCreateError'; }
 }
-const OPERATOR_REFERENCE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{4,127}$/;
+export const OPERATOR_REFERENCE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{4,127}$/;
 // Printable text only (no control characters), so audit rows and terminals stay unambiguous.
-const AUDIT_REASON = /^[^\p{Cc}]{10,500}$/u;
+export const AUDIT_REASON = /^[^\p{Cc}]{10,500}$/u;
 
 /**
  * One-off, privileged CLI operation for an empty Production database, never exposed as HTTP.
