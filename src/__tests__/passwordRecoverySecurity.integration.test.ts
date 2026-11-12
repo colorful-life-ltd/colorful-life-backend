@@ -108,7 +108,7 @@ it("does not trust a forged forwarded IP and returns 429 after the IP budget", a
   } finally { await new Promise<void>(resolve => s.close(() => resolve())); }
 });
 it("concurrent token consumers revoke all sessions exactly once", async () => {
-  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4) } });
+  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4), emailVerified: true } });
   const login = await post("/auth/login", { email: user.email, password: "OldPassword1!" });
   assert.equal(login.status, 200);
   const token = await createOrReplacePasswordResetToken(user.id);
@@ -201,7 +201,7 @@ it("limiter database failure fails closed with a generic 503", async () => {
 });
 it("a refresh blocked behind reset rechecks revocation after the PostgreSQL user lock", async () => {
   const { setTimeout: delay } = await import("node:timers/promises");
-  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4) } });
+  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4), emailVerified: true } });
   const loggedIn = await post("/auth/login", { email: user.email, password: "OldPassword1!" });
   assert.equal(loggedIn.status, 200);
   const token = await createOrReplacePasswordResetToken(user.id);
@@ -257,13 +257,13 @@ it("password reset token creation rejects stale email lookups", async () => {
 it("rejects oversized reset and signup passwords without consuming a token, and supports historical login", async () => {
   const boundary = "Aa1!" + "a".repeat(68);
   const oldPassword = boundary + "historical";
-  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash(oldPassword, 4) } });
+  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash(oldPassword, 4), emailVerified: true } });
   assert.equal((await post("/auth/login", { email: user.email, password: oldPassword })).status, 200);
   const restoreVerification = setVerificationEmailSenderForTests(async () => undefined);
   const signupEmail = `${randomUUID()}@example.test`;
   try {
-    assert.equal((await post("/auth/signup", { email: signupEmail, password: boundary })).status, 201);
-    assert.equal((await post("/auth/login", { email: signupEmail, password: boundary })).status, 200);
+    assert.equal((await post("/auth/signup", { email: signupEmail, password: boundary })).status, 202);
+    assert.equal((await post("/auth/login", { email: signupEmail, password: boundary })).status, 401);
   } finally { restoreVerification(); }
   const token = await createOrReplacePasswordResetToken(user.id);
   assert.equal((await post("/auth/reset-password", { token: token.rawToken, newPassword: boundary + "x" })).status, 400);

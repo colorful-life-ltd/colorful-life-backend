@@ -3,7 +3,6 @@ import type { Server } from "node:http";
 import { describe, it, before, after, afterEach } from "node:test";
 import { prisma } from "../prisma/runtime.js";
 import app from "../app.js";
-import jwt from "jsonwebtoken";
 import { config } from "../config/index.js";
 import { randomUUID } from "node:crypto";
 // Public registration is closed by default; these tests exercise the signup flow explicitly.
@@ -25,14 +24,6 @@ async function startServer(): Promise<{ server: Server; url: string }> {
       resolve({ server, url });
     });
   });
-}
-
-/**
- * Record the user ID extracted from a JWT so it can be cleaned up after each test.
- */
-function recordUserIdFromToken(token: string, cleanupArray: number[]) {
-  const payload = jwt.verify(token, config.JWT_SECRET) as any;
-  cleanupArray.push(payload.id as number);
 }
 
 describe("User Profile API", () => {
@@ -63,12 +54,9 @@ describe("User Profile API", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const signupBody = await signupRes.json();
-    assert.strictEqual(signupRes.status, 201);
-    assert.ok(signupBody.token);
-    recordUserIdFromToken(signupBody.token, userIdsForCleanup);
-    const userId = (jwt.decode(signupBody.token) as { id: number }).id;
-    await prisma.user.update({ where: { id: userId }, data: { emailVerified: true } });
+    assert.strictEqual(signupRes.status, 202);
+    const user = await prisma.user.update({ where: { email: email.toLowerCase() }, data: { emailVerified: true } });
+    userIdsForCleanup.push(user.id);
     const loginRes = await fetch(`${url}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

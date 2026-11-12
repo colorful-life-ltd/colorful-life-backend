@@ -58,6 +58,6 @@ it("allows signup once REGISTRATION_ENABLED is turned on", async () => {
   config.REGISTRATION_ENABLED = true;
   const address = email();
   const response = await post("/auth/signup", { email: address, password: "Synthetic1!Password" });
-  assert.equal(response.status, 201);
+  assert.equal(response.status, 202);
   assert.ok(await prisma.user.findUnique({ where: { email: address } }));
 });

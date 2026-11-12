@@ -103,13 +103,12 @@ async function signupCustomer(
     body: JSON.stringify({ email, password }),
   });
 
-  const body = await res.json();
-
-  if (res.status === 201 && body.token) {
-    recordUserIdFromToken(body.token, userIdsForCleanup);
-  }
-
-  return { res, body };
+  assert.equal(res.status, 202);
+  const user = await prisma.user.update({where:{email},data:{emailVerified:true}});
+  userIdsForCleanup.push(user.id);
+  const login = await fetch(`${url}/auth/login`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+  assert.equal(login.status, 200);
+  return { res, body: await login.json() };
 }
 
 async function createCustomerWithBillingAddress(url: string) {

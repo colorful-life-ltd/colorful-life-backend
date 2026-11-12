@@ -151,7 +151,7 @@ describe("customer order cancellation HTTP integration", () => {
   });
 
   it("keeps the ADMIN seller-cancellation route separate", async () => {
-    const admin = await prisma.user.create({ data: { email: `${randomUUID()}@example.com`, passwordHash: "test-hash", role: "ADMIN" } });
+    const admin = await prisma.user.create({ data: { email: `${randomUUID()}@example.com`, passwordHash: "test-hash", emailVerified: true, role: "ADMIN" } });
     userIds.push(admin.id);
     const order = await makeOrder(admin.id);
     const response = await fetch(`${url}/orders/${order.id}/seller-cancel`, {
@@ -171,7 +171,7 @@ function gate() {
   return { promise, resolve };
 }
 async function makeAdmin() {
-  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.com`, passwordHash: "test", role: "ADMIN" } });
+  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.com`, passwordHash: "test", emailVerified: true, role: "ADMIN" } });
   userIds.push(user.id);
   return { id: user.id, token: jwt.sign({ id: user.id }, config.JWT_SECRET) };
 }

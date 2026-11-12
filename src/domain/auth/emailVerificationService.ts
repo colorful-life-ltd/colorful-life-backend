@@ -69,11 +69,11 @@ export async function restoreReplacedEmailVerificationToken(
   else await prisma.emailVerificationToken.deleteMany({ where });
 }
 
-export async function verifyEmailVerificationToken(rawToken: string, newPassword: string, decisionTime = new Date()) {
+export async function verifyEmailVerificationToken(rawToken: string, newPassword: string, decisionTime?: Date) {
   passwordSchema.parse(newPassword);
   const tokenHash = hashEmailVerificationToken(rawToken);
   const initial = await prisma.emailVerificationToken.findUnique({ where: { tokenHash }, select: { expiresAt: true } });
-  if (!initial || initial.expiresAt <= decisionTime) throw new InvalidOrExpiredVerificationTokenError();
+  if (!initial || initial.expiresAt <= (decisionTime ?? new Date())) throw new InvalidOrExpiredVerificationTokenError();
   const passwordHash = await bcrypt.hash(newPassword, 12);
   return prisma.$transaction(async (tx) => {
     const token = await tx.emailVerificationToken.findUnique({
@@ -97,11 +97,12 @@ export async function verifyEmailVerificationToken(rawToken: string, newPassword
       where: { tokenHash },
       select: { id: true, userId: true, expiresAt: true },
     });
-    if (!currentToken || currentToken.userId !== token.userId || currentToken.expiresAt <= decisionTime) {
+    const checkedAt = decisionTime ?? new Date();
+    if (!currentToken || currentToken.userId !== token.userId || currentToken.expiresAt <= checkedAt) {
       throw new InvalidOrExpiredVerificationTokenError();
     }
     const consumed = await tx.emailVerificationToken.deleteMany({
-      where: { id: currentToken.id, userId: token.userId, tokenHash, expiresAt: { gt: decisionTime } },
+      where: { id: currentToken.id, userId: token.userId, tokenHash, expiresAt: { gt: checkedAt } },
     });
     if (consumed.count !== 1) throw new InvalidOrExpiredVerificationTokenError();
 
@@ -110,7 +111,7 @@ export async function verifyEmailVerificationToken(rawToken: string, newPassword
       data: { emailVerified: true, passwordHash, credentialVersion: randomUUID() },
     });
     if (updatedUser.count !== 1) throw new InvalidOrExpiredVerificationTokenError();
-    await tx.refreshSession.updateMany({ where: { userId: token.userId, revokedAt: null }, data: { revokedAt: decisionTime } });
+    await tx.refreshSession.updateMany({ where: { userId: token.userId, revokedAt: null }, data: { revokedAt: checkedAt } });
     return { verified: true as const };
   });
 }

@@ -86,6 +86,23 @@ describe("email verification token domain", () => {
     await assert.rejects(() => verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!", new Date(result.expiresAt.getTime() + 1)), InvalidOrExpiredVerificationTokenError);
   });
 
+  it("rechecks expiry after waiting for the account lock", async () => {
+    const user = await createUser();
+    const result = await createOrReplaceEmailVerificationToken(user.id);
+    if (!result.created) throw new Error("verification token not created");
+    let verification: Promise<unknown> | undefined;
+    await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id} FOR UPDATE`;
+      verification = verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!");
+      void verification.catch(() => undefined);
+      // Let the request perform its initial lookup and wait on the locked account.
+      await new Promise(resolve => setTimeout(resolve, 700));
+      await tx.emailVerificationToken.update({where:{userId:user.id},data:{expiresAt:new Date(Date.now()-1)}});
+    });
+    await assert.rejects(verification!, InvalidOrExpiredVerificationTokenError);
+    assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).emailVerified, false);
+  });
+
   it("allows exactly one concurrent consumer of the same token", async () => {
     const user = await createUser();
     const result = await createOrReplaceEmailVerificationToken(user.id);
