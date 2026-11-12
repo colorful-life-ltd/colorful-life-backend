@@ -38,14 +38,10 @@ export const passwordSchema = z
 
 export const verifyEmailSchema = z.object({
   token: z.string().trim().min(1),
+  newPassword: passwordSchema,
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
-});
-
-export const changeEmailSchema = z.object({
-  password: z.string().max(72).optional(),
   email: z.string().trim().toLowerCase().email(),
 });
 

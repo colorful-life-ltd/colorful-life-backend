@@ -34,7 +34,7 @@ before(async () => {
   base = `http://localhost:${address.port}`;
 
   async function makeUser(role: "ADMIN" | "CUSTOMER") {
-    const user = await prisma.user.create({ data: { email: `${role}-${randomUUID()}@example.test`, passwordHash: "test", role } });
+    const user = await prisma.user.create({ data: { email: `${role}-${randomUUID()}@example.test`, passwordHash: "test", emailVerified: true, role } });
     userIds.push(user.id);
     return jwt.sign({ id: user.id, role }, config.JWT_SECRET, { expiresIn: "1h" });
   }

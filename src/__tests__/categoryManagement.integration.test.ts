@@ -39,7 +39,7 @@ afterEach(async () => {
 after(async () => { await prisma.$disconnect(); server.close(); });
 
 async function admin(role: "ADMIN" | "CUSTOMER" = "ADMIN") {
-  const user = await prisma.user.create({ data: { email: `category-management-${role}-${randomUUID()}@example.com`, passwordHash: "test", role } });
+  const user = await prisma.user.create({ data: { email: `category-management-${role}-${randomUUID()}@example.com`, passwordHash: "test", emailVerified: true, role } });
   users.push(user.id);
   return jwt.sign({ id: user.id, role }, config.JWT_SECRET, { expiresIn: "1h" });
 }

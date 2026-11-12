@@ -129,7 +129,7 @@ it("creates exactly one first Admin under concurrent requests and never reopens 
   assert.equal(verificationEmails.length, 1);
   const verificationToken = new URL(verificationEmails[0]).searchParams.get("token");
   assert.ok(verificationToken);
-  const verify = await fetch(`${url}/auth/verify-email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: verificationToken }) });
+  const verify = await fetch(`${url}/auth/verify-email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: verificationToken, newPassword: "StrongPass1!" }) });
   assert.equal(verify.status, 200);
   const login = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: winner.email, password: "StrongPass1!" }) });
   assert.equal(login.status, 200);

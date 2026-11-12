@@ -36,7 +36,7 @@ export async function pruneExpiredRecoveryLimits(): Promise<void> {
   `;
 }
 
-export function passwordRecoveryLimit(kind: "forgot" | "reset"): RequestHandler {
+export function passwordRecoveryLimit(kind: "forgot" | "reset" | "verify" | "verify-token"): RequestHandler {
   return async (req, res, next) => {
     const started = performance.now();
     res.locals.passwordRecoveryStartedAt = started;
@@ -49,12 +49,12 @@ export function passwordRecoveryLimit(kind: "forgot" | "reset"): RequestHandler 
         return;
       }
       await pruneExpiredRecoveryLimits();
-      if (kind === "forgot") {
+      if (kind === "forgot" || kind === "verify") {
         const parsed = forgotPasswordSchema.safeParse(req.body);
-        if (parsed.success && !await consumeRecoveryLimit(`forgot:email:${parsed.data.email}`, 3)) {
+        if (parsed.success && !await consumeRecoveryLimit(`${kind}:email:${parsed.data.email}`, 3)) {
           // Silently suppress email delivery for both existing and nonexistent accounts.
           await delay(Math.max(0, 2000 - (performance.now() - started)));
-          res.status(200).json({ message: "If an account exists, a password reset email has been sent" });
+          res.status(200).json({ message: kind === "verify" ? "If verification is needed, check your email for next steps." : "If an account exists, a password reset email has been sent" });
           return;
         }
       }

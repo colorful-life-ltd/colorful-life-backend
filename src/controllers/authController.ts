@@ -73,6 +73,9 @@ export const signup = async (req: Request, res: Response) => {
   if (!parseResult.success) {
     return res.status(400).json({ error: parseResult.error.format() });
   }
+  const started = performance.now();
+  const generic = { message: "If registration is available for this address, check your email for next steps." };
+  const finish = async () => { await delay(Math.max(0, 1500 - (performance.now() - started))); return res.status(202).json(generic); };
   const { email, password } = parseResult.data;
   // `email` is already normalized by the Zod schema via trim+lowercase
   const normalizedEmail = email;
@@ -95,29 +98,14 @@ export const signup = async (req: Request, res: Response) => {
     const { user, verification } = persistence;
     if (verification.created) {
       const verificationUrl = `${config.FRONTEND_URL}/verify-email?token=${encodeURIComponent(verification.rawToken)}`;
-      try {
-        await sendVerificationEmail({ recipientEmail: user.email, verificationUrl });
-      } catch (emailError) {
-        logOperationalError("Verification email delivery failed", emailError);
-      }
+      // Delivery runs after the same response deadline for new and existing addresses.
+      // Failures are logged without exposing account existence to the requester.
+      void sendVerificationEmail({ recipientEmail: user.email, verificationUrl }).catch(error => logOperationalError("Verification email delivery failed", error));
     }
-    const token = jwt.sign(
-      { id: user.id, role: user.role, credentialVersion: user.credentialVersion ?? null },
-      config.JWT_SECRET,
-      { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
-    );
-    return res.status(201).json({ token });
+    return finish();
    } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === "P2002"
-      ) {
-        // For the current schema the unique constraint violation on User.email
-        // surfaces as a P2002 error with meta.modelName === "User".
-        if (err.meta?.modelName === "User") {
-          return res.status(409).json({ error: "Email already in use" });
-        }
-      }
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" && err.meta?.modelName === "User") return finish();
+
      logOperationalError("Signup error", err);
      return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
    }
@@ -133,13 +121,13 @@ export const login = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findFirst({ where: { email: normalizedEmail, deletedAt: null } });
     const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_LOGIN_HASH);
-    if (!user || !passwordMatches) {
+    if (!user || !passwordMatches || !user.emailVerified) {
       return sendApiError(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
     }
     const issued = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id} FOR UPDATE`;
       const current = await tx.user.findUnique({ where: { id: user.id } });
-      if (!current || current.deletedAt !== null || current.passwordHash !== user.passwordHash) return null;
+      if (!current || current.deletedAt !== null || !current.emailVerified || current.passwordHash !== user.passwordHash) return null;
       return { accessToken: issueAccessToken(current), refreshSession: await createRefreshSession(current.id, new Date(), tx) };
     });
     if (!issued) return sendApiError(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
@@ -191,7 +179,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
   const parseResult = verifyEmailSchema.safeParse(req.body);
   if (!parseResult.success) return res.status(400).json({ error: parseResult.error.format() });
   try {
-    await verifyEmailVerificationToken(parseResult.data.token);
+    await verifyEmailVerificationToken(parseResult.data.token, parseResult.data.newPassword);
     return res.status(200).json({ message: "Email verified successfully" });
   } catch (err) {
     if (err instanceof InvalidOrExpiredVerificationTokenError) {
@@ -203,38 +191,30 @@ export const verifyEmail = async (req: Request, res: Response) => {
 };
 
 export const resendVerification = async (req: Request, res: Response) => {
-  const userId = req.user?.id;
-  if (!userId) return sendApiError(res, 401, "AUTH_REQUIRED", "Missing or invalid authorization header");
+  const started: number = res.locals?.passwordRecoveryStartedAt ?? performance.now();
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.format() });
+  const generic = { message: "If verification is needed, check your email for next steps." };
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId, deletedAt: null },
-      select: { id: true, email: true, emailVerified: true },
-    });
-    if (!user) return res.status(404).json({ error: "User not found" });
-    if (!user.emailVerified) {
-      const verification = await createOrReplaceEmailVerificationToken(user.id);
-      if (verification.created) {
-        const verificationUrl = `${config.FRONTEND_URL}/verify-email?token=${encodeURIComponent(verification.rawToken)}`;
-        try {
-          await sendVerificationEmail({ recipientEmail: user.email, verificationUrl });
-        } catch (emailError) {
-          // Never report success for a send that failed; the customer can safely retry.
-          logOperationalError("Verification email delivery failed", emailError);
-          // SES provably did not accept it: keep the previously emailed link valid. An ambiguous
-          // failure (timeout, reset) may still deliver the new link, so that one is kept.
-          if (classifySesError(emailError)) {
-            try { await restoreReplacedEmailVerificationToken(user.id, verification.rawToken, verification.previous); }
-            catch (restoreError) { logOperationalError("Verification token restore failed", restoreError); }
-          }
-          return sendEmailUnavailable(res);
+    if ((await emailCredentialReadiness("account")).ready) {
+      const user = await prisma.user.findFirst({ where: { email: parsed.data.email, deletedAt: null }, select: { id: true, email: true, emailVerified: true } });
+      if (user && !user.emailVerified) {
+        const verification = await createOrReplaceEmailVerificationToken(user.id, new Date(), undefined, user.email);
+        if (verification.created) {
+          const verificationUrl = `${config.FRONTEND_URL}/verify-email?token=${encodeURIComponent(verification.rawToken)}`;
+          void sendVerificationEmail({ recipientEmail: user.email, verificationUrl }).catch(async error => {
+            logOperationalError("Verification email delivery failed", error);
+            if (classifySesError(error)) {
+              try { await restoreReplacedEmailVerificationToken(user.id, verification.rawToken, verification.previous); }
+              catch (restoreError) { logOperationalError("Verification token restore failed", restoreError); }
+            }
+          });
         }
       }
     }
-    return res.status(200).json({ message: "If verification is required, a verification email has been sent" });
-  } catch (err) {
-    logOperationalError("Verification resend error", err);
-    return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
-  }
+  } catch (error) { logOperationalError("Verification resend unavailable", error); }
+  await delay(Math.max(0, 2000 - (performance.now() - started)));
+  return res.status(200).json(generic);
 };
 
 export const forgotPassword = async (req: Request, res: Response) => {

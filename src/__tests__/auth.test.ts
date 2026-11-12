@@ -29,14 +29,6 @@ async function startServer(): Promise<{ server: Server; url: string }> {
   });
 }
 
-/**
- * Record the user ID extracted from a JWT so it can be cleaned up after each test.
- */
-function recordUserIdFromToken(token: string, cleanupArray: number[]) {
-  const payload = jwt.verify(token, config.JWT_SECRET) as any;
-  cleanupArray.push(payload.id as number);
-}
-
 describe("Auth API", () => {
   let server: Server;
   let url: string;
@@ -64,8 +56,7 @@ describe("Auth API", () => {
 
   /**
    * Helper to create a user via the public signup API.
-   * Automatically tracks the created user for cleanup when the signup is
-   * successful (status 201 with a token in the response body).
+   * Tracks a newly created user without requiring a signup session.
    */
   async function signup(url: string, email: string, password: string) {
     const res = await fetch(`${url}/auth/signup`, {
@@ -74,8 +65,9 @@ describe("Auth API", () => {
       body: JSON.stringify({ email, password }),
     });
     const body = await res.json();
-    if (res.status === 201 && body.token) {
-      recordUserIdFromToken(body.token, userIdsForCleanup);
+    if (res.status === 202) {
+      const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+      if (user && !userIdsForCleanup.includes(user.id)) userIdsForCleanup.push(user.id);
     }
     return { res, body };
   }
@@ -94,23 +86,20 @@ describe("Auth API", () => {
   }
 
   // --------------------- Signup tests ---------------------------------
-  it("valid signup returns 201 and a token", async () => {
+  it("valid signup returns a generic response without a token", async () => {
     const email = `user-${randomUUID()}@example.com`;
     const password = "Abcdef1!";
     const { res, body } = await signup(url, email, password);
-    assert.strictEqual(res.status, 201);
-    assert.ok(body.token, "Token should be present");
+    assert.strictEqual(res.status, 202);
+    assert.strictEqual(body.token, undefined);
   });
 
   it("signup persistence and password security", async () => {
     const rawEmail = `user-${randomUUID()}@example.com`;
     const password = "Strong1!";
     const { res, body } = await signup(url, rawEmail, password);
-    assert.strictEqual(res.status, 201);
-    const token = body.token;
-    const payload = jwt.verify(token, config.JWT_SECRET) as any;
-    const userId = payload.id as number;
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    assert.strictEqual(res.status, 202);
+    const user = await prisma.user.findUnique({ where: { email: rawEmail.toLowerCase() } });
     assert.ok(user, "User should exist in DB");
     assert.strictEqual(user.email, rawEmail.toLowerCase(), "Email should be normalized to lowercase");
     assert.ok(user.passwordHash, "passwordHash should exist");
@@ -143,25 +132,23 @@ describe("Auth API", () => {
   it("signup normalizes email with surrounding whitespace and mixed case", async () => {
     const rawEmail = `  MixedCase-${randomUUID()}@Example.COM  `;
     const password = "Abcdef1!";
-    const { res, body } = await signup(url, rawEmail, password);
-    assert.strictEqual(res.status, 201);
-    const token = body.token;
-    const payload = jwt.verify(token, config.JWT_SECRET) as any;
-    const userId = payload.id as number;
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const { res } = await signup(url, rawEmail, password);
+    assert.strictEqual(res.status, 202);
+    const user = await prisma.user.findUnique({ where: { email: rawEmail.trim().toLowerCase() } });
     assert.ok(user, "User should exist");
     const expectedEmail = rawEmail.trim().toLowerCase();
     assert.strictEqual(user.email, expectedEmail, "Email should be trimmed and lowercased");
   });
 
-  it("signup rejects duplicate normalized email", async () => {
+  it("signup gives an identical response for a duplicate normalized email", async () => {
     const baseEmail = `dup-${randomUUID()}@example.com`;
     const password = "Abcdef1!";
     const { res: res1, body: body1 } = await signup(url, baseEmail, password);
-    assert.strictEqual(res1.status, 201);
+    assert.strictEqual(res1.status, 202);
     // Attempt duplicate with different case
-    const { res: res2 } = await signup(url, baseEmail.toUpperCase(), password);
-    assert.strictEqual(res2.status, 409, "Duplicate email should yield 409");
+    const { res: res2, body: body2 } = await signup(url, baseEmail.toUpperCase(), password);
+    assert.strictEqual(res2.status, 202);
+    assert.deepStrictEqual(body2, body1);
     const users = await prisma.user.findMany({ where: { email: baseEmail.toLowerCase() } });
     assert.strictEqual(users.length, 1, "Only one user should exist for normalized email");
   });
@@ -171,6 +158,7 @@ describe("Auth API", () => {
     const email = `login-${randomUUID()}@example.com`;
     const password = "Abcdef1!";
     await signup(url, email, password);
+    await prisma.user.update({ where: { email }, data: { emailVerified: true } });
     const { res: loginRes, body } = await login(url, email, password);
     assert.strictEqual(loginRes.status, 200);
     assert.ok(body.token, "Login should return a token");
@@ -182,6 +170,7 @@ describe("Auth API", () => {
     const rawEmail = `Norm-${randomUUID()}@Example.com`;
     const password = "Abcdef1!";
     await signup(url, rawEmail, password);
+    await prisma.user.update({ where: { email: rawEmail.toLowerCase() }, data: { emailVerified: true } });
     const { res: loginRes, body } = await login(url, rawEmail.toUpperCase(), password);
     assert.strictEqual(loginRes.status, 200);
     assert.ok(body.token);
@@ -273,9 +262,9 @@ describe("Auth API", () => {
   it("profile with expired token returns 401", async () => {
     const email = `expired-${randomUUID()}@example.com`;
     const password = "Abcdef1!";
-    const { body: signupBody } = await signup(url, email, password);
-    const payload = jwt.verify(signupBody.token, config.JWT_SECRET) as any;
-    const expiredToken = jwt.sign({ id: payload.id, role: payload.role }, config.JWT_SECRET, { expiresIn: "-1s" });
+    await signup(url, email, password);
+    const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+    const expiredToken = jwt.sign({ id: user.id, role: "CUSTOMER" }, config.JWT_SECRET, { expiresIn: "-1s" });
     const res = await fetch(`${url}/profile`, {
       headers: { Authorization: `Bearer ${expiredToken}` },
     });

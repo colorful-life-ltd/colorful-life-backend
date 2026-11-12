@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Server } from "node:http";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import app from "../app.js";
 import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
@@ -54,8 +53,6 @@ function verificationSender(sender: (email: VerificationEmail) => Promise<void>)
 function resetSender(sender: (email: PasswordResetEmail) => Promise<void>) { restores.push(setPasswordResetEmailSenderForTests(sender)); }
 const post = (path: string, body: unknown, token?: string) => fetch(`${url}${path}`, { method: "POST",
   headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp, ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
-const bearer = (user: { id: number; role: string; credentialVersion: string | null }) =>
-  jwt.sign({ id: user.id, role: user.role, credentialVersion: user.credentialVersion ?? null }, config.JWT_SECRET, { expiresIn: "1h" });
 async function makeUser(emailVerified: boolean, password = "Abcdef1!") {
   const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.com`, passwordHash: await bcrypt.hash(password, 4), emailVerified } });
   userIds.push(user.id);
@@ -64,7 +61,7 @@ async function makeUser(emailVerified: boolean, password = "Abcdef1!") {
 async function signup(email = `${randomUUID()}@example.com`) {
   const response = await post("/auth/signup", { email, password: "Abcdef1!" });
   const body = await response.json();
-  if (response.status === 201) userIds.push((jwt.decode(body.token) as { id: number }).id);
+  if (response.status === 202) { const user = await prisma.user.findUnique({where:{email:email.toLowerCase()}}); if(user&&!userIds.includes(user.id))userIds.push(user.id); }
   return { response, body, email };
 }
 /** Customer-facing bodies must not reveal internals. */
@@ -129,7 +126,7 @@ describe("signup email readiness guard", () => {
       assert.equal((await signup()).response.status, 503, "no session installed");
       assert.equal((await fetch(`${url}/ready/email`)).status, 503);
       install(Date.now() + 3_600_000);
-      const opened = await signup(); assert.equal(opened.response.status, 201, JSON.stringify(opened.body));
+      const opened = await signup(); assert.equal(opened.response.status, 202, JSON.stringify(opened.body));
       assert.deepEqual(await (await fetch(`${url}/ready/email`)).json(), { status: "ready" });
       install(Date.now() + 60_000);
       assert.equal((await signup()).response.status, 503, "session about to expire closes signup");
@@ -148,20 +145,20 @@ describe("signup email readiness guard", () => {
   it("keeps a recoverable unverified account when the send itself fails after readiness", async () => {
     captureLogs();
     verificationSender(async () => { throw Object.assign(new Error("SECRETMARKER transient"), { name: "Throttling" }); });
-    const { response, body } = await signup();
-    assert.equal(response.status, 201);
-    const id = (jwt.decode(body.token) as { id: number }).id;
+    const { response, email } = await signup();
+    assert.equal(response.status, 202);
+    const id = (await prisma.user.findUniqueOrThrow({where:{email}})).id;
     const user = await prisma.user.findUniqueOrThrow({ where: { id } });
     assert.equal(user.emailVerified, false);
     const token = await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: id } });
     // A duplicate signup cannot create a second account.
     const retry = await post("/auth/signup", { email: user.email, password: "Abcdef1!" });
-    assert.equal(retry.status, 409);
+    assert.equal(retry.status, 202);
     assert.equal(await prisma.user.count({ where: { email: user.email } }), 1);
     // Resend recovers once SES accepts again.
     while (restores.length) restores.pop()!();
     const sent: VerificationEmail[] = []; verificationSender(async email => { sent.push(email); });
-    const resend = await post("/auth/resend-verification", {}, body.token);
+    const resend = await post("/auth/resend-verification", { email: user.email });
     assert.equal(resend.status, 200);
     assert.equal(sent.length, 1);
     assert.notEqual((await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: id } })).tokenHash, token.tokenHash);
@@ -175,29 +172,29 @@ describe("verification resend", () => {
     await prisma.emailVerificationToken.create({ data: { userId: user.id, tokenHash: "a".repeat(64), expiresAt: new Date(Date.now() + 3_600_000) } });
     unavailable("missing");
     let sends = 0; verificationSender(async () => { sends++; });
-    const response = await post("/auth/resend-verification", {}, bearer(user));
+    const response = await post("/auth/resend-verification", { email: user.email });
     const body = await response.json();
-    assert.equal(response.status, 503);
-    assert.equal(body.error.code, "EMAIL_DELIVERY_UNAVAILABLE");
+    assert.equal(response.status, 200);
+    assert.deepEqual(body, { message: "If verification is needed, check your email for next steps." });
     assertGeneric(body);
     assert.equal(sends, 0);
     assert.equal((await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } })).tokenHash, "a".repeat(64));
   });
 
-  it("does not claim success when the send fails", async () => {
+  it("returns a generic response when the send fails", async () => {
     const user = await makeUser(false);
     verificationSender(async () => { throw new Error("SES unavailable"); });
-    const response = await post("/auth/resend-verification", {}, bearer(user));
+    const response = await post("/auth/resend-verification", { email: user.email });
     const body = await response.json();
-    assert.equal(response.status, 503);
-    assert.equal(body.error.code, "EMAIL_DELIVERY_UNAVAILABLE");
+    assert.equal(response.status, 200);
+    assert.deepEqual(body, { message: "If verification is needed, check your email for next steps." });
     assert.equal(JSON.stringify(body).includes("has been sent"), false);
     assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerified, false);
   });
 });
 
 describe("verification resend token consistency", () => {
-  const verify = (token: string) => post("/auth/verify-email", { token });
+  const verify = (token: string) => post("/auth/verify-email", { token, newPassword: "VerifiedPass1!" });
   // Definitive failures: SES provably did not accept the message.
   const definitive = [
     ["credentials unavailable", () => new SesCredentialsUnavailableError("expired")],
@@ -210,9 +207,9 @@ describe("verification resend token consistency", () => {
     assert.ok(prior.created);
     const before = await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } });
     let attempts = 0; verificationSender(async () => { attempts++; throw failure(); });
-    const response = await post("/auth/resend-verification", {}, bearer(user));
-    assert.equal(response.status, 503);
-    assert.equal((await response.json()).error.code, "EMAIL_DELIVERY_UNAVAILABLE");
+    const response = await post("/auth/resend-verification", { email: user.email });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { message: "If verification is needed, check your email for next steps." });
     assert.equal(attempts, 1, "no automatic resend");
     assert.deepEqual(await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } }), before);
     assert.equal((await verify(prior.rawToken)).status, 200);
@@ -222,11 +219,11 @@ describe("verification resend token consistency", () => {
   it("leaves no undeliverable token behind when there was no previous link", async () => {
     const user = await makeUser(false);
     verificationSender(async () => { throw new SesCredentialsUnavailableError("missing"); });
-    assert.equal((await post("/auth/resend-verification", {}, bearer(user))).status, 503);
+    assert.equal((await post("/auth/resend-verification", { email: user.email })).status, 200);
     assert.equal(await prisma.emailVerificationToken.findUnique({ where: { userId: user.id } }), null);
     while (restores.length) restores.pop()!();
     const sent: VerificationEmail[] = []; verificationSender(async email => { sent.push(email); });
-    assert.equal((await post("/auth/resend-verification", {}, bearer(user))).status, 200);
+    assert.equal((await post("/auth/resend-verification", { email: user.email })).status, 200);
     assert.equal(sent.length, 1);
     assert.equal((await verify(new URL(sent[0].verificationUrl).searchParams.get("token")!)).status, 200);
   });
@@ -237,7 +234,7 @@ describe("verification resend token consistency", () => {
     assert.ok(prior.created);
     let attempted: VerificationEmail | undefined;
     verificationSender(async email => { attempted = email; throw Object.assign(new Error("synthetic"), { name: "TimeoutError" }); });
-    assert.equal((await post("/auth/resend-verification", {}, bearer(user))).status, 503);
+    assert.equal((await post("/auth/resend-verification", { email: user.email })).status, 200);
     const current = await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } });
     const attemptedToken = new URL(attempted!.verificationUrl).searchParams.get("token")!;
     assert.equal(current.tokenHash, hashEmailVerificationToken(attemptedToken));
@@ -255,11 +252,11 @@ describe("verification resend token consistency", () => {
       if (++call === 1) { entered(); await gate; throw new SesCredentialsUnavailableError("expired"); }
       delivered.push(email);
     });
-    const first = post("/auth/resend-verification", {}, bearer(user));
+    const first = post("/auth/resend-verification", { email: user.email });
     await inFlight;
-    assert.equal((await post("/auth/resend-verification", {}, bearer(user))).status, 200);
+    assert.equal((await post("/auth/resend-verification", { email: user.email })).status, 200);
     release();
-    assert.equal((await first).status, 503);
+    assert.equal((await first).status, 200);
     const newer = new URL(delivered[0].verificationUrl).searchParams.get("token")!;
     assert.equal((await prisma.emailVerificationToken.findUniqueOrThrow({ where: { userId: user.id } })).tokenHash, hashEmailVerificationToken(newer));
     assert.equal((await verify(newer)).status, 200);
@@ -299,13 +296,4 @@ describe("existing accounts during an SES outage", () => {
     assert.ok((await response.json()).token);
   });
 
-  it("email change is refused before the address changes", async () => {
-    const user = await makeUser(false, "Change1!");
-    unavailable("expired");
-    const response = await fetch(`${url}/users/me/email`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer(user)}` },
-      body: JSON.stringify({ email: `${randomUUID()}@example.com`, password: "Change1!" }) });
-    assert.equal(response.status, 503);
-    assert.equal((await response.json()).error.code, "EMAIL_DELIVERY_UNAVAILABLE");
-    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).email, user.email);
-  });
 });

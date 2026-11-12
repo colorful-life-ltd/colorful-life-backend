@@ -15,6 +15,7 @@ before(async () => {
     role: id === 7 ? 'ADMIN' : 'CUSTOMER',
     deletedAt: null,
     credentialVersion: null,
+    emailVerified: true,
   }))
   server = app.listen(0, '127.0.0.1')
   await new Promise<void>(resolve => server.once('listening', resolve))

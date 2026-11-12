@@ -17,14 +17,6 @@ export const signupEmailReady: RequestHandler = async (_req, res, next) => {
     "Account registration is temporarily unavailable. Please try again later.");
 };
 
-/** Authenticated account email flows (verification resend, email change): no enumeration surface. */
-export const accountEmailReady: RequestHandler = async (_req, res, next) => {
-  try {
-    if ((await emailCredentialReadiness("account")).ready) return next();
-  } catch { /* fail closed below */ }
-  return sendEmailUnavailable(res);
-};
-
 export function sendEmailUnavailable(res: Parameters<RequestHandler>[1]) {
   res.setHeader("Retry-After", "300");
   return sendApiError(res, 503, "EMAIL_DELIVERY_UNAVAILABLE",

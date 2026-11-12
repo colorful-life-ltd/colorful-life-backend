@@ -27,14 +27,6 @@ async function startServer(): Promise<{ server: Server; url: string }> {
   });
 }
 
-/**
- * Record the user ID extracted from a JWT so it can be cleaned up after each test.
- */
-function recordUserIdFromToken(token: string, cleanupArray: number[]) {
-  const payload = jwt.verify(token, config.JWT_SECRET) as any;
-  cleanupArray.push(payload.id as number);
-}
-
 describe("Address API", () => {
   let server: Server;
   let url: string;
@@ -64,13 +56,10 @@ describe("Address API", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const body = await res.json();
-    if (res.status === 201 && body.token) {
-      recordUserIdFromToken(body.token, userIdsForCleanup);
-      const userId = (jwt.decode(body.token) as { id: number }).id;
-      await prisma.user.update({ where: { id: userId }, data: { emailVerified: true } });
-    }
-    return { res, body };
+    assert.strictEqual(res.status, 202);
+    const user = await prisma.user.update({ where: { email: email.toLowerCase() }, data: { emailVerified: true } });
+    userIdsForCleanup.push(user.id);
+    return login(email, password);
   }
 
   async function login(email: string, password: string) {

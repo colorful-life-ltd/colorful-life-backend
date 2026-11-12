@@ -3,7 +3,7 @@ import { changePassword } from "../controllers/passwordChange.js";
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail.js";
-import { getCurrentUserProfile, updateCurrentUserProfile, changeCurrentUserEmail } from "../controllers/userProfile.js";
+import { getCurrentUserProfile, updateCurrentUserProfile } from "../controllers/userProfile.js";
 import {
   getAddresses,
   createAddress,
@@ -12,13 +12,11 @@ import {
   lookupAddresses,
 } from "../controllers/addressController.js";
 import { deleteCurrentUserAccount } from "../controllers/accountDeletionController.js";
-import { accountEmailReady } from "../middleware/emailDeliveryReady.js";
 
 const router = Router();
 
 router.get("/me", authMiddleware, requireVerifiedEmail, getCurrentUserProfile);
 router.patch("/me", authMiddleware, requireVerifiedEmail, updateCurrentUserProfile);
-router.patch("/me/email", authMiddleware, accountEmailReady, checkoutProtection("recovery"), changeCurrentUserEmail);
 router.post("/me/password", authMiddleware, checkoutProtection("recovery"), changePassword);
 router.delete("/me", authMiddleware, checkoutProtection("recovery"), deleteCurrentUserAccount);
 // Address management endpoints

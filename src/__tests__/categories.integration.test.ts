@@ -41,7 +41,7 @@ function request(path: string, token?: string, init: RequestInit = {}) {
 
 async function makeAdmin() {
   const user = await prisma.user.create({
-    data: { email: `category-admin-${randomUUID()}@example.com`, passwordHash: "test-hash", role: "ADMIN" },
+    data: { email: `category-admin-${randomUUID()}@example.com`, passwordHash: "test-hash", emailVerified: true, role: "ADMIN" },
   });
   userIds.push(user.id);
   return jwt.sign({ id: user.id, role: "ADMIN" }, config.JWT_SECRET, { expiresIn: "1h" });

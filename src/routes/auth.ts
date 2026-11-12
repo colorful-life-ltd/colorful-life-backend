@@ -1,9 +1,8 @@
 import { checkoutProtection } from "../middleware/checkoutProtection.js";
 import { registrationOpen } from "../middleware/registrationOpen.js";
-import { accountEmailReady, signupEmailReady } from "../middleware/emailDeliveryReady.js";
+import { signupEmailReady } from "../middleware/emailDeliveryReady.js";
 import { Router } from "express";
 import { signup, login, refreshSession, logout, verifyEmail, resendVerification, forgotPassword, resetPasswordHandler } from "../controllers/authController.js";
-import { authMiddleware } from "../middleware/auth.js";
 
 import { passwordRecoveryLimit } from "../middleware/passwordRecoveryLimit.js";
 
@@ -13,8 +12,8 @@ router.post("/signup", registrationOpen, signupEmailReady, checkoutProtection("s
 router.post("/login", checkoutProtection("login"), login);
 router.post("/refresh", refreshSession);
 router.post("/logout", logout);
-router.post("/verify-email", verifyEmail);
-router.post("/resend-verification", authMiddleware, accountEmailReady, checkoutProtection("recovery"), resendVerification);
+router.post("/verify-email", passwordRecoveryLimit("verify-token"), verifyEmail);
+router.post("/resend-verification", passwordRecoveryLimit("verify"), resendVerification);
 router.post("/forgot-password", passwordRecoveryLimit("forgot"), forgotPassword);
 router.post("/reset-password", passwordRecoveryLimit("reset"), resetPasswordHandler);
 

@@ -51,8 +51,8 @@ it('locked replacement tokens survive cleanup and expired reset tokens are remov
 });
 
 it('existing maintenance remains ADMIN-only and returns counts without identities', async () => {
-  const customer = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: 'synthetic' } });
-  const admin = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: 'synthetic', role: 'ADMIN' } });
+  const customer = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: 'synthetic', emailVerified: true } });
+  const admin = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: 'synthetic', emailVerified: true, role: 'ADMIN' } });
   users.push(customer.id, admin.id);
   const server = app.listen(0);
   try {

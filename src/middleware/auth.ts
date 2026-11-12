@@ -5,11 +5,11 @@ import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { sendApiError } from "../utils/apiErrorResponse.js";
 
-type AuthenticatedUser = { id: number; role: string; credentialVersion?: string | null; deletedAt: Date | null };
+type AuthenticatedUser = { id: number; role: string; credentialVersion?: string | null; deletedAt: Date | null; emailVerified: boolean };
 type AuthenticatedUserLookup = (userId: number) => Promise<AuthenticatedUser | null>;
 
 const databaseUserLookup: AuthenticatedUserLookup = (userId) =>
-  prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, deletedAt: true, credentialVersion: true } });
+  prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, deletedAt: true, credentialVersion: true, emailVerified: true } });
 
 let lookupUser: AuthenticatedUserLookup = databaseUserLookup;
 
@@ -42,7 +42,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     return sendApiError(res, 500, "INTERNAL_SERVER_ERROR", "Internal server error");
   }
 
-  if (!user || user.deletedAt !== null) {
+  if (!user || user.deletedAt !== null || !user.emailVerified) {
     return sendApiError(res, 401, "SESSION_INVALID", "Invalid or expired token");
   }
 

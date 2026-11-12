@@ -215,17 +215,16 @@ it('paid cancellation request fences dispatch before any provider refund', async
     assert.equal(await prisma.refund.count({ where: { paymentId: f.payment!.id } }), 0);
     assert.equal((await prisma.productListing.findUniqueOrThrow({ where: { id: f.listing.id } })).currentStock, 9);
 });
-it('verified email replacement requires reauthentication and invalidates old credentials', async () => {
+it('customer email replacement is unavailable and cannot change the account', async () => {
     const f = await fixture();
     const token = jwt.sign({ id: f.user.id }, config.JWT_SECRET);
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-    assert.equal((await fetch(base + '/users/me/email', { method: 'PATCH', headers, body: JSON.stringify({ email: `${randomUUID()}@example.test`, password: 'Incorrect1!' }) })).status, 403);
     const email = `${randomUUID()}@example.test`;
-    assert.equal((await fetch(base + '/users/me/email', { method: 'PATCH', headers, body: JSON.stringify({ email, password: 'Correct1!' }) })).status, 200);
+    assert.equal((await fetch(base + '/users/me/email', { method: 'PATCH', headers, body: JSON.stringify({ email, password: 'Correct1!' }) })).status, 404);
     const changed = await prisma.user.findUniqueOrThrow({ where: { id: f.user.id } });
-    assert.equal(changed.email, email);
-    assert.equal(changed.emailVerified, false);
-    assert.equal((await fetch(base + '/users/me', { headers })).status, 401);
+    assert.equal(changed.email, f.user.email);
+    assert.equal(changed.emailVerified, true);
+    assert.equal((await fetch(base + '/users/me', { headers })).status, 200);
 });
 it('oversized FBA records a shortage, preserves reservations and blocks new commitments until audited stocktake', async () => {
     const { reconcileStocktake } = await import('../domain/inventory/inventoryAdjustmentService.js');

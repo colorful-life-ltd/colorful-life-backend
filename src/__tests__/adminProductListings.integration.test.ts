@@ -28,7 +28,7 @@ before(async () => {
   if (!address || typeof address === "string") throw new Error("server address unavailable");
   base = `http://localhost:${address.port}`;
   async function user(role: "ADMIN" | "CUSTOMER") {
-    const created = await prisma.user.create({ data: { email: `feed-${randomUUID()}@example.test`, passwordHash: "test", role } });
+    const created = await prisma.user.create({ data: { email: `feed-${randomUUID()}@example.test`, passwordHash: "test", emailVerified: true, role } });
     ids.users.push(created.id);
     return jwt.sign({ id: created.id, role }, config.JWT_SECRET, { expiresIn: "1h" });
   }

@@ -240,15 +240,11 @@ it("a refresh blocked behind reset rechecks revocation after the PostgreSQL user
   assert.equal((await refresh!)!.status, 401);
   assert.equal(await prisma.refreshSession.count({ where: { userId: user.id, revokedAt: null } }), 0);
 });
-it("email changes revoke prior reset authority and reject stale email lookups", async () => {
-  const { changeUnverifiedUserEmail } = await import("../domain/auth/emailChangeService.js");
-  const { PasswordResetUserNotFoundError, InvalidOrExpiredPasswordResetTokenError } = await import("../domain/auth/passwordResetErrors.js");
+it("password reset token creation rejects stale email lookups", async () => {
+  const { PasswordResetUserNotFoundError } = await import("../domain/auth/passwordResetErrors.js");
   const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4) } });
-  const old = await createOrReplacePasswordResetToken(user.id, new Date(), user.email);
   const newEmail = `${randomUUID()}@example.test`;
-  await changeUnverifiedUserEmail(user.id, newEmail);
-  assert.equal(await prisma.passwordResetToken.count({ where: { userId: user.id } }), 0);
-  await assert.rejects(resetPassword(old.rawToken, "NewPassword1!"), InvalidOrExpiredPasswordResetTokenError);
+  await prisma.user.update({ where: { id: user.id }, data: { email: newEmail } });
   await assert.rejects(createOrReplacePasswordResetToken(user.id, new Date(), user.email), PasswordResetUserNotFoundError);
   const fresh = await createOrReplacePasswordResetToken(user.id, new Date(), newEmail);
   await resetPassword(fresh.rawToken, "NewPassword1!");
