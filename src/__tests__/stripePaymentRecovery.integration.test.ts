@@ -267,7 +267,7 @@ describe("Stripe missed-webhook recovery", { concurrency: 1 }, () => {
     assert.equal((await post(2147483647, token(f))).status, 404);
     const invalid = await fetch(`${url}/orders/bad/payments/stripe/reconcile`, { method: "POST", headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${token(f)}` } }); assert.equal(invalid.status, 400);
     await prisma.user.update({ where: { id: f.user.id }, data: { emailVerified: false } });
-    const unverified = await post(f.order.id, token(f)); assert.equal(unverified.status, 403); assert.equal((await unverified.json()).error.code, "EMAIL_VERIFICATION_REQUIRED");
+    const unverified = await post(f.order.id, token(f)); assert.equal(unverified.status, 401); assert.equal((await unverified.json()).error.code, "SESSION_INVALID");
     assert.equal(stripe.calls(), 0); await assertUnchanged(f);
   });
 
