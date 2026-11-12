@@ -38,7 +38,7 @@ before(async () => {
   const address = server.address(); if (!address || typeof address === "string") throw new Error("server address unavailable");
   base = `http://localhost:${address.port}`;
   async function createUser(role: "ADMIN" | "CUSTOMER") {
-    const user = await prisma.user.create({ data: { email: `${role}-${randomUUID()}@example.test`, passwordHash: "test", role } });
+    const user = await prisma.user.create({ data: { email: `${role}-${randomUUID()}@example.test`, passwordHash: "test", emailVerified: true, role } });
     users.push(user.id); if (role === "ADMIN") adminId = user.id;
     return jwt.sign({ id: user.id, role }, config.JWT_SECRET, { expiresIn: "1h" });
   }
