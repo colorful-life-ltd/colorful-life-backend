@@ -108,7 +108,7 @@ it("does not trust a forged forwarded IP and returns 429 after the IP budget", a
   } finally { await new Promise<void>(resolve => s.close(() => resolve())); }
 });
 it("concurrent token consumers revoke all sessions exactly once", async () => {
-  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4) } });
+  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4), emailVerified: true } });
   const login = await post("/auth/login", { email: user.email, password: "OldPassword1!" });
   assert.equal(login.status, 200);
   const token = await createOrReplacePasswordResetToken(user.id);
@@ -201,7 +201,7 @@ it("limiter database failure fails closed with a generic 503", async () => {
 });
 it("a refresh blocked behind reset rechecks revocation after the PostgreSQL user lock", async () => {
   const { setTimeout: delay } = await import("node:timers/promises");
-  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4) } });
+  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4), emailVerified: true } });
   const loggedIn = await post("/auth/login", { email: user.email, password: "OldPassword1!" });
   assert.equal(loggedIn.status, 200);
   const token = await createOrReplacePasswordResetToken(user.id);
@@ -240,15 +240,11 @@ it("a refresh blocked behind reset rechecks revocation after the PostgreSQL user
   assert.equal((await refresh!)!.status, 401);
   assert.equal(await prisma.refreshSession.count({ where: { userId: user.id, revokedAt: null } }), 0);
 });
-it("email changes revoke prior reset authority and reject stale email lookups", async () => {
-  const { changeUnverifiedUserEmail } = await import("../domain/auth/emailChangeService.js");
-  const { PasswordResetUserNotFoundError, InvalidOrExpiredPasswordResetTokenError } = await import("../domain/auth/passwordResetErrors.js");
+it("password reset token creation rejects stale email lookups", async () => {
+  const { PasswordResetUserNotFoundError } = await import("../domain/auth/passwordResetErrors.js");
   const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash("OldPassword1!", 4) } });
-  const old = await createOrReplacePasswordResetToken(user.id, new Date(), user.email);
   const newEmail = `${randomUUID()}@example.test`;
-  await changeUnverifiedUserEmail(user.id, newEmail);
-  assert.equal(await prisma.passwordResetToken.count({ where: { userId: user.id } }), 0);
-  await assert.rejects(resetPassword(old.rawToken, "NewPassword1!"), InvalidOrExpiredPasswordResetTokenError);
+  await prisma.user.update({ where: { id: user.id }, data: { email: newEmail } });
   await assert.rejects(createOrReplacePasswordResetToken(user.id, new Date(), user.email), PasswordResetUserNotFoundError);
   const fresh = await createOrReplacePasswordResetToken(user.id, new Date(), newEmail);
   await resetPassword(fresh.rawToken, "NewPassword1!");
@@ -261,13 +257,13 @@ it("email changes revoke prior reset authority and reject stale email lookups", 
 it("rejects oversized reset and signup passwords without consuming a token, and supports historical login", async () => {
   const boundary = "Aa1!" + "a".repeat(68);
   const oldPassword = boundary + "historical";
-  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash(oldPassword, 4) } });
+  const user = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`, passwordHash: await bcrypt.hash(oldPassword, 4), emailVerified: true } });
   assert.equal((await post("/auth/login", { email: user.email, password: oldPassword })).status, 200);
   const restoreVerification = setVerificationEmailSenderForTests(async () => undefined);
   const signupEmail = `${randomUUID()}@example.test`;
   try {
-    assert.equal((await post("/auth/signup", { email: signupEmail, password: boundary })).status, 201);
-    assert.equal((await post("/auth/login", { email: signupEmail, password: boundary })).status, 200);
+    assert.equal((await post("/auth/signup", { email: signupEmail, password: boundary })).status, 202);
+    assert.equal((await post("/auth/login", { email: signupEmail, password: boundary })).status, 401);
   } finally { restoreVerification(); }
   const token = await createOrReplacePasswordResetToken(user.id);
   assert.equal((await post("/auth/reset-password", { token: token.rawToken, newPassword: boundary + "x" })).status, 400);

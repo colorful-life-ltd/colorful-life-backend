@@ -118,8 +118,8 @@ describe("order creation HTTP integration", () => {
       headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }),
     });
-    assert.strictEqual(response.status, 403);
-    assert.deepStrictEqual(await response.json(), { error: { code: "EMAIL_VERIFICATION_REQUIRED", message: "Email verification required" } });
+    assert.strictEqual(response.status, 401);
+    assert.deepStrictEqual(await response.json(), { error: { code: "SESSION_INVALID", message: "Invalid or expired token" } });
     assert.strictEqual(await prisma.order.count({ where: { userId: customer.id } }), 0);
     assert.deepStrictEqual(await prisma.productListing.findUnique({ where: { id: listing.id } }), before);
   });
@@ -132,7 +132,7 @@ describe("order creation HTTP integration", () => {
       headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, Authorization: `Bearer ${customer.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ shippingMethod: "STANDARD" as const, items: [{ productListingId: listing.id, quantity: 1 }] }),
     });
-    assert.strictEqual((await request()).status, 403);
+    assert.strictEqual((await request()).status, 401);
     await prisma.user.update({ where: { id: customer.id }, data: { emailVerified: true } });
     const response = await request();
     assert.strictEqual(response.status, 201);

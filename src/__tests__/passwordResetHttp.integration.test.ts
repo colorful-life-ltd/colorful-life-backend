@@ -39,7 +39,7 @@ async function reset(token: string, newPassword: unknown) {
 
 describe("reset-password HTTP", () => {
   it("is public and changes login password while consuming the token", async () => {
-    const user = await createUser();
+    const user = await createUser(true);
     const token = await createOrReplacePasswordResetToken(user.id);
     const before = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", "X-Forwarded-For": recoveryClientIp }, body: JSON.stringify({ email: user.email, password: "OldPassword1!" }) });
     assert.strictEqual(before.status, 200);
@@ -51,7 +51,7 @@ describe("reset-password HTTP", () => {
     assert.strictEqual(oldLogin.status, 401);
     assert.strictEqual(newLogin.status, 200);
     assert.strictEqual(await prisma.passwordResetToken.count({ where: { userId: user.id } }), 0);
-    assert.equal((await prisma.user.findUnique({ where: { id: user.id } }))?.emailVerified, false);
+    assert.equal((await prisma.user.findUnique({ where: { id: user.id } }))?.emailVerified, true);
   });
 
   it("rejects invalid, expired, and consumed tokens generically", async () => {

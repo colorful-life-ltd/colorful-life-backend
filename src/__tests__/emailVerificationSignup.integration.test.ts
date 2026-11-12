@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { after, afterEach, before, describe, it } from "node:test";
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
-import jwt from "jsonwebtoken";
 import app from "../app.js";
 import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
@@ -47,12 +46,11 @@ describe("signup verification email integration", () => {
       body: JSON.stringify({ email: `  ${registeredEmail}  `, password: "Abcdef1!" }),
     });
     const body = await response.json();
-    assert.strictEqual(response.status, 201);
-    assert.deepStrictEqual(Object.keys(body), ["token"]);
-    const payload = jwt.verify(body.token, config.JWT_SECRET) as Record<string, unknown>;
-    userIds.push(payload.id as number);
-    const user = await prisma.user.findUnique({ where: { id: payload.id as number } });
-    const token = await prisma.emailVerificationToken.findUnique({ where: { userId: payload.id as number } });
+    assert.strictEqual(response.status, 202);
+    assert.deepStrictEqual(Object.keys(body), ["message"]);
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: registeredEmail.trim().toLowerCase() } });
+    userIds.push(user.id);
+    const token = await prisma.emailVerificationToken.findUnique({ where: { userId: user.id } });
     assert.strictEqual(user?.email, registeredEmail.trim().toLowerCase());
     assert.strictEqual(user?.emailVerified, false);
     assert.ok(token);
@@ -63,22 +61,20 @@ describe("signup verification email integration", () => {
     assert.strictEqual(new URL(email!.verificationUrl).origin, config.FRONTEND_URL);
     assert.strictEqual(email!.recipientEmail, registeredEmail.trim().toLowerCase());
     assert.equal(JSON.stringify(body).includes(rawToken!), false);
-    assert.equal(JSON.stringify(payload).includes(rawToken!), false);
   });
 
   it("keeps signup successful and preserves the token when email delivery fails", async () => {
     restoreSender = setVerificationEmailSenderForTests(async () => { throw new Error("SES unavailable"); });
+    const registeredEmail = `${randomUUID()}@example.com`;
     const response = await fetch(`${url}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: `${randomUUID()}@example.com`, password: "Abcdef1!" }),
+      body: JSON.stringify({ email: registeredEmail, password: "Abcdef1!" }),
     });
-    const body = await response.json();
-    assert.strictEqual(response.status, 201);
-    const payload = jwt.verify(body.token, config.JWT_SECRET) as Record<string, unknown>;
-    userIds.push(payload.id as number);
-    assert.ok(await prisma.user.findUnique({ where: { id: payload.id as number } }));
-    assert.ok(await prisma.emailVerificationToken.findUnique({ where: { userId: payload.id as number } }));
+    assert.strictEqual(response.status, 202);
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: registeredEmail } });
+    userIds.push(user.id);
+    assert.ok(await prisma.emailVerificationToken.findUnique({ where: { userId: user.id } }));
   });
 
   it("rolls back the user when token persistence fails inside the signup transaction", async () => {

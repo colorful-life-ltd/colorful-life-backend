@@ -151,7 +151,7 @@ describe("payment-safe customer cancellation and expiry", () => {
   it("rejects paid CONFIRMED orders without restocking and retains customer authentication", async () => {
     const f = await fixture(); await payment(f, "SUCCEEDED", "MANUAL"); await confirmOrder(f.owner.id, f.order.id);
     assert.equal((await cancelHttp(f.order.id)).status, 401);
-    const unverified = await user("CUSTOMER", false); assert.equal((await cancelHttp(f.order.id, unverified)).status, 403);
+    const unverified = await user("CUSTOMER", false); assert.equal((await cancelHttp(f.order.id, unverified)).status, 401);
     assert.equal((await cancelHttp(2147483647, f.owner)).status, 404);
     assert.equal((await cancelHttp(f.order.id, f.owner)).status, 409);
     await inventory(f, 8, 0, 1);

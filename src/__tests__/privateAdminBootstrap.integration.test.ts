@@ -9,6 +9,7 @@ import { createAdminBootstrapRouter } from "../routes/adminBootstrap.js";
 import { BootstrapAuthorizationStore, BOOTSTRAP_AUTHORIZATION_TTL_MS } from "../domain/auth/bootstrapAuthorization.js";
 import { FIRST_ADMIN_REGISTRATION_ARMED, runArmFirstAdminRegistration } from "../domain/auth/firstAdminRegistrationArming.js";
 import { adminBootstrapMode } from "../config/adminBootstrap.js";
+import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { setVerificationEmailSenderForTests } from "../services/emailService.js";
 
@@ -182,11 +183,14 @@ it("once an ADMIN exists, setup is closed for good: status, grants, arming and f
   assert.equal(await prisma.user.count({ where: { role: "ADMIN" } }), 1);
   // Ordinary signup stays a customer registration with email verification; it can never create an ADMIN.
   const signupEmail = newEmail();
-  const signup = await fetch(`${appUrl}/auth/signup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: signupEmail, password: "StrongPass1!" }) });
-  if (signup.status === 201) {
+  const savedRegistration = config.REGISTRATION_ENABLED;
+  config.REGISTRATION_ENABLED = true;
+  try {
+    const signup = await fetch(`${appUrl}/auth/signup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: signupEmail, password: "StrongPass1!" }) });
+    assert.equal(signup.status, 202);
     const customer = await prisma.user.findUniqueOrThrow({ where: { email: signupEmail } });
     assert.equal(customer.role, "CUSTOMER"); assert.equal(customer.emailVerified, false);
-  }
+  } finally { config.REGISTRATION_ENABLED = savedRegistration; }
   assert.equal(await prisma.user.count({ where: { role: "ADMIN" } }), 1);
   // The window was consumed by the creation: even if the Admin row were removed, setup does not reopen
   // until the owner arms again on the host.

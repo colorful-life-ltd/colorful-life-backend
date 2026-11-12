@@ -60,9 +60,9 @@ export async function rotateRefreshSession<T>(
 
     const user = await tx.user.findUnique({
       where: { id: discovered.userId },
-      select: { id: true, role: true, deletedAt: true, credentialVersion: true },
+      select: { id: true, role: true, deletedAt: true, credentialVersion: true, emailVerified: true },
     });
-    if (!user || user.deletedAt !== null) throw new InvalidRefreshSessionError();
+    if (!user || user.deletedAt !== null || !user.emailVerified) throw new InvalidRefreshSessionError();
 
     // Evaluate expiry after acquiring the user lock: a request may have waited
     // behind another transaction long enough for the renewable session to expire.

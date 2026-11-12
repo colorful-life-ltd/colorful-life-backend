@@ -1,4 +1,6 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import bcrypt from "bcrypt";
+import { passwordSchema } from "../../utils/authValidation.js";
 import { prisma } from "../../prisma/runtime.js";
 import type { Prisma } from "../../generated/prisma-client/client.js";
 import {
@@ -18,13 +20,15 @@ async function createOrReplaceEmailVerificationTokenInTransaction(
   tx: VerificationTransactionClient,
   userId: number,
   now: Date,
+  expectedEmail?: string,
 ) {
+  await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
   const user = await tx.user.findUnique({
       where: { id: userId },
-      select: { id: true, emailVerified: true },
+      select: { id: true, emailVerified: true, email: true, deletedAt: true },
   });
   if (!user) throw new EmailVerificationUserNotFoundError(userId);
-  if (user.emailVerified) return { created: false as const };
+  if (user.emailVerified || user.deletedAt !== null || (expectedEmail !== undefined && user.email !== expectedEmail)) return { created: false as const };
 
   const rawToken = randomBytes(32).toString("hex");
   const expiresAt = new Date(now.getTime() + TOKEN_LIFETIME_MS);
@@ -42,10 +46,11 @@ export async function createOrReplaceEmailVerificationToken(
   userId: number,
   now = new Date(),
   tx?: VerificationTransactionClient,
+  expectedEmail?: string,
 ) {
-  if (tx) return createOrReplaceEmailVerificationTokenInTransaction(tx, userId, now);
+  if (tx) return createOrReplaceEmailVerificationTokenInTransaction(tx, userId, now, expectedEmail);
   return prisma.$transaction((transaction) =>
-    createOrReplaceEmailVerificationTokenInTransaction(transaction, userId, now),
+    createOrReplaceEmailVerificationTokenInTransaction(transaction, userId, now, expectedEmail),
   );
 }
 
@@ -64,8 +69,12 @@ export async function restoreReplacedEmailVerificationToken(
   else await prisma.emailVerificationToken.deleteMany({ where });
 }
 
-export async function verifyEmailVerificationToken(rawToken: string, decisionTime = new Date()) {
+export async function verifyEmailVerificationToken(rawToken: string, newPassword: string, decisionTime?: Date) {
+  passwordSchema.parse(newPassword);
   const tokenHash = hashEmailVerificationToken(rawToken);
+  const initial = await prisma.emailVerificationToken.findUnique({ where: { tokenHash }, select: { expiresAt: true } });
+  if (!initial || initial.expiresAt <= (decisionTime ?? new Date())) throw new InvalidOrExpiredVerificationTokenError();
+  const passwordHash = await bcrypt.hash(newPassword, 12);
   return prisma.$transaction(async (tx) => {
     const token = await tx.emailVerificationToken.findUnique({
       where: { tokenHash },
@@ -75,7 +84,7 @@ export async function verifyEmailVerificationToken(rawToken: string, decisionTim
       throw new InvalidOrExpiredVerificationTokenError();
     }
 
-    // Serialize verification with future email changes on the owning User row.
+    // Serialize verification with credential updates on the owning User row.
     // The token is deliberately re-read after the lock: the initial lookup is
     // discovery only and may have become stale while waiting for the lock.
     const lockedUser = await tx.$queryRaw<Array<{ id: number; deletedAt: Date | null }>>`
@@ -88,19 +97,21 @@ export async function verifyEmailVerificationToken(rawToken: string, decisionTim
       where: { tokenHash },
       select: { id: true, userId: true, expiresAt: true },
     });
-    if (!currentToken || currentToken.userId !== token.userId || currentToken.expiresAt <= decisionTime) {
+    const checkedAt = decisionTime ?? new Date();
+    if (!currentToken || currentToken.userId !== token.userId || currentToken.expiresAt <= checkedAt) {
       throw new InvalidOrExpiredVerificationTokenError();
     }
     const consumed = await tx.emailVerificationToken.deleteMany({
-      where: { id: currentToken.id, userId: token.userId, tokenHash, expiresAt: { gt: decisionTime } },
+      where: { id: currentToken.id, userId: token.userId, tokenHash, expiresAt: { gt: checkedAt } },
     });
     if (consumed.count !== 1) throw new InvalidOrExpiredVerificationTokenError();
 
     const updatedUser = await tx.user.updateMany({
       where: { id: token.userId, emailVerified: false, deletedAt: null },
-      data: { emailVerified: true },
+      data: { emailVerified: true, passwordHash, credentialVersion: randomUUID() },
     });
     if (updatedUser.count !== 1) throw new InvalidOrExpiredVerificationTokenError();
+    await tx.refreshSession.updateMany({ where: { userId: token.userId, revokedAt: null }, data: { revokedAt: checkedAt } });
     return { verified: true as const };
   });
 }

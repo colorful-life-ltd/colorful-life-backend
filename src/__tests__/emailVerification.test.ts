@@ -49,7 +49,7 @@ describe("email verification token domain", () => {
     const first = await createOrReplaceEmailVerificationToken(user.id);
     const second = await createOrReplaceEmailVerificationToken(user.id);
     if (!first.created || !second.created) return;
-    await assert.rejects(() => verifyEmailVerificationToken(first.rawToken), InvalidOrExpiredVerificationTokenError);
+    await assert.rejects(() => verifyEmailVerificationToken(first.rawToken, "VerifiedPass1!"), InvalidOrExpiredVerificationTokenError);
     const persisted = await prisma.emailVerificationToken.findUnique({ where: { userId: user.id } });
     assert.strictEqual(await prisma.emailVerificationToken.count({ where: { userId: user.id } }), 1);
     assert.strictEqual(persisted?.tokenHash, hashEmailVerificationToken(second.rawToken));
@@ -64,17 +64,17 @@ describe("email verification token domain", () => {
 
   it("rejects a missing user and invalid tokens", async () => {
     await assert.rejects(() => createOrReplaceEmailVerificationToken(2_147_483_647), EmailVerificationUserNotFoundError);
-    await assert.rejects(() => verifyEmailVerificationToken("unknown-token"), InvalidOrExpiredVerificationTokenError);
+    await assert.rejects(() => verifyEmailVerificationToken("unknown-token", "VerifiedPass1!"), InvalidOrExpiredVerificationTokenError);
   });
 
   it("verifies and consumes a valid token exactly once", async () => {
     const user = await createUser();
     const result = await createOrReplaceEmailVerificationToken(user.id);
     if (!result.created) return;
-    assert.deepStrictEqual(await verifyEmailVerificationToken(result.rawToken), { verified: true });
+    assert.deepStrictEqual(await verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!"), { verified: true });
     assert.strictEqual((await prisma.user.findUnique({ where: { id: user.id } }))?.emailVerified, true);
     assert.strictEqual(await prisma.emailVerificationToken.count({ where: { userId: user.id } }), 0);
-    await assert.rejects(() => verifyEmailVerificationToken(result.rawToken), InvalidOrExpiredVerificationTokenError);
+    await assert.rejects(() => verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!"), InvalidOrExpiredVerificationTokenError);
   });
 
   it("rejects expired tokens at and after the expiry boundary", async () => {
@@ -82,8 +82,25 @@ describe("email verification token domain", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
     const result = await createOrReplaceEmailVerificationToken(user.id, now);
     if (!result.created) return;
-    await assert.rejects(() => verifyEmailVerificationToken(result.rawToken, result.expiresAt), InvalidOrExpiredVerificationTokenError);
-    await assert.rejects(() => verifyEmailVerificationToken(result.rawToken, new Date(result.expiresAt.getTime() + 1)), InvalidOrExpiredVerificationTokenError);
+    await assert.rejects(() => verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!", result.expiresAt), InvalidOrExpiredVerificationTokenError);
+    await assert.rejects(() => verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!", new Date(result.expiresAt.getTime() + 1)), InvalidOrExpiredVerificationTokenError);
+  });
+
+  it("rechecks expiry after waiting for the account lock", async () => {
+    const user = await createUser();
+    const result = await createOrReplaceEmailVerificationToken(user.id);
+    if (!result.created) throw new Error("verification token not created");
+    let verification: Promise<unknown> | undefined;
+    await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id} FOR UPDATE`;
+      verification = verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!");
+      void verification.catch(() => undefined);
+      // Let the request perform its initial lookup and wait on the locked account.
+      await new Promise(resolve => setTimeout(resolve, 700));
+      await tx.emailVerificationToken.update({where:{userId:user.id},data:{expiresAt:new Date(Date.now()-1)}});
+    });
+    await assert.rejects(verification!, InvalidOrExpiredVerificationTokenError);
+    assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).emailVerified, false);
   });
 
   it("allows exactly one concurrent consumer of the same token", async () => {
@@ -91,8 +108,8 @@ describe("email verification token domain", () => {
     const result = await createOrReplaceEmailVerificationToken(user.id);
     if (!result.created) return;
     const outcomes = await Promise.allSettled([
-      verifyEmailVerificationToken(result.rawToken),
-      verifyEmailVerificationToken(result.rawToken),
+      verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!"),
+      verifyEmailVerificationToken(result.rawToken, "VerifiedPass1!"),
     ]);
     assert.strictEqual(outcomes.filter((outcome) => outcome.status === "fulfilled").length, 1);
     assert.strictEqual(outcomes.filter((outcome) => outcome.status === "rejected" && outcome.reason instanceof InvalidOrExpiredVerificationTokenError).length, 1);
@@ -108,9 +125,9 @@ describe("email verification token domain", () => {
     const persisted = await prisma.emailVerificationToken.findUnique({ where: { userId: user.id } });
     assert.strictEqual(await prisma.emailVerificationToken.count({ where: { userId: user.id } }), 1);
     assert.ok(tokens.some((token) => hashEmailVerificationToken(token) === persisted?.tokenHash));
-    const valid = await verifyEmailVerificationToken(tokens.find((token) => hashEmailVerificationToken(token) === persisted?.tokenHash)!);
+    const valid = await verifyEmailVerificationToken(tokens.find((token) => hashEmailVerificationToken(token) === persisted?.tokenHash)!, "VerifiedPass1!");
     assert.deepStrictEqual(valid, { verified: true });
     const stale = tokens.filter((token) => hashEmailVerificationToken(token) !== persisted?.tokenHash)[0];
-    if (stale) await assert.rejects(() => verifyEmailVerificationToken(stale), InvalidOrExpiredVerificationTokenError);
+    if (stale) await assert.rejects(() => verifyEmailVerificationToken(stale, "VerifiedPass1!"), InvalidOrExpiredVerificationTokenError);
   });
 });

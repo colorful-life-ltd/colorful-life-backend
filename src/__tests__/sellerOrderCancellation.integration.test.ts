@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import assert from "node:assert";
 import type { Server } from "node:http";
 import { describe, it, before, after, afterEach } from "node:test";
@@ -142,11 +143,12 @@ describe("Seller Order Cancellation HTTP Integration", () => {
       headers: { ...{ "Idempotency-Key": crypto.randomUUID() }, "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const body = await res.json();
-    if (res.status === 201 && body.token) {
-      recordUserIdFromToken(body.token, userIdsForCleanup);
-    }
-    return { res, body };
+    assert.equal(res.status, 202);
+    const user = await prisma.user.update({where:{email},data:{emailVerified:true,passwordHash:await bcrypt.hash(password, 4)}});
+    userIdsForCleanup.push(user.id);
+    const login = await fetch(`${url}/auth/login`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    assert.equal(login.status, 200);
+    return { res, body: await login.json() };
   }
 
   async function createCustomerWithBillingAddress() {

@@ -48,8 +48,17 @@ export async function resetPassword(
   decisionTime?: Date,
 ) {
   passwordSchema.parse(newPassword);
-  const passwordHash = await bcrypt.hash(newPassword, 12);
   const tokenHash = hashPasswordResetToken(rawToken);
+  // Reject fabricated and expired tokens before allocating expensive bcrypt work.
+  // The transaction below rechecks and consumes the token after taking the lock.
+  const candidate = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+    select: { expiresAt: true },
+  });
+  if (!candidate || candidate.expiresAt <= (decisionTime ?? new Date())) {
+    throw new InvalidOrExpiredPasswordResetTokenError();
+  }
+  const passwordHash = await bcrypt.hash(newPassword, 12);
 
   return prisma.$transaction(async (tx) => {
     const token = await tx.passwordResetToken.findUnique({

@@ -65,7 +65,7 @@ describe("deleted-account authentication regressions", () => {
   });
 
   it("keeps active login working but blocks tombstoned login and keeps forgot-password generic", async () => {
-    const user = await makeUser(); const activeLogin = responseMock();
+    const user = await makeUser("CUSTOMER", true); const activeLogin = responseMock();
     await login({ body: { email: user.email, password: "Abcdef1!" } } as any, activeLogin.res); assert.equal(activeLogin.result().statusCode, 200);
     await prisma.user.update({ where: { id: user.id }, data: { deletedAt: new Date() } });
     restoreReset = setPasswordResetEmailSenderForTests(async () => { throw new Error("must not send"); });
@@ -80,16 +80,15 @@ describe("deleted-account authentication regressions", () => {
     await prisma.user.update({ where: { id: resetUser.id }, data: { deletedAt: new Date() } }); await assert.rejects(() => resetPassword(reset.rawToken, "NewPassword1!"));
     assert.notEqual((await prisma.user.findUnique({ where: { id: resetUser.id } }))?.deletedAt, null);
     const verifyUser = await makeUser(); const verification = await createOrReplaceEmailVerificationToken(verifyUser.id);
-    await prisma.user.update({ where: { id: verifyUser.id }, data: { deletedAt: new Date() } }); await assert.rejects(() => verifyEmailVerificationToken(verification.rawToken!));
+    await prisma.user.update({ where: { id: verifyUser.id }, data: { deletedAt: new Date() } }); await assert.rejects(() => verifyEmailVerificationToken(verification.rawToken!, "VerifiedPass1!"));
     const state = await prisma.user.findUnique({ where: { id: verifyUser.id } }); assert.equal(state?.emailVerified, false); assert.notEqual(state?.deletedAt, null);
   });
 
   it("does not resend verification to a tombstoned user", async () => {
     const user = await makeUser(); await prisma.user.update({ where: { id: user.id }, data: { deletedAt: new Date() } });
     let sends = 0; restoreVerification = setVerificationEmailSenderForTests(async () => { sends++; }); const result = responseMock();
-    await resendVerification({ user: { id: user.id, role: user.role } } as any, result.res);
-    // Direct controller invocation bypasses authMiddleware; the controller's
-    // defensive current-user lookup therefore returns its established 404.
-    assert.equal(result.result().statusCode, 404); assert.equal(sends, 0); assert.equal(await prisma.emailVerificationToken.count({ where: { userId: user.id } }), 0);
+    await resendVerification({ body: { email: user.email } } as any, result.res);
+    assert.deepEqual(result.result(), { statusCode: 200, body: { message: "If verification is needed, check your email for next steps." } });
+    assert.equal(sends, 0); assert.equal(await prisma.emailVerificationToken.count({ where: { userId: user.id } }), 0);
   });
 });

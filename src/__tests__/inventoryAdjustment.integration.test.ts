@@ -38,7 +38,7 @@ afterEach(async () => {
 });
 
 async function user(role: "ADMIN" | "CUSTOMER") {
-  const created = await prisma.user.create({ data: { email: `${role}-${randomUUID()}@example.com`, passwordHash: "test", role } });
+  const created = await prisma.user.create({ data: { email: `${role}-${randomUUID()}@example.com`, passwordHash: "test", emailVerified: true, role } });
   users.push(created.id);
   return { id: created.id, token: jwt.sign({ id: created.id, role }, config.JWT_SECRET, { expiresIn: "1h" }) };
 }

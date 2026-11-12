@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import assert from "node:assert";
 import type { Server } from "node:http";
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
@@ -45,16 +46,11 @@ async function createTestUser(url: string): Promise<{ token: string; userId: num
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  assert.strictEqual(signupRes.status, 201, "Signup should succeed");
-  const signupBody = await signupRes.json();
-  const token = signupBody.token;
-  // Decode token payload to obtain the user ID
-  const payload = JSON.parse(
-    Buffer.from(token.split(".")[1], "base64url").toString("utf8")
-  );
-  const userId = payload.id as number;
-  await prisma.user.update({ where: { id: userId }, data: { emailVerified: true } });
-  return { token, userId };
+  assert.strictEqual(signupRes.status, 202, "Signup should succeed");
+  const user = await prisma.user.update({ where: { email }, data: { emailVerified: true, passwordHash: await bcrypt.hash(password, 4) } });
+  const login = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+  assert.strictEqual(login.status, 200);
+  return { token: (await login.json()).token as string, userId: user.id };
 }
 
 /**

@@ -217,7 +217,7 @@ it("legacy unresolved refunds and unknown explicit refundIds never create new pr
 it("manual reconciliation endpoint enforces auth, ownership and disabled activation",async()=>{
  const f=await fixture();const pending=await stripe(f,{createRefund:async()=>stripeResponse(f,undefined,"pending")});const path=`${base}/orders/${f.order.id}/refunds/${pending.id}/reconcile`;
  assert.equal((await fetch(path,{method:"POST"})).status,401);
- const customer=await prisma.user.create({data:{email:`${randomUUID()}@refund-safety.test`,passwordHash:"fixture",role:"CUSTOMER"}});
+ const customer=await prisma.user.create({data:{email:`${randomUUID()}@refund-safety.test`,passwordHash:"fixture",emailVerified:true,role:"CUSTOMER"}});
  const token=jwt.sign({id:customer.id,role:"CUSTOMER"},config.JWT_SECRET);assert.equal((await fetch(path,{method:"POST",headers:{Authorization:`Bearer ${token}`}})).status,403);
  assert.equal((await fetch(path,{method:"POST",headers:{Authorization:`Bearer ${f.token}`}})).status,503);
  config.REFUND_RECONCILIATION_ENABLED=true;
