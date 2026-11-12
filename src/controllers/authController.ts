@@ -1,6 +1,7 @@
 import {logOperationalError} from "../utils/operationalLog.js";
 import { sendProtectionError } from "../middleware/checkoutProtection.js";
 import { setTimeout as delay } from "node:timers/promises";
+import { randomBytes } from "node:crypto";
 import { Request, Response } from "express";
 import { signupSchema, loginSchema, verifyEmailSchema, forgotPasswordSchema, resetPasswordSchema } from "../utils/authValidation.js";
 import bcrypt from "bcrypt";
@@ -76,11 +77,13 @@ export const signup = async (req: Request, res: Response) => {
   const started = performance.now();
   const generic = { message: "If registration is available for this address, check your email for next steps." };
   const finish = async () => { await delay(Math.max(0, 1500 - (performance.now() - started))); return res.status(202).json(generic); };
-  const { email, password } = parseResult.data;
+  const { email } = parseResult.data;
   // `email` is already normalized by the Zod schema via trim+lowercase
   const normalizedEmail = email;
   try {
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Signup does not establish a credential. Even an older verifier that only
+    // flips emailVerified cannot activate the password supplied by a stranger.
+    const hashedPassword = await bcrypt.hash(randomBytes(32).toString("hex"), 12);
     const persistence = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {

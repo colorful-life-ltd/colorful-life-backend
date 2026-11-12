@@ -29,6 +29,11 @@ it('generic signup, verification, session, reset and negative paths',async()=>{
  const user=await prisma.user.findUniqueOrThrow({where:{email}});userId=user.id
  const duplicate=await post('/auth/signup',{email:email.toUpperCase(),password});assert.equal(duplicate.response.status,202);assert.deepEqual(duplicate.body,first.body)
  const unverified=await post('/auth/login',{email,password:attackerPassword});assert.equal(unverified.response.status,401);assert.equal(unverified.body.token,undefined)
+ // Simulate a previous backend verifier that merely flips the verification bit.
+ // The supplied signup password must still be unable to authenticate.
+ await prisma.user.update({where:{id:userId},data:{emailVerified:true}})
+ assert.equal((await post('/auth/login',{email,password:attackerPassword})).response.status,401)
+ await prisma.user.update({where:{id:userId},data:{emailVerified:false}})
  const legacy=jwt.sign({id:userId,role:'CUSTOMER',credentialVersion:user.credentialVersion},config.JWT_SECRET)
  const denied=await fetch(base+'/users/me',{headers:{authorization:`Bearer ${legacy}`}});assert.equal(denied.status,401)
  assert.ok(verifyUrl);const stale=new URL(verifyUrl).searchParams.get('token');assert.ok(stale)
@@ -55,4 +60,22 @@ it('generic signup, verification, session, reset and negative paths',async()=>{
  assert.equal((await post('/auth/reset-password',{token:resetToken,newPassword:'AnotherPass2!'})).response.status,200)
  assert.equal((await post('/auth/reset-password',{token:resetToken,newPassword:'AnotherPass2!'})).response.status,400)
  assert.equal((await post('/auth/login',{email,password:'AnotherPass2!'})).response.status,200)
+})
+
+it('an unverified customer can recover only after proving email ownership',async()=>{
+ const pendingEmail=`pending-${randomUUID()}@example.test`
+ let id=0
+ try {
+  verifyUrl='';resetUrl=''
+  assert.equal((await post('/auth/signup',{email:pendingEmail,password:'InitialPass1!'})).response.status,202)
+  id=(await prisma.user.findUniqueOrThrow({where:{email:pendingEmail}})).id
+  assert.equal((await post('/auth/forgot-password',{email:pendingEmail})).response.status,200)
+  const resetToken=new URL(resetUrl).searchParams.get('token');assert.ok(resetToken)
+  assert.equal((await post('/auth/reset-password',{token:resetToken,newPassword:'ResetPass1!'})).response.status,200)
+  assert.equal((await post('/auth/login',{email:pendingEmail,password:'ResetPass1!'})).response.status,401)
+  assert.equal((await post('/auth/resend-verification',{email:pendingEmail})).response.status,200)
+  const verificationToken=new URL(verifyUrl).searchParams.get('token');assert.ok(verificationToken)
+  assert.equal((await post('/auth/verify-email',{token:verificationToken,newPassword:'VerifiedPass1!'})).response.status,200)
+  assert.equal((await post('/auth/login',{email:pendingEmail,password:'VerifiedPass1!'})).response.status,200)
+ } finally { if(id) await prisma.user.deleteMany({where:{id}}) }
 })

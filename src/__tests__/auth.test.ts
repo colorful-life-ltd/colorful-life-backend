@@ -105,7 +105,7 @@ describe("Auth API", () => {
     assert.ok(user.passwordHash, "passwordHash should exist");
     assert.notStrictEqual(user.passwordHash, password, "passwordHash should not equal plaintext");
     const matches = await bcrypt.compare(password, user.passwordHash!);
-    assert.ok(matches, "bcrypt.compare should succeed");
+    assert.equal(matches, false, "the signup password must not be an account credential");
     assert.ok(!body.hasOwnProperty("passwordHash"), "Response should not expose passwordHash");
   });
 
@@ -158,7 +158,7 @@ describe("Auth API", () => {
     const email = `login-${randomUUID()}@example.com`;
     const password = "Abcdef1!";
     await signup(url, email, password);
-    await prisma.user.update({ where: { email }, data: { emailVerified: true } });
+    await prisma.user.update({ where: { email }, data: { emailVerified: true, passwordHash: await bcrypt.hash(password, 4) } });
     const { res: loginRes, body } = await login(url, email, password);
     assert.strictEqual(loginRes.status, 200);
     assert.ok(body.token, "Login should return a token");
@@ -170,7 +170,7 @@ describe("Auth API", () => {
     const rawEmail = `Norm-${randomUUID()}@Example.com`;
     const password = "Abcdef1!";
     await signup(url, rawEmail, password);
-    await prisma.user.update({ where: { email: rawEmail.toLowerCase() }, data: { emailVerified: true } });
+    await prisma.user.update({ where: { email: rawEmail.toLowerCase() }, data: { emailVerified: true, passwordHash: await bcrypt.hash(password, 4) } });
     const { res: loginRes, body } = await login(url, rawEmail.toUpperCase(), password);
     assert.strictEqual(loginRes.status, 200);
     assert.ok(body.token);
@@ -220,7 +220,7 @@ describe("Auth API", () => {
     const email = `profile-${randomUUID()}@example.com`;
     const password = "Abcdef1!";
     await signup(url, email, password);
-    await prisma.user.update({ where: { email: email.toLowerCase() }, data: { emailVerified: true } });
+    await prisma.user.update({ where: { email: email.toLowerCase() }, data: { emailVerified: true, passwordHash: await bcrypt.hash(password, 4) } });
     const { body: loginBody } = await login(url, email, password);
     const token = loginBody.token;
     const res = await fetch(`${url}/profile`, {

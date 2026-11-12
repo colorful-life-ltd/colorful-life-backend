@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import assert from "node:assert";
 import path from "node:path";
 import fs from "node:fs";
@@ -36,7 +37,7 @@ async function createTestUser(url: string): Promise<{ token: string; userId: num
     body: JSON.stringify({ email, password }),
   });
   assert.strictEqual(signupRes.status, 202, "Signup should succeed");
-  const user = await prisma.user.update({ where: { email }, data: { emailVerified: true, role: "ADMIN" } });
+  const user = await prisma.user.update({ where: { email }, data: { emailVerified: true, passwordHash: await bcrypt.hash(password, 4), role: "ADMIN" } });
   const userId = user.id;
   const loginRes = await fetch(`${url}/auth/login`, {
     method: "POST",
@@ -52,7 +53,7 @@ async function createVerifiedCustomer(url: string): Promise<{ token: string; use
   const email = `customer-import-test-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
   const signupRes = await fetch(`${url}/auth/signup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password: "Test1234!" }) });
   assert.strictEqual(signupRes.status, 202);
-  const user = await prisma.user.update({ where: { email }, data: { emailVerified: true } });
+  const user = await prisma.user.update({ where: { email }, data: { emailVerified: true, passwordHash: await bcrypt.hash("Test1234!", 4) } });
   const login = await fetch(`${url}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password: "Test1234!" }) });
   assert.strictEqual(login.status, 200);
   return { token: (await login.json()).token as string, userId: user.id };

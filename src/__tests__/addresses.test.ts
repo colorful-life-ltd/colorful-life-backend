@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import assert from "node:assert";
 import type { Server } from "node:http";
 import { describe, it, before, after, afterEach } from "node:test";
@@ -57,7 +58,7 @@ describe("Address API", () => {
       body: JSON.stringify({ email, password }),
     });
     assert.strictEqual(res.status, 202);
-    const user = await prisma.user.update({ where: { email: email.toLowerCase() }, data: { emailVerified: true } });
+    const user = await prisma.user.update({ where: { email: email.toLowerCase() }, data: { emailVerified: true, passwordHash: await bcrypt.hash(password, 4) } });
     userIdsForCleanup.push(user.id);
     return login(email, password);
   }
