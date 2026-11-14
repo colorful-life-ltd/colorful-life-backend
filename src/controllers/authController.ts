@@ -3,7 +3,7 @@ import { sendProtectionError } from "../middleware/checkoutProtection.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { randomBytes } from "node:crypto";
 import { Request, Response } from "express";
-import { signupSchema, loginSchema, verifyEmailSchema, forgotPasswordSchema, resetPasswordSchema } from "../utils/authValidation.js";
+import { registrationSchema, loginSchema, verifyEmailSchema, forgotPasswordSchema, resetPasswordSchema } from "../utils/authValidation.js";
 import bcrypt from "bcrypt";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { Prisma } from "../generated/prisma-client/client.js";
@@ -70,7 +70,7 @@ export function setRefreshSessionRotationForTests(testRotation: RefreshRotation)
 
 
 export const signup = async (req: Request, res: Response) => {
-  const parseResult = signupSchema.safeParse(req.body);
+  const parseResult = registrationSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({ error: parseResult.error.format() });
   }

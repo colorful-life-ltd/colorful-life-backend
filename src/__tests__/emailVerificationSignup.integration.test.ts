@@ -6,6 +6,7 @@ import app from "../app.js";
 import { config } from "../config/index.js";
 import { prisma } from "../prisma/runtime.js";
 import { hashEmailVerificationToken } from "../domain/auth/emailVerificationService.js";
+import bcrypt from "bcrypt";
 import { setVerificationEmailSenderForTests, type VerificationEmail } from "../services/emailService.js";
 // Public registration is closed by default; these tests exercise the signup flow explicitly.
 before(() => { config.REGISTRATION_ENABLED = true; });
@@ -61,6 +62,45 @@ describe("signup verification email integration", () => {
     assert.strictEqual(new URL(email!.verificationUrl).origin, config.FRONTEND_URL);
     assert.strictEqual(email!.recipientEmail, registeredEmail.trim().toLowerCase());
     assert.equal(JSON.stringify(body).includes(rawToken!), false);
+  });
+
+  it("registers with the email only, then activates the password chosen at verification", async () => {
+    const emails: VerificationEmail[] = [];
+    restoreSender = setVerificationEmailSenderForTests(async (value) => { emails.push(value); });
+    const registeredEmail = `email-only-${randomUUID()}@example.com`;
+    const post = (path: string, body: unknown) => fetch(`${url}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const first = await post("/auth/signup", { email: registeredEmail });
+    assert.strictEqual(first.status, 202);
+    const generic = await first.json();
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: registeredEmail } });
+    userIds.push(user.id);
+    assert.strictEqual(user.emailVerified, false);
+    assert.strictEqual(emails.length, 1);
+    // A repeated email-only registration answers identically and sends nothing new (no enumeration).
+    const repeat = await post("/auth/signup", { email: registeredEmail });
+    assert.strictEqual(repeat.status, 202);
+    assert.deepStrictEqual(await repeat.json(), generic);
+    assert.strictEqual(emails.length, 1);
+    // Unverified accounts cannot sign in.
+    assert.strictEqual((await post("/auth/login", { email: registeredEmail, password: "Chosen1!pass" })).status, 401);
+    const rawToken = new URL(emails[0].verificationUrl).searchParams.get("token")!;
+    assert.strictEqual((await post("/auth/verify-email", { token: rawToken })).status, 400, "verification still requires the new password");
+    assert.strictEqual((await post("/auth/verify-email", { token: rawToken, newPassword: "Chosen1!pass" })).status, 200);
+    const verified = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    assert.strictEqual(verified.emailVerified, true);
+    assert.equal(await bcrypt.compare("Chosen1!pass", verified.passwordHash!), true);
+    assert.strictEqual((await post("/auth/verify-email", { token: rawToken, newPassword: "Other1!pass" })).status, 400, "tokens are single-use");
+    assert.strictEqual((await post("/auth/login", { email: registeredEmail, password: "Chosen1!pass" })).status, 200);
+  });
+
+  it("still rejects an invalid email, and a weak password from an older client, on email-only signup", async () => {
+    restoreSender = setVerificationEmailSenderForTests(async () => undefined);
+    const post = (body: unknown) => fetch(`${url}/auth/signup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    assert.strictEqual((await post({})).status, 400);
+    assert.strictEqual((await post({ email: "not-an-email" })).status, 400);
+    const weak = `weak-${randomUUID()}@example.com`;
+    assert.strictEqual((await post({ email: weak, password: "short" })).status, 400);
+    assert.equal(await prisma.user.findUnique({ where: { email: weak } }), null);
   });
 
   it("keeps signup successful and preserves the token when email delivery fails", async () => {
