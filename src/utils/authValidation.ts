@@ -36,6 +36,13 @@ export const passwordSchema = z
     password: passwordSchema,
   });
 
+/**
+ * Public customer registration collects the email only: the password is chosen at verification
+ * and signup never stores it. A password sent by an older storefront is still validated with the
+ * same rules (so such clients see unchanged responses) and is then discarded by the controller.
+ */
+export const registrationSchema = signupSchema.extend({ password: passwordSchema.optional() });
+
 export const verifyEmailSchema = z.object({
   token: z.string().trim().min(1),
   newPassword: passwordSchema,
