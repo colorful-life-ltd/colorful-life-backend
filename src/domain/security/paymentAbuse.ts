@@ -108,3 +108,7 @@ export async function admitFinancialOperation(...args: Parameters<typeof admitFi
 export async function admitOrderCreation(...args: Parameters<typeof admitOrderCreationInner>) {
   try { await admitOrderCreationInner(...args); } catch (error) { protectionUnavailable(error); }
 }
+/** Storefront closure. Missing/unreadable policy fails closed. FOR SHARE linearizes with operator closure. */
+export async function assertCheckoutOpen(tx: Prisma.TransactionClient) {
+  try { await policy(tx, 'STRIPE'); } catch (error) { protectionUnavailable(error); }
+}
