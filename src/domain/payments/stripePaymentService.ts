@@ -1,4 +1,4 @@
-import { admitFinancialOperation } from "../security/paymentAbuse.js";
+import { admitFinancialOperation, assertCheckoutOpen } from "../security/paymentAbuse.js";
 import { replayManagedStripeReceipts } from "./stripeReconciliationService.js";
 import { randomUUID } from "node:crypto";
 import { finalizeManagedStripeRetrieval, checkPaymentAdmission, guardPendingCreation, journalNewPayment, bindManagedProvider, journalManagedRetrieval } from "./paymentResolutionService.js";
@@ -58,6 +58,11 @@ export async function createOrReuseStripePaymentIntent(
     if (existing) {
       if (existing.provider !== PaymentProvider.STRIPE) throw new StripePaymentAlreadyCompletedError();
       if (existing.status === PaymentStatus.SUCCEEDED) throw new StripePaymentAlreadyCompletedError();
+    }
+    // Closure blocks create, retry, pending redispatch and existing-intent reuse before
+    // any journal write or provider call. Completed payments keep their 409 above.
+    await assertCheckoutOpen(tx);
+    if (existing) {
       if (managed && existing.status === PaymentStatus.CANCELED && managed.retryDeadline) {
         const previous = await tx.paymentAttempt.findFirst({ where: { paymentId: existing.id, providerReference: existing.providerReference, historical: false } });
         if (!previous?.finalityEvidenceId || await tx.paymentOperation.count({ where: { attemptId: previous.id, state: { not: "RESULT_RECORDED" } } })) throw new StripePaymentNotPayableError();
@@ -131,6 +136,8 @@ export async function createOrReuseStripePaymentIntent(
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
     if (order.userId !== userId) throw new StripePaymentOwnershipError();
     await checkPaymentAdmission(tx, orderId);
+    // Closure committed during provider I/O: never release the client secret.
+    await assertCheckoutOpen(tx);
   });
   if (await prisma.paymentResolution.findFirst({ where: { orderId, historical: false, firstFailureVerifiedAt: { not: null } } })
     && intent.status !== "requires_payment_method") throw new StripePaymentNotPayableError();

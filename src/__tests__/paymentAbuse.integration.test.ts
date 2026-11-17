@@ -196,10 +196,10 @@ describe('initiation switches and safe recovery', { concurrency: 1 }, () => {
     const f = await order(); config.PAYMENT_STRIPE_INITIATION_ENABLED = false;
     await assert.rejects(admit(f), PaymentAbuseError); config.PAYMENT_STRIPE_INITIATION_ENABLED = true; await admit(f);
   });
-  it('retains bound Stripe checkout retrieval when new initiation is disabled', async () => {
-    const f = await order(), sdk = stripe(); const first = await createOrReuseStripePaymentIntent(f.o.id, f.u.id, sdk.client);
+  it('withholds bound Stripe checkout secrets when initiation is disabled', async () => {
+    const f = await order(), sdk = stripe(); await createOrReuseStripePaymentIntent(f.o.id, f.u.id, sdk.client);
     config.PAYMENT_STRIPE_INITIATION_ENABLED = false;
-    assert.equal((await createOrReuseStripePaymentIntent(f.o.id, f.u.id, sdk.client)).providerReference, first.providerReference);
+    await assert.rejects(createOrReuseStripePaymentIntent(f.o.id, f.u.id, sdk.client), (e: unknown) => e instanceof PaymentAbuseError && e.code === 'PAYMENT_INITIATION_DISABLED');
     assert.equal(sdk.calls(), 1);
   });
   it('preserves explicit recovery when initiation HTTP work is exhausted and switches are disabled', async () => {

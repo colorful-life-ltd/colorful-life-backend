@@ -78,6 +78,11 @@ export function presentCustomerPaymentWindow(input: PaymentWindowInput): Custome
   if ((!payment || (managed && finalUnpaid && payment.status === "CANCELED")) && input.newInitiationEnabled === false) return finish("NOT_PAYABLE", unavailableReason);
   if (!payment) return finish("INITIAL_PAYMENT", "INITIAL_WINDOW_OPEN", "ELIGIBLE");
   if (payment.provider !== "STRIPE") return finish("OUTCOME_UNRESOLVED", "OTHER_PROVIDER");
+  // Checkout closure withholds resume, but never proves an existing attempt failed or was cancelled.
+  if (input.newInitiationEnabled === false) {
+    const awaiting = pending && !r?.firstFailureVerifiedAt;
+    return finish(awaiting ? "PROCESSING" : "OUTCOME_UNRESOLVED", awaiting ? "AWAITING_PAYMENT_OUTCOME" : unavailableReason);
+  }
   if (managed && r.retryDeadline && finalUnpaid && payment.status === "CANCELED") return finish("RETRY_AVAILABLE", "VERIFIED_UNPAID_RETRY", "ELIGIBLE");
   // A failure receipt opens a window but does not persist the current provider status.
   // Initiation still retrieves Stripe and requires requires_payment_method after failure.
